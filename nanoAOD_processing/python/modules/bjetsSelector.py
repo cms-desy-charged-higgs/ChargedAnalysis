@@ -6,9 +6,9 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 
 class bjetsSelector(Module):
-    def __init__(self, era, csvWP, minNTags):
+    def __init__(self, era, csvWP, minNTags, pt_cut):
         #https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation94X
-        
+
         self.btag = {
             2017: {
                     "loose": 0.1522, 
@@ -27,11 +27,14 @@ class bjetsSelector(Module):
         self.era = era
         self.csvWP = csvWP
         self.minNTags = minNTags
+        self.pt_cut = pt_cut
 
     def beginJob(self):
         pass
+
     def endJob(self):
         pass
+
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
@@ -44,6 +47,7 @@ class bjetsSelector(Module):
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
+
     def analyze(self, event):
         if event.nJet<self.minNTags:
             return False
@@ -53,7 +57,7 @@ class bjetsSelector(Module):
             bjets = []
 
             for jet in jets:
-                if jet.btagDeepB > self.btag[self.era][self.csvWP]:
+                if jet.btagDeepB > self.btag[self.era][self.csvWP] and jet.pt > self.pt_cut:
                     bjets.append(jet)
 
             
@@ -72,4 +76,4 @@ class bjetsSelector(Module):
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-ChargedHiggsBjetsSelector = lambda : bjetsSelector(era = 2017, csvWP = "loose", minNTags = 4) 
+ChargedHiggsBjetsSelector = lambda : bjetsSelector(era = 2017, csvWP = "loose", pt_cut = 30, minNTags = 4) 

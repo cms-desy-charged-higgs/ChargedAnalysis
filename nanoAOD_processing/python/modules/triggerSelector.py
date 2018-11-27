@@ -7,13 +7,15 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 class triggerSelector(Module):
     def __init__(self, triggerpaths):
-        
+
         self.triggerpaths = triggerpaths
 
     def beginJob(self):
         pass
+
     def endJob(self):
         pass
+
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
@@ -29,7 +31,7 @@ class triggerSelector(Module):
         if True in trigger_decision:
             for n, trigger in enumerate(self.triggerpaths):
                 self.out.fillBranch(trigger,  trigger_decision[n])
-        
+
             return True
 
         else:

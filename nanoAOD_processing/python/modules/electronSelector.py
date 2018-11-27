@@ -32,8 +32,10 @@ class electronSelector(Module):
 
     def beginJob(self):
         pass
+
     def endJob(self):
         pass
+
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
@@ -46,6 +48,7 @@ class electronSelector(Module):
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
+
     def analyze(self, event):
         if event.nElectron<self.minN:
             return False
