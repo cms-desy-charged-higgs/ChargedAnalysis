@@ -1,0 +1,9 @@
+<Flags LDFLAGS = "-l TreePlayer -rdynamic"/>
+
+<use name="root"/>
+
+<export>
+    <lib name = "1"/>
+</export>
+
+

@@ -1,0 +1,6 @@
+<bin name="main" file="main.cc">
+    <use name="ChargedHiggs/plotting"/>
+    
+    <Flags LDFLAGS = "-l TreePlayer"/>
+</bin>
+
