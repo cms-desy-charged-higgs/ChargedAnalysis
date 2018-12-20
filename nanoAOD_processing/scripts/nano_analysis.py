@@ -39,7 +39,13 @@ def get_filenames(filetxt):
     filelist = {}
 
     for dataset in datasets:
-        filelist[dataset.split("/")[1]] = [global_director + filename['logical_file_name'] for filename in dbs.listFiles(dataset=dataset)]
+        if "RunIIFall" in dataset:
+            key = dataset.split("/")[1]
+            
+        else:
+            key = dataset.split("/")[1] + "-" +  dataset.split("/")[2]
+
+        filelist[key] = [global_director + filename['logical_file_name'] for filename in dbs.listFiles(dataset=dataset)]
 
     return filelist
 
@@ -72,15 +78,22 @@ def condor_submit(outdir, filename):
     job["log"]                    = outdir + "/log/job_$(Cluster).log"
     job["output"]                    = outdir + "/log/job_$(Cluster).out"
     job["error"]                    = outdir + "/log/job_$(Cluster).err"
-     
+
+    job["retry_untl"] = "ExitCode >= 0"     
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{filename} = {outdir}/{filename}'.format(filename=skimfilename, outdir=outdir) + '"'
 
 
     with schedd.transaction() as txn:
         job.queue(txn, 1)
-        print "Submitting job for file {}".format(filename)
 
+        while True:
+            try:
+                print "Submitting job for file {}".format(filename)
+                break
+            
+            except RuntimeError:
+                print "Submitting job for file {}".format(filename)
     
 def main():
     args = parser()
@@ -108,11 +121,9 @@ def main():
 
             os.system("mkdir -p {}/log".format(outdir))
 
-            time.sleep(5)
-
             for filename in filenames:
                 condor_submit(outdir, filename)
        
-        
+   
 if __name__ == "__main__":
     main()
