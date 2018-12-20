@@ -1,21 +1,20 @@
 ##Selector modules
 
-from ChargedHiggs.nanoAOD_processing.modules.triggerSelector import ChargedHiggsEleTriggerSelector
-from ChargedHiggs.nanoAOD_processing.modules.electronSelector import ChargedHiggsElectronSelector
-from ChargedHiggs.nanoAOD_processing.modules.bjetsSelector import ChargedHiggsBjetsSelector
+from ChargedHiggs.nanoAOD_processing.modules.triggerSelector import cHiggsEleTriggerSelector
+from ChargedHiggs.nanoAOD_processing.modules.electronSelector import cHiggsElectronSelector
+from ChargedHiggs.nanoAOD_processing.modules.jetSelector import cHiggsJetSelector
 
 ##Producer modules
 
-from ChargedHiggs.nanoAOD_processing.modules.smallHiggsProducer import ChargedHiggsSmallHiggsProducer
-from ChargedHiggs.nanoAOD_processing.modules.WBosonProducer import ChargedHiggsWBosonProducer
-from ChargedHiggs.nanoAOD_processing.modules.ChargedHiggsProducer import ChargedHiggsBosonProducer
+from ChargedHiggs.nanoAOD_processing.modules.MCWeightProducer import ChargedHiggsMCWeightProducer
+from ChargedHiggs.nanoAOD_processing.modules.puWeightProducer import puAutoWeight
+
 
 module_list = [ 
-                ChargedHiggsEleTriggerSelector(),
-                ChargedHiggsElectronSelector(),
-                ChargedHiggsBjetsSelector(),  
+                cHiggsEleTriggerSelector(),
+                cHiggsElectronSelector(2017, 36., 2.4),
+                cHiggsJetSelector(2017, 30., 2.4),
    
-                ChargedHiggsSmallHiggsProducer(),    
-                ChargedHiggsWBosonProducer(),   
-                ChargedHiggsBosonProducer(),        
+                ChargedHiggsMCWeightProducer(),
+                puAutoWeight(),
 ]
