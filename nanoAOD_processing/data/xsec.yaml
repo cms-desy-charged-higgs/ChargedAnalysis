@@ -1,6 +1,6 @@
-TTJets_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 496.1
-    n_gen: 8026103
+TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8:
+    xsec: 722.8
+    n_gen: 153531390
 
 TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8:
     xsec: 0.05324
@@ -57,6 +57,90 @@ WZZ_TuneCP5_13TeV-amcatnlo-pythia8:
 WWW_4F_TuneCP5_13TeV-amcatnlo-pythia8:
     xsec: 0.2086
     n_gen: 232300
+
+ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-amcatnlo-pythia8:
+    xsec: 3.74
+    n_gen: 9883805
+
+ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8:
+    xsec: 34.91
+    n_gen: 7485152
+
+ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8:
+    xsec: 34.97
+    n_gen: 7977430
+
+ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
+    xsec: 67.91
+    n_gen: 3675910
+
+ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
+    xsec: 113.3
+    n_gen: 5865875
+
+DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 6225.42
+    n_gen: 48500499
+
+DYJetsToLL_M-50_HT-100to200_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 161.1
+    n_gen: 10235418
+
+DYJetsToLL_M-50_HT-200to400_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 48.66
+    n_gen: 10728447
+
+DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 6.968
+    n_gen: 10219524
+
+DYJetsToLL_M-50_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 1.743
+    n_gen: 8743640
+
+DYJetsToLL_M-50_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 0.8052
+    n_gen: 3114980
+
+DYJetsToLL_M-50_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 625517
+    n_gen: 0.1933
+
+DYJetsToLL_M-50_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 419308
+    n_gen: 0.003468
+
+WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 52940.0
+    n_gen: 44767978
+
+WJetsToLNu_HT-100To200_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 1395.0
+    n_gen: 35549343
+
+WJetsToLNu_HT-200To400_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 407.9
+    n_gen: 21250517
+
+WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 57.48
+    n_gen: 14313274
+
+WJetsToLNu_HT-600To800_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 12.87
+    n_gen: 21664301
+
+WJetsToLNu_HT-800To1200_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 5.366
+    n_gen: 20466692
+
+WJetsToLNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 1.074
+    n_gen: 19877812
+
+WJetsToLNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 0.008001
+    n_gen: 21379053
 
 QCD_HT100to200_TuneCP5_13TeV-madgraph-pythia8:
     xsec: 23700000.0
