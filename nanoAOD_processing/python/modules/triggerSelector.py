@@ -40,4 +40,4 @@ class triggerSelector(Module):
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-ChargedHiggsEleTriggerSelector = lambda : triggerSelector(triggerpaths = ["HLT_Ele27_WPTight_Gsf"]) 
+cHiggsEleTriggerSelector = lambda : triggerSelector(triggerpaths = ["HLT_Ele35_WPTight_Gsf"]) #https://indico.cern.ch/event/662751/contributions/2778365/attachments/1561439/2458438/egamma_workshop_triggerTalk.pdf
