@@ -1,0 +1,7 @@
+<use name="root"/>
+<use name="rootphysics"/>
+<use name="rootgraphics"/>
+
+<export>
+    <lib name="1"/>
+</export>
