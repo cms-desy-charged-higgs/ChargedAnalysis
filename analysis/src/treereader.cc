@@ -6,7 +6,17 @@ TreeReader::TreeReader(){}
 
 TreeReader::TreeReader(std::string &process):
     process(process),
-    histValues({}){
+    histValues({}),
+    procDic({
+            {"DY+j", DY},
+            {"W+j", WJ},
+            {"data", DATA},
+            {"VV+VVV", VV},
+            {"QCD", QCD},
+            {"TT+X", TT},
+            {"T+X", T}
+    }){
+
     SetHistMap();   
 }
 
@@ -28,54 +38,70 @@ float TreeReader::GetWeight(Event event, std::vector<float> weights){
         totalWeight *= weight;
     }
 
+    for(Lepton electron: event.leptons){
+        totalWeight *= electron.recoSF*electron.mediumMvaSF;
+    }
+
+    //totalWeight *= event.jets[0].bTagSF*event.jets[1].bTagSF;
+
     return totalWeight;
 }
 
-//Internal Loop, which fills the Histograms
+bool TreeReader::Cut(Event event){
+    bool cut = true;
 
-void TreeReader::InnerLoop(std::string filename){
-    std::lock_guard<std::mutex> lockGuard(mutex);
-    
-    TFile* file = TFile::Open(filename.c_str(), "READ");
-    TTreeReader reader("Events", file);
+    cut *= (event.leptons.size() == 1)*(event.leptons[0].isMedium)*(event.leptons[0].isolation < 0.1)*(event.leptons[0].fourVec.Pt() > 100.);
 
-    TTreeReaderValue<std::vector<Lepton>> electronReader(reader, "electron");
-    TTreeReaderValue<std::vector<Jet>> jetReader(reader, "jet");
-    TTreeReaderValue<TLorentzVector> METReader(reader, "MET");
+    //*(event.jets.size() == 4)*(event.jets[0].isMediumB)*(event.jets[1].isMediumB);
 
-    TTreeReaderValue<float> lumiReader(reader, "lumi");
-    TTreeReaderValue<float> nGenReader(reader, "ngen");
-    TTreeReaderValue<float> xSecReader(reader, "xsec");
-    TTreeReaderValue<float> genReader(reader, "genWeight");
-    TTreeReaderValue<float> PUReader(reader, "puWeight");
-
-    std::cout << filename << std::endl;
-
-    while(reader.Next()){
-            
-        Event event = {*electronReader, *jetReader, *METReader};
-        std::vector<float> weights = {*lumiReader,1.f/ *nGenReader, *xSecReader, *genReader, *PUReader};
-
-                
-        for(std::pair<TH1F*, std::function<float (Event)>> hist: histograms){
-            hist.first->Fill(hist.second(event), GetWeight(event, weights)); 
-        }        
-    }
-
-    file->Close(); 
+    return cut;
 }
 
-//Loops over all filenames and parallize reading of all trees
-
 void TreeReader::EventLoop(std::vector<std::string> &filenames){
+    Processes proc = procDic[process];    
+
+    TChain* chain = new TChain("Events");   
+    
     for(std::string filename: filenames){
-        threads.push_back(std::thread(&TreeReader::InnerLoop, this, filename));
+        chain->Add(filename.c_str());
+    }
+        
+    std::vector<Lepton>* electrons = NULL;
+    std::vector<Jet>* jets = NULL;
+    TLorentzVector* MET = NULL;
+
+    chain->SetBranchAddress("electron", &electrons);
+    chain->SetBranchAddress("jet", &jets);
+    chain->SetBranchAddress("MET", &MET);
+
+    float lumi, nGen, xSec, puWeight, genWeight;
+
+    if(proc != DATA){
+ 
+        chain->SetBranchAddress("lumi", &lumi);
+        chain->SetBranchAddress("ngen", &nGen);
+        chain->SetBranchAddress("xsec", &xSec);
+        chain->SetBranchAddress("puWeight", &puWeight);
+        chain->SetBranchAddress("genWeight", &genWeight);
     }
 
-    for(std::thread &thread: threads){
-        thread.join();
-    }
+    for (int i = 0, N = chain->GetEntries(); i < N; ++i) {
+        chain->GetEntry(i);
+        Event event = {*electrons, *jets, *MET};
 
+        if(Cut(event)){
+            for(std::pair<TH1F*, std::function<float (Event)>> hist: histograms){
+                if(proc != DATA){
+                    hist.first->Fill(hist.second(event), GetWeight(event, {lumi, 1.f/nGen, xSec, puWeight, genWeight}));
+                }
+                
+                else{
+                    hist.first->Fill(hist.second(event));
+                }
+
+            }
+        }
+    }
 }
 
 //Write File
