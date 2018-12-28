@@ -8,12 +8,13 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 
 class electronSelector(Module):
-    def __init__(self, era, ptCut, etaCut):
+    def __init__(self, era, ptCut, etaCut, minNEle):
 
         self.isData = True
         self.era = era
         self.ptCut = ptCut
         self.etaCut = etaCut
+        self.minNEle = minNEle
 
         ## https://twiki.cern.ch/twiki/bin/view/CMS/MultivariateElectronIdentificationRun2
         self.mvaID = {
@@ -90,14 +91,6 @@ class electronSelector(Module):
             self.mvaTightSFfile = ROOT.TFile(self.fileDir + self.mvaSFfiles[self.era]["tight"])
             self.mvaTightSFhist = self.mvaTightSFfile.Get("EGamma_SF2D")
    
-            ## Vector and branches for SF
-            self.recoSFvec = ROOT.std.vector("float")()
-            self.mvaMediumSFvec = ROOT.std.vector("float")()
-            self.mvaTightSFvec = ROOT.std.vector("float")()
-
-            self.recoSFbranch = self.out.tree().Branch("recoSF", self.recoSFvec)
-            self.mvaMediumSFbranch = self.out.tree().Branch("mvaMediumSF", self.mvaMediumSFvec)
-            self.mvaTightSFbranch = self.out.tree().Branch("mvaTightSF", self.mvaTightSFvec)
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
@@ -105,10 +98,6 @@ class electronSelector(Module):
     def analyze(self, event):
         ##Clear vectors
         self.eleVec.clear()
-        if not self.isData:
-            self.recoSFvec.clear()
-            self.mvaMediumSFvec.clear()    
-            self.mvaTightSFvec.clear()
 
         ##Get electrons of Tree
         electrons = Collection(event, "Electron")
@@ -122,11 +111,10 @@ class electronSelector(Module):
                 ele4Vec.SetPtEtaPhiM(electron.pt, electron.eta, electron.phi, electron.mass)
 
                 validElectron.fourVec = ele4Vec
-                validElectron.chage = electron.charge
+                validElectron.charge = electron.charge
+                validElectron.isolation = electron.pfRelIso03_all
                 validElectron.isMedium = self.mvaID[self.era]["medium"](electron)
                 validElectron.isTight = self.mvaID[self.era]["tight"](electron)
-
-                self.eleVec.push_back(validElectron)
 
                 ##Calculate SF for reco and MVA
                 if not self.isData:
@@ -144,25 +132,25 @@ class electronSelector(Module):
                         mvaMediumSF = self.mvaMediumSFhist.GetBinContent(mvaEtaBin, mvaPtBin)
                         mvaTightSF = self.mvaTightSFhist.GetBinContent(mvaEtaBin, mvaPtBin)
                         
-                        self.recoSFvec.push_back(recoSF if recoSF!=0 else 1.)
-                        self.mvaMediumSFvec.push_back(mvaMediumSF if mvaMediumSF!=0 else 1.) 
-                        self.mvaTightSFvec.push_back(mvaTightSF if mvaTightSF!=0 else 1.)
+                        validElectron.recoSF = recoSF if recoSF!=0 else 1.
+                        validElectron.mediumMvaSF = mvaMediumSF if mvaMediumSF!=0 else 1.
+                        validElectron.tightMvaSF = mvaTightSF if mvaTightSF!=0 else 1.
 
                     else:
-                        self.recoSFvec.push_back(1.)
-                        self.mvaMediumSFvec.push_back(1.)    
-                        self.mvaTightSFvec.push_back(1.)
+                        validElectron.recoSF = 1.
+                        validElectron.mediumMvaSF = 1.
+                        validElectron.tightMvaSF = 1.
+
+                self.eleVec.push_back(validElectron)
+
+        if(self.eleVec.size() < self.minNEle):
+            return False
                         
         ##Fill branches
         self.eleBranch.Fill()
-    
-        if not self.isData:
-            self.recoSFbranch.Fill()
-            self.mvaMediumSFbranch.Fill()
-            self.mvaTightSFbranch.Fill()
 
         return True
        
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-cHiggsElectronSelector = lambda era, ptCut, etaCut: electronSelector(era = era, ptCut = ptCut, etaCut = etaCut) 
+cHiggsElectronSelector = lambda era, ptCut, etaCut, minNEle: electronSelector(era = era, ptCut = ptCut, etaCut = etaCut, minNEle=minNEle) 
