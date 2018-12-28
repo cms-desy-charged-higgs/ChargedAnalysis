@@ -83,18 +83,17 @@ def condor_submit(outdir, filename):
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{filename} = {outdir}/{filename}'.format(filename=skimfilename, outdir=outdir) + '"'
 
+    def submit(job, txn):
+        try: 
+            job.queue(txn, 1)
+            print "Submitting job for file {}".format(filename)
+
+        except:
+            submit(job, txn)
 
     with schedd.transaction() as txn:
-        job.queue(txn, 1)
+        submit(job, txn)
 
-        while True:
-            try:
-                print "Submitting job for file {}".format(filename)
-                break
-            
-            except RuntimeError:
-                print "Submitting job for file {}".format(filename)
-    
 def main():
     args = parser()
 
@@ -117,6 +116,7 @@ def main():
         os.system("cp -u {} {}/src/".format(os.environ["X509_USER_PROXY"], os.environ["CMSSW_BASE"])) 
 
         for dirname, filenames in filelist.iteritems():
+            time.sleep(0.5)
             outdir = skimdir + "/" + dirname
 
             os.system("mkdir -p {}/log".format(outdir))
