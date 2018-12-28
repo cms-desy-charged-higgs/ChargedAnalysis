@@ -1,7 +1,6 @@
 #ifndef TREEREADER_H
 #define TREEREADER_H
 
-
 #include <vector>
 #include <string>
 #include <functional>
@@ -20,6 +19,8 @@
 #include <ChargedHiggs/nanoAOD_processing/macros/lepton.cc> 
 
 class TreeReader{
+    
+    enum Processes {DY, QCD, TT, T, DATA, VV, WJ};
 
     //Struct for reading out tree
     struct Event{
@@ -38,22 +39,26 @@ class TreeReader{
 
     private:
         std::string process;
-
-        std::map<std::string, Hist> histValues;                
-        std::map<TH1F*, std::function<float (Event)>> histograms;    
-
-        //Classes for multithreading
-        std::vector<std::thread> threads;
-        std::mutex mutex;    
+    
+        std::map<std::string, Hist> histValues; 
+        std::map<std::string, Processes> procDic;               
+        std::map<TH1F*, std::function<float (Event)>> histograms;     
         
         void SetHistMap();
         float GetWeight(Event event, std::vector<float> weights);
-        void InnerLoop(std::string filename);
+        bool Cut(Event event);
 
         //Functions for calculating quantities
         static std::function<float (Event)> WBosonMT;
         static std::function<float (Event)> WBosonPhi;
         static std::function<float (Event)> WBosonPT;
+        static std::function<float (Event)> ElectronPT;
+        static std::function<float (Event)> ElectronPhi;
+        static std::function<float (Event)> ElectronEta;
+        static std::function<float (Event)> Jet1PT;
+        static std::function<float (Event)> Jet1Phi;
+        static std::function<float (Event)> Jet1Eta;
+        static std::function<float (Event)> nJet;
 
     public:
         TreeReader();
