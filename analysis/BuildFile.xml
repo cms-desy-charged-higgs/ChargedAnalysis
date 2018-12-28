@@ -1,0 +1,10 @@
+<use name="root"/>
+<use name="rootphysics"/>
+<use name="rootgraphics"/>
+
+<use name="ChargedHiggs/nanoAOD_processing"/>
+
+<export>
+    <lib name="1"/>
+</export>
+
