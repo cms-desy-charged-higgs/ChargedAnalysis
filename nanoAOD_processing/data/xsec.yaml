@@ -103,12 +103,12 @@ DYJetsToLL_M-50_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8:
     n_gen: 3114980
 
 DYJetsToLL_M-50_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 625517
-    n_gen: 0.1933
+    xsec: 0.1933 
+    n_gen: 625517
 
 DYJetsToLL_M-50_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 419308
-    n_gen: 0.003468
+    xsec: 0.003468
+    n_gen: 419308
 
 WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8:
     xsec: 52940.0
