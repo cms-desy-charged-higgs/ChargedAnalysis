@@ -1,23 +1,30 @@
 #include "JetMETCorrections/Modules/interface/JetResolution.h"
 
-float jerResolution(std::string &inTXT, float jetPt, float jetEta, float rho){
-    JME::JetResolution resolution = JME::JetResolution(inTXT.c_str());
+class JetSmearer{
 
-    JME::JetParameters jet;
-    jet.setJetPt(jetPt);
-    jet.setJetEta(jetEta);
-    jet.setRho(rho); 
+    private:
+        JME::JetResolution jetReso;
+        JME::JetResolutionScaleFactor jetResoSF;
+        JME::JetParameters jet;
     
-    return resolution.getResolution(jet);
-}
+    public:
+        JetSmearer(std::string &resoTXT, std::string &resoSFTXT){
+            jetReso = JME::JetResolution(resoTXT.c_str());
+            jetResoSF = JME::JetResolutionScaleFactor(resoSFTXT.c_str());
+        }
 
-float jerSF(std::string &inTXT, float rho, float jetEta, float jetPt){
-    JME::JetResolutionScaleFactor resolutionSF = JME::JetResolutionScaleFactor(inTXT.c_str());
-    
-    JME::JetParameters jet;
-    jet.setJetPt(jetPt);
-    jet.setJetEta(jetEta);
-    jet.setRho(rho);    
-    
-    return resolutionSF.getScaleFactor(jet);
-}
+        void SetJet(float pt, float eta, float rho){
+            jet.setJetPt(pt);
+            jet.setJetEta(eta);
+            jet.setRho(rho);
+        }
+
+        float GetReso(){
+            return jetReso.getResolution(jet);
+        }
+
+        float GetResoSF(){
+            return jetResoSF.getScaleFactor(jet);
+        } 
+
+};

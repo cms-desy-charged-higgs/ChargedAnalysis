@@ -59,6 +59,8 @@ class jetSelector(Module):
         ##bTag SF reader
         if "RunIIFall" in inputFile.GetName():
             self.isData = False
+
+            self.jetSmearer = ROOT.JetSmearer(ROOT.std.string(self.jme[self.era][0]), ROOT.std.string(self.jme[self.era][1]))
        
             ##https://twiki.cern.ch/twiki/bin/view/CMS/BTagCalibration
 
@@ -79,10 +81,12 @@ class jetSelector(Module):
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
 
-    def jetSmearer(self, jet, genJets, rho):
+    def smearer(self, jet, genJets, rho):
         ##https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution#Smearing_procedures
-        reso = ROOT.jerResolution(ROOT.std.string(self.jme[self.era][0]), jet.pt, jet.eta, rho)
-        resoSF = ROOT.jerSF(ROOT.std.string(self.jme[self.era][1]), rho, jet.eta, jet.pt)
+        self.jetSmearer.SetJet(jet.pt, jet.eta, rho)
+
+        reso = self.jetSmearer.GetReso()
+        resoSF = self.jetSmearer.GetResoSF()    
 
         smearFac = 1.
 
@@ -108,7 +112,7 @@ class jetSelector(Module):
         ##Loop over jets and set all information
         for jet in jets:
             if not self.isData:
-                smearValue = self.jetSmearer(jet, genJets, event.fixedGridRhoFastjetAll)
+                smearValue = self.smearer(jet, genJets, event.fixedGridRhoFastjetAll)
                 jetPt = jet.pt*smearValue
 
             else:
