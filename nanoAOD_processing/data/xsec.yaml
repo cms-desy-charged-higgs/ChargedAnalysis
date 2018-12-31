@@ -1,5 +1,5 @@
 TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8:
-    xsec: 722.8
+    xsec: 831.76  #https://twiki.cern.ch/twiki/bin/view/LHCPhysics/TtbarNNLO
     n_gen: 153531390
 
 TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8:
@@ -71,11 +71,11 @@ ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8:
     n_gen: 7977430
 
 ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
-    xsec: 67.91
+    xsec: 80.95
     n_gen: 3675910
 
 ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
-    xsec: 113.3
+    xsec: 136.02
     n_gen: 5865875
 
 DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8:
