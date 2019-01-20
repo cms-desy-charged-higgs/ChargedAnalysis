@@ -45,7 +45,7 @@ def get_filenames(filetxt):
         else:
             key = dataset.split("/")[1] + "-" +  dataset.split("/")[2]
 
-        filelist[key] = [global_director + filename['logical_file_name'] for filename in dbs.listFiles(dataset=dataset)]
+        filelist[key] = [(global_director + filename['logical_file_name'], filename['event_count']) for filename in dbs.listFiles(dataset=dataset, detail=1)]
 
     return filelist
 
@@ -63,13 +63,16 @@ def post_processor(out_dir, filelist):
 
 
 def condor_submit(outdir, filename):
+    fname = filename[0]
+    nEvents = filename[1]
+
     job = htcondor.Submit()
     schedd = htcondor.Schedd()
 
-    skimfilename = filename.split('/')[-1][:-5] + "_Skim.root" 
+    skimfilename = fname.split('/')[-1][:-5] + "_Skim.root" 
 
     job["executable"] = "{}/src/ChargedHiggs/nanoAOD_processing/batch/condor_script.sh".format(os.environ["CMSSW_BASE"])
-    job["arguments"] = filename 
+    job["arguments"] = fname
     job["universe"]       = "vanilla"
 
     job["should_transfer_files"] = "YES"
@@ -79,20 +82,23 @@ def condor_submit(outdir, filename):
     job["output"]                    = outdir + "/log/job_$(Cluster).out"
     job["error"]                    = outdir + "/log/job_$(Cluster).err"
 
-    job["retry_untl"] = "ExitCode >= 0"     
+    job["+RequestRuntime"]    = "{}".format(60*60*12)
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{filename} = {outdir}/{filename}'.format(filename=skimfilename, outdir=outdir) + '"'
 
-    def submit(job, txn):
+    def submit(schedd, job):
+        with schedd.transaction() as txn:
+            job.queue(txn)
+            print "Submit job for file {}".format(fname)
+          
+
+    while(True):
         try: 
-            job.queue(txn, 1)
-            print "Submitting job for file {}".format(filename)
+            submit(schedd, job)
+            break    
 
         except:
-            submit(job, txn)
-
-    with schedd.transaction() as txn:
-        submit(job, txn)
+            pass
 
 def main():
     args = parser()
@@ -116,7 +122,6 @@ def main():
         os.system("cp -u {} {}/src/".format(os.environ["X509_USER_PROXY"], os.environ["CMSSW_BASE"])) 
 
         for dirname, filenames in filelist.iteritems():
-            time.sleep(0.5)
             outdir = skimdir + "/" + dirname
 
             os.system("mkdir -p {}/log".format(outdir))
