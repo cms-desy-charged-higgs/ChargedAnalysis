@@ -15,32 +15,33 @@ def parser():
     parser.add_argument("--processes", nargs="+", default = "all")
     parser.add_argument("--process-yaml", type = str, default = "{}/src/ChargedHiggs/analysis/data/process.yaml".format(os.environ["CMSSW_BASE"]))
     parser.add_argument("--skim-dir", type = str)
+    parser.add_argument("--plot-dir", type = str, default = "{}/src/Plots".format(os.environ["CMSSW_BASE"]))
 
     parser.add_argument("--parameters", nargs="+")
-    parser.add_argument("--cut", type = str, default = "")
+    parser.add_argument("--cuts", nargs="+", default=["baseline"])
     parser.add_argument("--weights", type = str, default = "")
 
     parser.add_argument("--hist-dir", type = str, default = "{}/src/Histograms".format(os.environ["CMSSW_BASE"]))
+    parser.add_argument("--www", type=str)
 
     return parser.parse_args()
 
-def createHistograms(process, filenames, parameters, outdir):
+def createHistograms(process, filenames, parameters, cuts, outdir):
 
     outname = ROOT.std.string("{}/{}.root".format(outdir, process))
 
     reader = ROOT.TreeReader(ROOT.std.string(process))
     reader.AddHistogram(parameters)    
-    reader.EventLoop(filenames)
+    reader.EventLoop(filenames, cuts)
     reader.Write(outname)
 
     print "Created histograms for process: {}".format(process)
 
-def makePlots(histdir, parameters, processes):
+def makePlots(histDir, parameters, processes, plotDir):
 
-    plotter = ROOT.Plotter(histdir)
+    plotter = ROOT.Plotter(histDir)
     plotter.ConfigureHists(parameters, processes)
-    plotter.Draw()
-
+    plotter.Draw(plotDir)
     
 def main():
     ##Parser
@@ -49,10 +50,19 @@ def main():
     ##Load filenmes of processes
     process_dic = yaml.load(file(args.process_yaml, "r"))
 
-    ##Create output dir
+    ##Create plot/hist dir
     if not os.path.exists(args.hist_dir):
         print "Created output path: {}".format(args.hist_dir)
         os.system("mkdir -p {}".format(args.hist_dir))
+
+    if not os.path.exists(args.plot_dir):
+        print "Created output path: {}".format(args.plot_dir)
+        os.system("mkdir -p {}".format(args.plot_dir))
+
+    if args.www:
+        if not os.path.exists(args.www):
+            print "Created output path: {}".format(args.www)
+            os.system("mkdir -p {}".format(args.www))
 
     if args.processes == "all":
         args.processes = process_dic.keys()
@@ -64,7 +74,16 @@ def main():
     processes = ROOT.std.vector("string")()
     [processes.push_back(proc) for proc in args.processes]
 
+    cuts = ROOT.std.vector("string")()
+    [cuts.push_back(cut) for cut in args.cuts]
+
+
     histDir = ROOT.std.string(args.hist_dir)
+    outDir = ROOT.std.vector("string")()
+    outDir.push_back(args.plot_dir)
+
+    if args.www:
+        outDir.push_back(args.www)
 
     pool = Pool(processes.size())
     results = []
@@ -74,11 +93,16 @@ def main():
         filenames = ROOT.std.vector("string")()
         [filenames.push_back(fname) for fname in ["{skim}{file}/{file}.root".format(skim = args.skim_dir, file = process_file) for process_file in process_dic[process]["filenames"]]]
 
-        results.append(pool.apply_async(createHistograms, args = (process, filenames, parameters, histDir)))
+        results.append(pool.apply_async(createHistograms, args = (process, filenames, parameters, cuts, histDir)))
  
     [p.get() for p in results]
     
-    makePlots(histDir, parameters, processes)
+    makePlots(histDir, parameters, processes, outDir)
+
+    if args.www:
+        os.system("rsync -arvt --exclude {./,.git*} --delete -e ssh $HOME2/webpage/ $CERN_USER@lxplus.cern.ch:/eos/home-${USER:0:1}/$CERN_USER/www/")
+        print "Plots are avaiable on: https://dbrunner.web.cern.ch/dbrunner/"
+        
 
 if __name__ == "__main__":
     main()
