@@ -18,20 +18,24 @@ class quantitiesProducer(Module):
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out =  wrappedOutputTree 
+
+        ## Load Quantity class
+        ROOT.gROOT.ProcessLine(".L {}/src/ChargedHiggs/nanoAOD_processing/macros/quantities.cc".format(os.environ["CMSSW_BASE"]))
         
-        self.MET = ROOT.TLorentzVector()
-        self.METBranch = self.out.tree().Branch("MET", self.MET)
+        self.quantities = ROOT.Quantities()
+        self.quantitiesBranch = self.out.tree().Branch("quantities", self.quantities)
+        
         
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
 
     def analyze(self, event):
-        ##Clear vectors
-        MET = Object(event, "MET")
+        PV = Object(event, "PV")
 
-        self.MET.SetPtEtaPhiM(MET.pt, 0, MET.phi, 0)
-        self.METBranch.Fill()
-        
+        self.quantities.HT = event.SoftActivityJetHT
+        self.quantities.PV = ROOT.TVector3(PV.x, PV.y, PV.z)
+        self.quantitiesBranch.Fill()
+
         return True
         
 cHiggsQuantitiesProducer = lambda : quantitiesProducer() 
