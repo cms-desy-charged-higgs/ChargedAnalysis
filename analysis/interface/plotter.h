@@ -8,12 +8,15 @@
 #include <utility>
 #include <algorithm>
 
+#include "TError.h"
+#include "TROOT.h"
 #include "TFile.h"
 #include "TH1F.h"
 #include "TGraph.h"
 #include "THStack.h"
 #include "TLegend.h"
 #include "TCanvas.h"
+#include "TPad.h"
 #include "TStyle.h"
 #include "TLatex.h"
 #include "Rtypes.h"
@@ -32,7 +35,7 @@ class Plotter{
         Plotter();
         Plotter(std::string &histdir);
         void ConfigureHists(std::vector<std::string> &parameters, std::vector<std::string> &processes);
-        void Draw();
+        void Draw(std::vector<std::string> &outdirs);
         
 };
 
