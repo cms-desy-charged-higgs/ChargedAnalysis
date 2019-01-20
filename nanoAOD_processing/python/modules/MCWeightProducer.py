@@ -31,7 +31,6 @@ class MCWeightProducer(Module):
         if "RunIIFall" in inputFile.GetName():
 
             self.out.branch("lumi", "F")
-            self.out.branch("ngen", "F")
             self.out.branch("xsec", "F")
             self.out.branch("genWeight", "F")
 
@@ -46,7 +45,6 @@ class MCWeightProducer(Module):
     def analyze(self, event):
         if not self.isData:
             self.out.fillBranch("lumi", self.lumi[self.era])
-            self.out.fillBranch("ngen", self.processdic[self.processname]["n_gen"])
             self.out.fillBranch("xsec", self.processdic[self.processname]["xsec"])
             self.out.fillBranch("genWeight", event.genWeight)
             
@@ -55,4 +53,4 @@ class MCWeightProducer(Module):
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-ChargedHiggsMCWeightProducer = lambda : MCWeightProducer(era = 2017) 
+cHiggsMCWeightProducer = lambda era: MCWeightProducer(era = era) 
