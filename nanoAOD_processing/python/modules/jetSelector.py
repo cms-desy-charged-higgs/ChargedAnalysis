@@ -4,7 +4,7 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 import os
 import numpy as np
 
-from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection 
+from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection, Object
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 class jetSelector(Module):
@@ -56,6 +56,9 @@ class jetSelector(Module):
         self.jetVec = ROOT.std.vector(ROOT.Jet)()
         self.jetBranch = self.out.tree().Branch("jet", self.jetVec)
 
+        self.MET = ROOT.TLorentzVector()
+        self.METBranch = self.out.tree().Branch("MET", self.MET)
+
         ##bTag SF reader
         if "RunIIFall" in inputFile.GetName():
             self.isData = False
@@ -105,6 +108,10 @@ class jetSelector(Module):
 
         ##Get jets collection from Tree
         jets = Collection(event, "Jet")
+        MET = Object(event, "MET")
+
+        metPx = MET.pt*np.cos(MET.phi)
+        metPy = MET.pt*np.sin(MET.phi)
 
         if not self.isData:
             genJets = Collection(event, "GenJet")
@@ -115,6 +122,9 @@ class jetSelector(Module):
                 smearValue = self.smearer(jet, genJets, event.fixedGridRhoFastjetAll)
                 jetPt = jet.pt*smearValue
 
+                metPx = metPx - jet.pt*np.cos(jet.phi) + jetPt*np.cos(jet.phi)
+                metPy = metPy - jet.pt*np.sin(jet.phi) + jetPt*np.sin(jet.phi)
+
             else:
                 jetPt = jet.pt
 
@@ -123,6 +133,9 @@ class jetSelector(Module):
                 
                 jet4Vec = ROOT.TLorentzVector()
                 jet4Vec.SetPtEtaPhiM(jetPt, jet.eta, jet.phi, jet.mass)
+
+                self.MET.SetPtEtaPhiM(MET.pt, 0, MET.phi, 0)
+                self.METBranch.Fill()
 
                 validJet.fourVec = jet4Vec
                 validJet.isLooseB = self.bTag[self.era]["loose"] > jet.btagDeepFlavB
@@ -140,11 +153,13 @@ class jetSelector(Module):
 
                 self.jetVec.push_back(validJet)
 
-
         if(self.jetVec.size() < self.minNJet):
             return False
 
         #Fill branches
+        self.MET.SetPxPyPzE(metPx, metPy, 0, 0)
+
+        self.METBranch.Fill()
         self.jetBranch.Fill()
 
         return True
