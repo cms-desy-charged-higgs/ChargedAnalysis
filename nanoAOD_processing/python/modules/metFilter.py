@@ -51,4 +51,4 @@ class metFilter(Module):
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-cMetFilter = lambda era: metFilter(era = 2017) 
+cHiggsMetFilter = lambda era: metFilter(era = 2017) 
