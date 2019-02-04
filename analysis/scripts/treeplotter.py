@@ -3,6 +3,8 @@
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
+import time
+
 import os
 import yaml
 import argparse
@@ -30,12 +32,13 @@ def createHistograms(process, filenames, parameters, cuts, outdir):
 
     outname = ROOT.std.string("{}/{}.root".format(outdir, process))
 
-    reader = ROOT.TreeReader(ROOT.std.string(process))
-    reader.AddHistogram(parameters)    
-    reader.EventLoop(filenames, cuts)
+    timestamp1 = time.time()
+    reader = ROOT.TreeReader(ROOT.std.string(process), parameters, cuts)
+    reader.EventLoop(filenames, 6)
     reader.Write(outname)
+    timestamp2 = time.time()
 
-    print "Created histograms for process: {}".format(process)
+    print "Created histograms for process: {} ({} s)".format(process, timestamp2 - timestamp1)
 
 def makePlots(histDir, parameters, processes, plotDir):
 
@@ -77,7 +80,6 @@ def main():
     cuts = ROOT.std.vector("string")()
     [cuts.push_back(cut) for cut in args.cuts]
 
-
     histDir = ROOT.std.string(args.hist_dir)
     outDir = ROOT.std.vector("string")()
     outDir.push_back(args.plot_dir)
@@ -85,17 +87,13 @@ def main():
     if args.www:
         outDir.push_back(args.www)
 
-    pool = Pool(processes.size())
-    results = []
-
     ##Create histograms
     for process in processes:
         filenames = ROOT.std.vector("string")()
-        [filenames.push_back(fname) for fname in ["{skim}{file}/{file}.root".format(skim = args.skim_dir, file = process_file) for process_file in process_dic[process]["filenames"]]]
+        
+        [filenames.push_back(fname) for fname in ["{skim}{file}/{file}.root".format(skim = args.skim_dir, file = process_file) for process_file in process_dic[process]["filenames"]]]       
 
-        results.append(pool.apply_async(createHistograms, args = (process, filenames, parameters, cuts, histDir)))
- 
-    [p.get() for p in results]
+        createHistograms(process, filenames, parameters, cuts, histDir)
     
     makePlots(histDir, parameters, processes, outDir)
 
