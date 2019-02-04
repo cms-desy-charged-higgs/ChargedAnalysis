@@ -1,16 +1,17 @@
-#include "JetMETCorrections/Modules/interface/JetResolution.h"
+#include <CondFormats/JetMETObjects/interface/JetResolutionObject.h>
 
 class JetSmearer{
 
     private:
-        JME::JetResolution jetReso;
-        JME::JetResolutionScaleFactor jetResoSF;
+        JME::JetResolutionObject jetReso;
+        JME::JetResolutionObject jetResoSF;
         JME::JetParameters jet;
     
     public:
+        JetSmearer();
         JetSmearer(std::string &resoTXT, std::string &resoSFTXT){
-            jetReso = JME::JetResolution(resoTXT.c_str());
-            jetResoSF = JME::JetResolutionScaleFactor(resoSFTXT.c_str());
+            jetReso = JME::JetResolutionObject(resoTXT.c_str());
+            jetResoSF = JME::JetResolutionObject(resoSFTXT.c_str());
         }
 
         void SetJet(float pt, float eta, float rho){
@@ -20,11 +21,21 @@ class JetSmearer{
         }
 
         float GetReso(){
-            return jetReso.getResolution(jet);
+            const JME::JetResolutionObject::Record* record = jetReso.getRecord(jet);
+            if (! record)
+                return 1;
+
+            return jetReso.evaluateFormula(*record, jet);
         }
 
         float GetResoSF(){
-            return jetResoSF.getScaleFactor(jet);
+            const JME::JetResolutionObject::Record* record = jetResoSF.getRecord(jet);
+            if (! record)
+                return 1;
+
+            const std::vector<float>& parameters_values = record->getParametersValues();
+
+            return parameters_values[0]; //0 Nominal, 1 Down, 2 Up
         } 
 
 };
