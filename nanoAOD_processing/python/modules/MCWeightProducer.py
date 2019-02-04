@@ -28,16 +28,20 @@ class MCWeightProducer(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+            self.isData = False
 
             self.out.branch("lumi", "F")
             self.out.branch("xsec", "F")
             self.out.branch("genWeight", "F")
 
-            self.isData = False
-            
-            self.processname = inputFile.GetName().split("/")[7]
             self.processdic = yaml.load(file("{}/src/ChargedHiggs/nanoAOD_processing/data/xsec.yaml".format(os.environ["CMSSW_BASE"]), "r"))
+
+            self.xsec = 1.
+
+            for key in self.processdic.keys():
+                if key in inputFile.GetName():
+                    self.xsec = self.processdic[key]["xsec"]
             
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
@@ -45,7 +49,7 @@ class MCWeightProducer(Module):
     def analyze(self, event):
         if not self.isData:
             self.out.fillBranch("lumi", self.lumi[self.era])
-            self.out.fillBranch("xsec", self.processdic[self.processname]["xsec"])
+            self.out.fillBranch("xsec", self.xsec)
             self.out.fillBranch("genWeight", event.genWeight)
             
 
