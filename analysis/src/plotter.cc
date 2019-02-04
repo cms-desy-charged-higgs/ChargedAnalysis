@@ -19,12 +19,15 @@ Plotter::Plotter(std::string &histdir) :
         {"W_pt", "p_{T}(W) [GeV]"},
         {"W_phi", "#phi(W) [rad]"},
         {"W_mT", "m_{T}(W) [GeV]"},
-        {"e_pt", "p_{T}(e) [GeV]"},
+        {"e_pt", "p_{T}(e) [rad]"},
+        {"e_phi", "#phi(e) [GeV]"},
         {"nJet", "Number of Jets"},
         {"j1_pt", "p_{T}(j_{1}) [GeV]"},
+        {"j1_phi", "#phi(j_{2}) [GeV]"},
         {"j2_pt", "p_{T}(j_{2}) [GeV]"},
         {"HT", "H_{T} [GeV]"},
         {"met", "E_{T}^{miss} [GeV]"},
+        {"met_phi", "#phi(E_{T}^{miss}) [rad]"},
     })
  {}
 
@@ -91,9 +94,8 @@ void Plotter::Draw(std::vector<std::string> &outdirs){
 
     for(std::pair<std::string, std::vector<TH1F*>> hists: background){
         TCanvas* canvas = new TCanvas((std::string("canvas") + hists.first).c_str(), (std::string("canvas") + hists.first).c_str(), 1000, 800);
-
         TPad* mainpad = new TPad((std::string("mainpad") + hists.first).c_str(), (std::string("mainpad") + hists.first).c_str(), 0., 0.20 , 1., 1.);
-        TPad* pullpad = new TPad((std::string("pullpad") + hists.first).c_str(), (std::string("pullpad") + hists.first).c_str(), 0., 0.0 , 1., .20);
+        TPad* pullpad =  new TPad((std::string("pullpad") + hists.first).c_str(), (std::string("pullpad") + hists.first).c_str(), 0., 0.0 , 1., .20);
 
         
         if(!data.empty()){
@@ -140,7 +142,6 @@ void Plotter::Draw(std::vector<std::string> &outdirs){
         lumi->DrawLatexNDC(0.605, 0.905, "41.4 fb^{-1} (2017, 13 TeV)");
 
               
-
         if(!data.empty()){
             TH1F* pull = (TH1F*)hists.second[0]->Clone();
             pull->Reset();
@@ -149,7 +150,8 @@ void Plotter::Draw(std::vector<std::string> &outdirs){
                 float pullvalue = 0.;
 
                 if(sumbkg->GetBinError(i) != 0){          
-                    pullvalue = (data[hists.first]->GetBinContent(i) - sumbkg->GetBinContent(i))/sumbkg->GetBinError(i);
+                    //pullvalue = (data[hists.first]->GetBinContent(i) - sumbkg->GetBinContent(i))/sumbkg->GetBinError(i);
+                    pullvalue = (data[hists.first]->GetBinContent(i) - sumbkg->GetBinContent(i))/sumbkg->GetBinContent(i);
                 }
 
                 pull->SetBinContent(i, pullvalue);
