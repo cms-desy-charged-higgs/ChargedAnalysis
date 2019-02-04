@@ -1,7 +1,12 @@
-#include "Rtypes.h"
+#ifndef LEPTON_H
+#define LEPTON_H
+
 #include "TLorentzVector.h"
+#include "Rtypes.h"
 
 struct Lepton {
+    Lepton();
+
     TLorentzVector fourVec;
     Bool_t isLoose;
     Bool_t isMedium;
@@ -16,3 +21,4 @@ struct Lepton {
     Float_t isolation; 
 };
 
+#endif
