@@ -5,8 +5,14 @@
 #include <vector>
 #include <string>
 #include <functional>
-#include <map>
+#include <map> 	
 
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <pthread.h>
+
+#include <TROOT.h>
 #include <TLorentzVector.h>
 #include <TFile.h>
 #include <TH1F.h>
@@ -15,12 +21,12 @@
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 
-#include <ChargedHiggs/nanoAOD_processing/macros/quantities.cc> 
-#include <ChargedHiggs/nanoAOD_processing/macros/jet.cc> 
-#include <ChargedHiggs/nanoAOD_processing/macros/lepton.cc> 
+#include <ChargedHiggs/nanoAOD_processing/interface/quantities.h> 
+#include <ChargedHiggs/nanoAOD_processing/interface/jet.h> 
+#include <ChargedHiggs/nanoAOD_processing/interface/lepton.h> 
 
 
-class TreeReader{
+class TreeReader {
     
     enum Processes {DY, QCD, TT, T, DATA, VV, WJ};
 
@@ -41,17 +47,35 @@ class TreeReader{
     };
 
     private:
+        int progress = 0;
+        int nCores;
+
+        //Needed parameter set in the constructor
         std::string process;
-    
+        std::vector<std::string> parameters;
+        std::vector<std::string> cutstrings;
+
+        //Class for locking thread unsafe operation
+        std::mutex mutex;
+
+        //Final histograms
+        std::vector<TH1F*> mergedHistograms;
+
+        //Helper function
         std::map<std::string, Hist> histValues; 
         std::map<std::string, std::function<bool (Event)>> cutValues; 
-        std::map<std::string, Processes> procDic;               
-        std::map<TH1F*, std::function<float (Event)>> histograms;     
-        
+        std::map<std::string, Processes> procDic;                   
+
+        //Setup fill in treereaderfunction.cc        
         void SetHistMap();
         void SetCutMap();
     
+        //Helper function
+        void ProgressBar(int progress);
         float GetWeight(Event event, std::vector<float> weights);
+
+        //Loop for each thread
+        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float nGen);
 
         //Functions for cuts 
 
@@ -76,12 +100,12 @@ class TreeReader{
         static std::function<float (Event)> nTightBJet;
         static std::function<float (Event)> HT;
         static std::function<float (Event)> MET;
+        static std::function<float (Event)> METPhi;
 
     public:
         TreeReader();
-        TreeReader(std::string &process);
-        void AddHistogram(std::vector<std::string> &parameters);
-        void EventLoop(std::vector<std::string> &filenames, std::vector<std::string> &cutstrings);
+        TreeReader(std::string &process, std::vector<std::string> &parameters, std::vector<std::string> &cutstrings);
+        void EventLoop(std::vector<std::string> &filenames);
         void Write(std::string &outname);
 };
 
