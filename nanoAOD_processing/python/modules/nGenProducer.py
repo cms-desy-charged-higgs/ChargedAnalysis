@@ -22,7 +22,7 @@ class nGenProducer(Module):
         self.out = wrappedOutputTree
         self.nGen = ROOT.TH1F("nGen", "nGen", 100, -1e7, 1e7)
 
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.nGenWeighted = ROOT.TH1F("nGenWeighted", "nGen", 100, -1e7, 1e7)
             
             self.isData = False
@@ -30,7 +30,7 @@ class nGenProducer(Module):
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.nGen.Write()
 
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.nGenWeighted.Write()
 
     def analyze(self, event):

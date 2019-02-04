@@ -21,7 +21,7 @@ class topPtWeightProducer(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out =  wrappedOutputTree 
 
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.isData = False
 
             self.out.branch("topPtWeight", "F")
