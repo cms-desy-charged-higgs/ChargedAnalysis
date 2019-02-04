@@ -6,9 +6,10 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 
 class triggerSelector(Module):
-    def __init__(self, triggerpaths):
+    def __init__(self, pathToPass, pathNotToPass):
 
-        self.triggerpaths = triggerpaths
+        self.pathToPass = pathToPass
+        self.pathNotToPass = pathNotToPass
 
     def beginJob(self):
         pass
@@ -17,27 +18,23 @@ class triggerSelector(Module):
         pass
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
-        self.out = wrappedOutputTree
-
-        for trigger in self.triggerpaths:
-            self.out.branch(trigger,  "B")
+        pass
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
 
     def analyze(self, event):
-        trigger_decision = [getattr(event, trigger) for trigger in self.triggerpaths]
+        passedPaths = [getattr(event, trigger) for trigger in self.pathToPass]
+        notPassedPaths = [getattr(event, trigger) for trigger in self.pathNotToPass]
 
-        if True in trigger_decision:
-            for n, trigger in enumerate(self.triggerpaths):
-                self.out.fillBranch(trigger,  trigger_decision[n])
-
-            return True
-
-        else:
+        if False in passedPaths:
             return False
-            
+
+        if True in notPassedPaths:
+            return False
+
+        return True
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-cHiggsEleTriggerSelector = lambda : triggerSelector(triggerpaths = ["HLT_Ele35_WPTight_Gsf"]) #https://indico.cern.ch/event/662751/contributions/2778365/attachments/1561439/2458438/egamma_workshop_triggerTalk.pdf
+cHiggsTriggerSelector = lambda pathToPass, pathNotToPass : triggerSelector(pathToPass, pathNotToPass)
