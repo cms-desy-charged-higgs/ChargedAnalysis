@@ -19,9 +19,6 @@ class quantitiesProducer(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out =  wrappedOutputTree 
 
-        ## Load Quantity class
-        ROOT.gROOT.ProcessLine(".L {}/src/ChargedHiggs/nanoAOD_processing/macros/quantities.cc".format(os.environ["CMSSW_BASE"]))
-        
         self.quantities = ROOT.Quantities()
         self.quantitiesBranch = self.out.tree().Branch("quantities", self.quantities)
         
