@@ -1,12 +1,22 @@
-from PhysicsTools.NanoAODTools.postprocessing.modules.common.puWeightProducer import puWeightProducer
+import ROOT
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 import os
 
-class puWeightProducerModified(puWeightProducer):
-    def __init__(self, myfile, targetfile):
+from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection, Object
+from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
+
+class puWeightProducer(Module):
+    def __init__(self, era):
         self.isData = True
+        self.era = era
+
+        self.fileDir = "{}/src/ChargedHiggs/nanoAOD_processing/data/pileUp/".format(os.environ["CMSSW_BASE"])
         
-        puWeightProducer.__init__(self,myfile,targetfile,myhist="pu_mc",targethist="pileup",name="puWeight",norm=True,verbose=False,nvtx_var="Pileup_nTrueInt",doSysVar=True)
+        self.files = {
+            2017: "data_pileUp2017.root",
+        }
+
 
     def beginJob(self):
         pass
@@ -15,19 +25,36 @@ class puWeightProducerModified(puWeightProducer):
         pass
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
-        if "RunIIFall" in inputFile.GetName():
+        self.out = wrappedOutputTree
+        self.out.branch("puWeight", "F")
+
+        self.pileUpWeight = ROOT.TH1F("puWeight", "puWeight", 100, 0, 100)
+
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.isData = False
 
-            puWeightProducer.beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree)
+            pileUpFile = ROOT.TFile(self.fileDir + self.files[self.era])
+            pileUp = pileUpFile.Get("pileup")
+
+            puMC = ROOT.TH1F("puMC", "puMC", 100, 0, 100) 
+            inputTree.Draw("Pileup_nPU>>puMC")
+
+            pileUp.Scale(1./pileUp.Integral(), "width")
+            puMC.Scale(1./puMC.Integral(), "width")
+
+            self.pileUpWeight.Divide(pileUp, puMC)
+
+            pileUpFile.Close()
+            outputFile.cd()
 
     def analyze(self, event):
         if not self.isData:
-            puWeightProducer.analyze(self, event)
+            pileUp = Object(event, "Pileup") 
+            
+            puWeight = self.pileUpWeight.GetBinContent(self.pileUpWeight.FindBin(pileUp.nPU))
+            self.out.fillBranch("puWeight", puWeight)
 
         return True
 
-pufile_basedir = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/data/pileup" % os.environ['CMSSW_BASE']
-
-pufile_data2017=os.path.join(pufile_basedir, "pileup_Cert_294927-306462_13TeV_PromptReco_Collisions17_withVar.root")
-puAutoWeight = lambda : puWeightProducerModified("auto",pufile_data2017)
+cHiggspuWeightProducer = lambda era : puWeightProducer(era)
 
