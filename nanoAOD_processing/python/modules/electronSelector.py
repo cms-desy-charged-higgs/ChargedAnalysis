@@ -2,19 +2,21 @@ import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 import os
+import numpy as np
 
 from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collection 
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 
 class electronSelector(Module):
-    def __init__(self, era, ptCut, etaCut, minNEle):
+    def __init__(self, era, ptCut, etaCut, minNEle, triggerBit):
 
         self.isData = True
         self.era = era
         self.ptCut = ptCut
         self.etaCut = etaCut
         self.minNEle = minNEle
+        self.triggerBit = triggerBit
 
         ## https://twiki.cern.ch/twiki/bin/view/CMS/MultivariateElectronIdentificationRun2
         self.mvaID = {
@@ -38,28 +40,6 @@ class electronSelector(Module):
             }
         }
 
-        self.intervall = lambda (low, high), x: low <= x < high
-
-        #https://twiki.cern.ch/twiki/pub/CMS/Egamma2017DataRecommendations/egammaEffi.txt_egammaPlots_runBCDEF_passingRECO.pdf
-
-        self.recoPtBinning = {
-            2017: [(20., 45.), (45., 75.), (75., 100.), (100., 500.)],     
-        }
-
-        self.recoEtaBinning = {
-            2017: [(-2.500, -2.000), (-2.000, -1.566), (-1.566, -1.444), (-1.444, -1.000), (-1.000, -0.500), (-0.500, 0.000), (0.000, 0.500), (0.500, 1.000), (1.000, 1.444), (1.444, 1.566), (1.566, 2.000), (2.000, 2.500)],  
-        }
-
-        #https://soffi.web.cern.ch/soffi/EGM-ID/SF-17Nov2017-MCv2-IDv1-020618/Electrons/gammaEffi.txt_egammaPlots_runBCDEF_passingMVA94Xwp90iso.pdf
-
-        self.mvaPtBinning = {
-            2017: [(10., 20.), (20., 35.), (35., 50.), (50., 100.), (100., 200.), (200., 500.)],     
-   
-        }
-
-        self.mvaEtaBinning = {
-            2017: [(-2.500, -2.000), (-2.000, -1.566), (-1.444, -1.000), (-1.000, -0.500), (-0.500, 0.000), (0.000, 0.500), (0.500, 1.000), (1.000, 1.444), (1.566, 2.000), (2.000, 2.500)], 
-        }
 
     def beginJob(self):
         pass
@@ -70,14 +50,11 @@ class electronSelector(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
-        ## Load Lepton class
-        ROOT.gROOT.ProcessLine(".L {}/src/ChargedHiggs/nanoAOD_processing/macros/lepton.cc".format(os.environ["CMSSW_BASE"]))
-
         ##Branch with vector of electrons
-        self.eleVec = ROOT.std.vector(ROOT.Lepton)()
+        self.eleVec = ROOT.std.vector(ROOT.Electron)()
         self.eleBranch = self.out.tree().Branch("electron", self.eleVec)
 
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.isData = False
             
             ## 2D hist for SF for reco
@@ -95,6 +72,17 @@ class electronSelector(Module):
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         pass
 
+    def triggerMatching(self, event, eleVec, filterBit):
+        trigObject = Collection(event, "TrigObj")
+
+        if filterBit == 2:
+            for obj in trigObject:
+                if obj.id == 11:
+                    matched = [5e-2 > np.sqrt((obj.eta - electron.fourVec.Eta())**2 + (obj.phi - electron.fourVec.Phi())**2) for electron in eleVec]
+
+        return True in matched
+
+
     def analyze(self, event):
         ##Clear vectors
         self.eleVec.clear()
@@ -104,8 +92,10 @@ class electronSelector(Module):
 
         ##Loop over jets and set all information
         for electron in electrons:
-            if electron.pt > self.ptCut and abs(electron.eta) < self.etaCut: 
-                validElectron = ROOT.Lepton()
+            if electron.pt > self.ptCut and abs(electron.eta) < self.etaCut and electron.convVeto: 
+                validElectron = ROOT.Electron()
+
+                #print electron.jetIdx
                 
                 ele4Vec = ROOT.TLorentzVector()
                 ele4Vec.SetPtEtaPhiM(electron.pt, electron.eta, electron.phi, electron.mass)
@@ -118,33 +108,23 @@ class electronSelector(Module):
 
                 ##Calculate SF for reco and MVA
                 if not self.isData:
-                    if electron.pt < 500. and not 1.444 < abs(electron.eta) < 1.566:
-
-                        recoPtBin = [self.intervall(self.recoPtBinning[self.era][index], electron.pt) for index in range(len(self.recoPtBinning[self.era]))].index(True)
-
-                        recoEtaBin = [self.intervall(self.recoEtaBinning[self.era][index], electron.eta) for index in range(len(self.recoEtaBinning[self.era]))].index(True)
-
-                        mvaPtBin = [self.intervall(self.mvaPtBinning[self.era][index], electron.pt) for index in range(len(self.mvaPtBinning[self.era]))].index(True)
-
-                        mvaEtaBin = [self.intervall(self.mvaEtaBinning[self.era][index], electron.eta) for index in range(len(self.mvaEtaBinning[self.era]))].index(True)
-
-                        recoSF = self.recoSFhist.GetBinContent(recoEtaBin, recoPtBin)
-                        mvaMediumSF = self.mvaMediumSFhist.GetBinContent(mvaEtaBin, mvaPtBin)
-                        mvaTightSF = self.mvaTightSFhist.GetBinContent(mvaEtaBin, mvaPtBin)
+                    recoSF = self.recoSFhist.GetBinContent(self.recoSFhist.FindBin(electron.eta, electron.pt))
+                    mvaMediumSF = self.mvaMediumSFhist.GetBinContent(self.mvaMediumSFhist.FindBin(electron.eta, electron.pt))
+                    mvaTightSF = self.mvaTightSFhist.GetBinContent(self.mvaTightSFhist.FindBin(electron.eta, electron.pt))
                         
-                        validElectron.recoSF = recoSF if recoSF!=0 else 1.
-                        validElectron.mediumMvaSF = mvaMediumSF if mvaMediumSF!=0 else 1.
-                        validElectron.tightMvaSF = mvaTightSF if mvaTightSF!=0 else 1.
-
-                    else:
-                        validElectron.recoSF = 1.
-                        validElectron.mediumMvaSF = 1.
-                        validElectron.tightMvaSF = 1.
+                    validElectron.recoSF = recoSF
+                    validElectron.mediumMvaSF = mvaMediumSF
+                    validElectron.tightMvaSF = mvaTightSF
 
                 self.eleVec.push_back(validElectron)
 
         if(self.eleVec.size() < self.minNEle):
             return False
+
+        ##Trigger matching
+        if self.triggerBit!=None:
+            if not self.triggerMatching(event, self.eleVec, self.triggerBit):
+                return False
                         
         ##Fill branches
         self.eleBranch.Fill()
@@ -153,4 +133,4 @@ class electronSelector(Module):
        
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-cHiggsElectronSelector = lambda era, ptCut, etaCut, minNEle: electronSelector(era = era, ptCut = ptCut, etaCut = etaCut, minNEle=minNEle) 
+cHiggsElectronSelector = lambda era, ptCut, etaCut, minNEle, triggerBit=None: electronSelector(era = era, ptCut = ptCut, etaCut = etaCut, minNEle=minNEle, triggerBit=triggerBit) 
