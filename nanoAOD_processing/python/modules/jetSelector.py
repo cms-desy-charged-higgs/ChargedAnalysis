@@ -17,6 +17,9 @@ class jetSelector(Module):
         self.minNJet = minNJet
 
         ##https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation94X
+        self.csv = {
+                    2017: "{}/src/ChargedHiggs/nanoAOD_processing/data/btagSF/DeepFlavour_94XSF_V1_B_F.csv".format(os.environ["CMSSW_BASE"]),
+        }
 
         self.bTag = {
             2017: {
@@ -24,10 +27,6 @@ class jetSelector(Module):
                     "medium": 0.3033, 
                     "tight": 0.7489,
             }
-        }
-
-        self.csv = {
-                    2017: "{}/src/ChargedHiggs/nanoAOD_processing/data/btagSF/DeepFlavour_94XSF_V1_B_F.csv".format(os.environ["CMSSW_BASE"]),
         }
 
         self.jme = {
@@ -46,9 +45,6 @@ class jetSelector(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out =  wrappedOutputTree 
 
-        ## Load Jet class
-        ROOT.gROOT.ProcessLine(".L {}/src/ChargedHiggs/nanoAOD_processing/macros/jet.cc".format(os.environ["CMSSW_BASE"]))
-
         ## Function for reading jet resolution SF        
         ROOT.gROOT.ProcessLine(".L {}/src/ChargedHiggs/nanoAOD_processing/macros/jetSmearer.cc".format(os.environ["CMSSW_BASE"]))
 
@@ -60,7 +56,7 @@ class jetSelector(Module):
         self.METBranch = self.out.tree().Branch("MET", self.MET)
 
         ##bTag SF reader
-        if "RunIIFall" in inputFile.GetName():
+        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
             self.isData = False
 
             self.jetSmearer = ROOT.JetSmearer(ROOT.std.string(self.jme[self.era][0]), ROOT.std.string(self.jme[self.era][1]))
@@ -92,14 +88,28 @@ class jetSelector(Module):
         resoSF = self.jetSmearer.GetResoSF()    
 
         smearFac = 1.
+        matchedGenJet = None
 
         for genJet in genJets:
             dR = np.sqrt((jet.phi-genJet.phi)**2 + (jet.eta-genJet.eta)**2)
-
+             
             if dR < 0.4/2 and abs(jet.pt - genJet.pt) < 3.*reso*jet.pt:
-                return 1+(resoSF-1)*(jet.pt - genJet.pt)/jet.pt
+                matchedGenJet = genJet 
 
-        return 1 + np.random.normal(0, reso, 1)[0]*np.sqrt(max([resoSF**2, 1.0]))
+        if matchedGenJet:
+            smearFac = 1+(resoSF-1)*(jet.pt - genJet.pt)/jet.pt
+
+        elif resoSF > 1.:
+            sigma = reso*np.sqrt(resoSF**2 - 1.)
+            smearFac = np.random.normal(1., sigma, 1)[0]
+
+        else:
+            pass
+
+        if smearFac*jet.pt < 1.e-2:
+             smearFac = 1.e-2
+
+        return smearFac
             
 
     def analyze(self, event):
@@ -110,11 +120,11 @@ class jetSelector(Module):
         jets = Collection(event, "Jet")
         MET = Object(event, "MET")
 
-        metPx = MET.pt*np.cos(MET.phi)
-        metPy = MET.pt*np.sin(MET.phi)
-
         if not self.isData:
             genJets = Collection(event, "GenJet")
+
+        metPx = MET.pt*np.cos(MET.phi)
+        metPy = MET.pt*np.sin(MET.phi)
 
         ##Loop over jets and set all information
         for jet in jets:
@@ -128,7 +138,7 @@ class jetSelector(Module):
             else:
                 jetPt = jet.pt
 
-            if jetPt > self.ptCut and abs(jet.eta) < self.etaCut:
+            if jetPt > self.ptCut and abs(jet.eta) < self.etaCut and jet.electronIdx1 == -1 and jet.muonIdx1 == -1:
                 validJet = ROOT.Jet()
                 
                 jet4Vec = ROOT.TLorentzVector()
@@ -145,11 +155,7 @@ class jetSelector(Module):
                 ##Calculate bTag SF
                 if not self.isData:
                     SF = self.reader.eval_auto_bounds('central', 0, abs(jet.eta), jetPt)
-                    
-                    if SF != 0: 
-                        validJet.bTagSF = SF
-                    else:
-                        validJet.bTagSF = 1.
+                    validJet.bTagSF = SF
 
                 self.jetVec.push_back(validJet)
 
