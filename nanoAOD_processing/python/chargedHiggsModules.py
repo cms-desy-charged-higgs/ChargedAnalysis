@@ -1,7 +1,8 @@
 ##Selector modules
 
-from ChargedHiggs.nanoAOD_processing.modules.triggerSelector import cHiggsEleTriggerSelector
+from ChargedHiggs.nanoAOD_processing.modules.triggerSelector import cHiggsTriggerSelector
 from ChargedHiggs.nanoAOD_processing.modules.electronSelector import cHiggsElectronSelector
+from ChargedHiggs.nanoAOD_processing.modules.muonSelector import cHiggsMuonSelector
 from ChargedHiggs.nanoAOD_processing.modules.jetSelector import cHiggsJetSelector
 from ChargedHiggs.nanoAOD_processing.modules.metFilter import cHiggsMetFilter
 
@@ -10,19 +11,35 @@ from ChargedHiggs.nanoAOD_processing.modules.metFilter import cHiggsMetFilter
 from ChargedHiggs.nanoAOD_processing.modules.nGenProducer import cHiggsnGenProducer
 from ChargedHiggs.nanoAOD_processing.modules.quantitiesProducer import cHiggsQuantitiesProducer
 from ChargedHiggs.nanoAOD_processing.modules.MCWeightProducer import cHiggsMCWeightProducer
-from ChargedHiggs.nanoAOD_processing.modules.puWeightProducer import puAutoWeight
+from ChargedHiggs.nanoAOD_processing.modules.puWeightProducer import cHiggspuWeightProducer
 from ChargedHiggs.nanoAOD_processing.modules.topPtWeightProducer import cHiggstopPtWeightProducer
 
-module_list = [ 
-                cHiggsnGenProducer(),
+module_list = {
+            "e4b": [ 
+                    cHiggsnGenProducer(),
 
-                cHiggsMetFilter(2017),
-                cHiggsEleTriggerSelector(),
-                cHiggsElectronSelector(2017, 36., 2.4, 1),
-                cHiggsJetSelector(2017, 30., 2.4, 0),
+                    cHiggsMetFilter(2017),
+                    cHiggsTriggerSelector(["HLT_Ele35_WPTight_Gsf"], ["HLT_IsoMu27"]),
+                    cHiggsElectronSelector(2017, 38., 2.4, 1, 2),
+                    cHiggsJetSelector(2017, 30., 2.4, 0),
    
-                cHiggsQuantitiesProducer(),
-                cHiggsMCWeightProducer(2017),
-                puAutoWeight(),
-                cHiggstopPtWeightProducer(),
-]
+                    cHiggsQuantitiesProducer(),
+                    cHiggsMCWeightProducer(2017),
+                    cHiggspuWeightProducer(2017),
+                    cHiggstopPtWeightProducer(),
+            ],
+
+            "m4b": [ 
+                    cHiggsnGenProducer(),
+
+                    cHiggsMetFilter(2017),
+                    cHiggsTriggerSelector(["HLT_IsoMu27"], ["HLT_Ele35_WPTight_Gsf"]),
+                    cHiggsMuonSelector(2017, 30., 2.4, 1, 2),
+                    cHiggsJetSelector(2017, 30., 2.4, 0),
+   
+                    cHiggsQuantitiesProducer(),
+                    cHiggsMCWeightProducer(2017),
+                    cHiggspuWeightProducer(2017),
+                    cHiggstopPtWeightProducer(),
+            ],
+}
