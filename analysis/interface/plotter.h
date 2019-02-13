@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "TError.h"
+#include "TGaxis.h"
 #include "TROOT.h"
 #include "TFile.h"
 #include "TH1F.h"
@@ -25,16 +26,17 @@ class Plotter{
     
     private:
         std::string histdir;
+        std::vector<std::string> parameters;
 
-        std::map<std::string, std::vector<TH1F*>> background;
-        std::map<std::string, TH1F*> data;
+        std::vector<std::vector<TH1F*>> background;
+        std::vector<std::vector<TH1F*>> signal;
+        std::vector<TH1F*> data;
         std::map<std::string, int> colors;
-        std::map<std::string, std::string> xLabels;
 
     public:
         Plotter();
-        Plotter(std::string &histdir);
-        void ConfigureHists(std::vector<std::string> &parameters, std::vector<std::string> &processes);
+        Plotter(std::string &histdir, std::vector<std::string> &parameters);
+        void ConfigureHists(std::vector<std::string> &processes);
         void Draw(std::vector<std::string> &outdirs);
         
 };
