@@ -55,6 +55,9 @@ def get_filenames(bkgTXT, dataTXT, sigTXT):
         with open(sigTXT) as f:
             signal = [signal for signal in f.read().splitlines() if signal != ""]
 
+    else:
+        signal = []
+
     ##Fill file names in using dasgoclient API
     filelist = {}
 
@@ -94,7 +97,7 @@ def condor_submit(outdir, filename, channel):
     job = htcondor.Submit()
     schedd = htcondor.Schedd()
 
-    skimfilename = filename.split('/')[-1][:-5] + "_Skim.root" 
+    skimfilename = "_".join(filename.split("/"))[:-5] + "_Skim.root"
 
     ##Condor configuration
     job["executable"] = "{}/src/ChargedHiggs/nanoAOD_processing/batch/condor_script.sh".format(os.environ["CMSSW_BASE"])
@@ -108,7 +111,7 @@ def condor_submit(outdir, filename, channel):
     job["output"]                    = outdir + "/log/job_$(Cluster).out"
     job["error"]                    = outdir + "/log/job_$(Cluster).err"
 
-    job["+RequestRuntime"]    = "{}".format(60*60*12)
+    #job["+RequestRuntime"]    = "{}".format(60*60*12)
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{filename} = {outdir}/{filename}'.format(filename=skimfilename, outdir=outdir) + '"'
 
