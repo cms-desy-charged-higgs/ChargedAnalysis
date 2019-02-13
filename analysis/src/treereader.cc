@@ -11,11 +11,13 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &parameter
     procDic({
             {"DY+j", DY},
             {"W+j", WJ},
-            {"data", DATA},
+            {"SingleE", DATA},
+            {"SingleMu", DATA},
             {"VV+VVV", VV},
             {"QCD", QCD},
             {"TT+X", TT},
-            {"T+X", T}
+            {"T+X", T},
+            {"L4B_150_75", SIGNAL},
     }){
 
     SetHistMap();   
@@ -40,23 +42,31 @@ void TreeReader::ProgressBar(int progress){
 
 }
 
-float TreeReader::GetWeight(Event event, std::vector<float> weights){
+float TreeReader::GetWeight(Event &event, std::vector<float> &weights){
     float totalWeight = 1.;
 
     //Weights given to this functions
-    for(float weight: weights){
+    for(const float &weight: weights){
         totalWeight *= weight;
     }
 
     //Weights related to electrons
-    for(Lepton electron: event.leptons){
+    for(const Electron &electron: event.electrons){
         if(electron.isMedium){
             totalWeight *= electron.recoSF*electron.mediumMvaSF;
         }
     }
 
+    //Weights related to muon
+    for(const Muon &muon: event.muons){
+        if(muon.isMedium){
+            totalWeight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
+        }
+    }
+
+  
     //Weights related to jets
-    for(Jet jet: event.jets){
+    for(const Jet &jet: event.jets){
         if(jet.isMediumB){
             //totalWeight *= jet.bTagSF;
         }
@@ -65,7 +75,7 @@ float TreeReader::GetWeight(Event event, std::vector<float> weights){
     return totalWeight;
 }
 
-void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, const int &entryStart, const int &entryEnd, const float nGen)
+void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, const int &entryStart, const int &entryEnd, const float &nGen)
 { 
     //Dont start immediately to avoid crashes of ROOT
     std::this_thread::sleep_for (std::chrono::seconds(1));
@@ -74,23 +84,43 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     Processes proc = procDic[process];
 
     std::vector<TH1F*> histograms;
-    std::vector<std::function<float (Event)>> parameterFunctions;
+    std::vector<parameterFunc> parameterFunctions;
 
     //Lock thread unsafe operation
     mutex.lock();
 
     //Create thread local histograms
-    for(std::string parameter: parameters){
+    for(const std::string &parameter: parameters){
         TH1F* hist = new TH1F((parameter + std::to_string(entryEnd)).c_str(), (parameter + std::to_string(entryEnd)).c_str(), histValues[parameter].nBins, histValues[parameter].xMin, histValues[parameter].xMax);
+        hist->Sumw2();
         histograms.push_back(hist);
 
-        parameterFunctions.push_back(histValues[parameter].histFunc);
+        parameterFunctions.push_back(histValues[parameter].parameterValue);
     }
 
     //Define TTreeReader 
     TTreeReader reader(chainWrapper[0]);
 
-    TTreeReaderValue<std::vector<Lepton>> electrons(reader, "electron");
+    //Check if electron or muon branche exist, if not give Event class empty vector
+    bool hasElectronCol = false;
+    std::vector<Electron> emptyEle = {};
+
+    bool hasMuonCol = false;
+    std::vector<Muon> emptyMuon = {};
+
+    TTreeReaderValue<std::vector<Electron>> electrons;
+    TTreeReaderValue<std::vector<Muon>> muons;
+    
+    if(chainWrapper[0]->GetBranchStatus("electron")){
+        electrons = TTreeReaderValue<std::vector<Electron>>(reader, "electron");
+        hasElectronCol = true;
+    }
+
+    if(chainWrapper[0]->GetBranchStatus("muon")){
+        muons = TTreeReaderValue<std::vector<Muon>>(reader, "muon");
+        hasMuonCol = true;
+    }
+
     TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
     TTreeReaderValue<Quantities> quantities(reader, "quantities");
     TTreeReaderValue<TLorentzVector> MET(reader, "MET");
@@ -109,34 +139,35 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     mutex.unlock();
 
     //Fill vector with wished cut operation
-    std::vector<std::function<bool (Event)>> cuts; 
+    std::vector<cut> cuts; 
         
-    for(std::string cutstring: cutstrings){
+    for(const std::string &cutstring: cutstrings){
         cuts.push_back(cutValues[cutstring]);
     }
    
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
         reader.SetEntry(i);  
-        Event event = {*electrons, *jets, *quantities, *MET}; 
+        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *quantities, *MET}; 
 
         //Check if event passes cut
-        bool cut = true;
+        bool passedCut = true;
  
-        for(std::function<bool (Event)> cutValue: cuts){
-            cut *= cutValue(event);
+        for(const cut &cutValue: cuts){
+            passedCut *= (this->*cutValue)(event);
         }
         
         //Fill histograms
-        if(cut){
+        if(passedCut){
             for(unsigned i=0; i < histograms.size(); i++){
                 if(proc != DATA){
-                    float weight = GetWeight(event, {*genWeight, *puWeight, (*lumi)*(float)1e3, *xSec, 1.f/nGen});
-                    histograms[i]->Fill(parameterFunctions[i](event), weight);
+                    std::vector<float> weightVec = {*genWeight, *puWeight, (*lumi)*(float)1e3, *xSec, 1.f/nGen};
+                    float weight = GetWeight(event, weightVec);
+                    histograms[i]->Fill((this->*parameterFunctions[i])(event), weight);
                 }
                     
                 else{
-                    histograms[i]->Fill(parameterFunctions[i](event));
+                    histograms[i]->Fill((this->*parameterFunctions[i])(event));
                 }
 
             }
@@ -162,8 +193,13 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
     ProgressBar(progress);
 
     //Define final histogram for each parameter
-    for(std::string parameter: parameters){
-        mergedHistograms.push_back(new TH1F(parameter.c_str(), parameter.c_str(), histValues[parameter].nBins, histValues[parameter].xMin, histValues[parameter].xMax));
+    for(const std::string &parameter: parameters){
+        TH1F* hist = new TH1F(parameter.c_str(), parameter.c_str(), histValues[parameter].nBins, histValues[parameter].xMin, histValues[parameter].xMax);
+        hist->Sumw2();
+
+        hist->GetXaxis()->SetTitle(histValues[parameter].xLabel.c_str());
+
+        mergedHistograms.push_back(hist);
     }
 
     //Configure threads
@@ -176,12 +212,16 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
 
     int assignedCore = 0;
 
-    for(std::string filename: filenames){
+    for(const std::string &filename: filenames){
         //Get nGen for each file
         TFile* file = TFile::Open(filename.c_str());
-        TH1F* hist = (TH1F*)file->Get("nGen");  
-        float nGen = hist->Integral();
-        file->Close();
+        float nGen = 1.;
+
+        if(procDic[process] != DATA){
+            TH1F* hist = (TH1F*)file->Get("nGenWeighted");  
+            nGen = hist->Integral()*hist->GetMean();
+            file->Close();
+        }
 
         for(int i = 0; i < threadsPerFile; i++){
             //Make TChain for each file and wrap it with a vector, a TTree or bar TChain is not working

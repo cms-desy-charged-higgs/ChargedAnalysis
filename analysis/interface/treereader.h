@@ -23,27 +23,41 @@
 
 #include <ChargedHiggs/nanoAOD_processing/interface/quantities.h> 
 #include <ChargedHiggs/nanoAOD_processing/interface/jet.h> 
-#include <ChargedHiggs/nanoAOD_processing/interface/lepton.h> 
+#include <ChargedHiggs/nanoAOD_processing/interface/electron.h> 
+#include <ChargedHiggs/nanoAOD_processing/interface/muon.h> 
 
 
 class TreeReader {
     
-    enum Processes {DY, QCD, TT, T, DATA, VV, WJ};
+    enum Processes {DY, QCD, TT, T, DATA, VV, WJ, SIGNAL};
 
     //Struct for reading out tree
-    struct Event{
-        std::vector<Lepton> leptons;
+    struct Event{ 
+        //Initially given       
+        std::vector<Electron> electrons;
+        std::vector<Muon> muons;
         std::vector<Jet> jets;
         Quantities quantities;
-        TLorentzVector MET; 
+        TLorentzVector MET;
+
+        //Reconstructed during processing of the event
+        TLorentzVector h1;
+        TLorentzVector h2;
+        TLorentzVector W;
+        TLorentzVector Hc;
     };
+
+    //typedef for pointer to member functions
+    typedef float(TreeReader::*parameterFunc)(Event &event);
+    typedef bool(TreeReader::*cut)(Event &event);
 
     //Struct for histogram configuration
     struct Hist{
         float nBins;
         float xMin;
         float xMax;
-        std::function<float (Event)> histFunc;
+        std::string xLabel;
+        parameterFunc parameterValue;
     };
 
     private:
@@ -63,7 +77,7 @@ class TreeReader {
 
         //Helper function
         std::map<std::string, Hist> histValues; 
-        std::map<std::string, std::function<bool (Event)>> cutValues; 
+        std::map<std::string, cut> cutValues; 
         std::map<std::string, Processes> procDic;                   
 
         //Setup fill in treereaderfunction.cc        
@@ -72,35 +86,52 @@ class TreeReader {
     
         //Helper function
         void ProgressBar(int progress);
-        float GetWeight(Event event, std::vector<float> weights);
+        float GetWeight(Event &event, std::vector<float> &weights);
 
         //Loop for each thread
-        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float nGen);
+        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float &nGen);
+
+        //Function for reconstruct objects
+        void WBoson(Event &event);
+        void Higgs(Event &event);
 
         //Functions for cuts 
 
-        static std::function<bool (Event)> Baseline;
+        bool Baseline(Event &event);
+        bool ZeroJet(Event &event);
+        bool FourJet(Event &event);
 
         //Functions for calculating quantities
-        static std::function<float (Event)> WBosonMT;
-        static std::function<float (Event)> WBosonPhi;
-        static std::function<float (Event)> WBosonPT;
-        static std::function<float (Event)> ElectronPT;
-        static std::function<float (Event)> ElectronPhi;
-        static std::function<float (Event)> ElectronEta;
-        static std::function<float (Event)> Jet1PT;
-        static std::function<float (Event)> Jet1Phi;
-        static std::function<float (Event)> Jet1Eta;
-        static std::function<float (Event)> Jet2PT;
-        static std::function<float (Event)> Jet2Phi;
-        static std::function<float (Event)> Jet2Eta;
-        static std::function<float (Event)> nJet;
-        static std::function<float (Event)> nLooseBJet;
-        static std::function<float (Event)> nMediumBJet;
-        static std::function<float (Event)> nTightBJet;
-        static std::function<float (Event)> HT;
-        static std::function<float (Event)> MET;
-        static std::function<float (Event)> METPhi;
+        float WBosonMT(Event &event);
+        float WBosonPhi(Event &event);
+        float WBosonPT(Event &event);
+        float ElectronPT(Event &event);
+        float ElectronPhi(Event &event);
+        float ElectronEta(Event &event);
+        float MuonPT(Event &event);
+        float MuonPhi(Event &event);
+        float MuonEta(Event &event);
+        float Jet1PT(Event &event);
+        float Jet1Phi(Event &event);
+        float Jet1Eta(Event &event);
+        float Jet2PT(Event &event);
+        float Jet2Phi(Event &event);
+        float Jet2Eta(Event &event);
+        float nJet(Event &event);
+        float nLooseBJet(Event &event);
+        float nMediumBJet(Event &event);
+        float nTightBJet(Event &event);
+        float HT(Event &event);
+        float MET(Event &event);
+        float METPhi(Event &event);
+        float higgs1Mass(Event &event);
+        float higgs2Mass(Event &event);
+        float higgs1PT(Event &event);
+        float higgs2PT(Event &event);
+        float cHiggsPT(Event &event);
+        float cHiggsMT(Event &event);
+        float dPhih1h2(Event &event);
+
 
     public:
         TreeReader();
