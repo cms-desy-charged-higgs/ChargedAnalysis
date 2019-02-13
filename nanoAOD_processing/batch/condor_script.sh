@@ -17,6 +17,8 @@ git clone https://github.com/cms-nanoAOD/nanoAOD-tools.git PhysicsTools/NanoAODT
 
 scram b
 
-python ChargedHiggs/nanoAOD_processing/scripts/nano_analysis.py --filename $1 --channel $2
-mv *.root ../../
+xrdcp $1 $(echo $1 | tr '/' '_')
+
+python ChargedHiggs/nanoAOD_processing/scripts/nano_analysis.py --filename $(echo $1 | tr '/' '_') --channel $2
+mv *_Skim.root ../../
 
