@@ -1,26 +1,10 @@
-TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 182.17540224
-
-TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 182.17540224
-
-TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 54.23
-
-TTJets_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 1.821
-
-TTJets_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.7532
-
-TTJets_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.1986
-
-TTJets_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.00236665
+###Sources:
+##https://twiki.cern.ch/twiki/bin/viewauth/CMS/TauIDMeasurementsHelp
+##https://twiki.cern.ch/twiki/bin/view/LHCPhysics/TtbarNNLO
+###https://twiki.cern.ch/twiki/bin/view/LHCPhysics/SingleTopRefXsec#Single_top_t_channel_cross_secti
 
 TTJets_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 831.76 #https://twiki.cern.ch/twiki/bin/view/LHCPhysics/TtbarNNLO
+    xsec: 831.76
 
 TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8:
     xsec: 0.05324
@@ -37,29 +21,11 @@ TTWJetsToLNu_TuneCP5_PSweights_13TeV-amcatnloFXFX-madspin-pythia8:
 ttH_M125_mtop1735_TuneCP5_13TeV-powheg-pythia8:
     xsec: 0.5027
 
-WWTo4Q_NNPDF31_TuneCP5_13TeV-powheg-pythia8:
-    xsec: 47.73
-
-WWToLNuQQ_NNPDF31_TuneCP5_13TeV-powheg-pythia8:
-    xsec: 45.99
-
-WWTo2L2Nu_NNPDF31_TuneCP5_13TeV-powheg-pythia8:
-    xsec: 12.178
-
 WW_TuneCP5_13TeV-pythia8:
     xsec: 75.8
 
-WZTo2L2Q_13TeV_amcatnloFXFX_madspin_pythia8:
-    xsec: 6.331
-
 WZ_TuneCP5_13TeV-pythia8:
     xsec: 27.6
-
-WZTo1L1Nu2Q_13TeV_amcatnloFXFX_madspin_pythia8:
-    xsec: 11.66
-    
-WZTo3LNu_13TeV-powheg-pythia8:
-    xsec: 4.42965
 
 ZZ_TuneCP5_13TeV-pythia8:
     xsec: 12.14
@@ -80,10 +46,10 @@ ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-amcatnlo-pythia8:
     xsec: 3.74
 
 ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8:
-    xsec: 34.91
+    xsec: 35.85
 
 ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8:
-    xsec: 34.97
+    xsec: 35.85
 
 ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
     xsec: 80.95
@@ -91,53 +57,14 @@ ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
 ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8:
     xsec: 136.02
 
+DYJetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8:
+    xsec: 21658.0
+
 DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 6225.42
-
-DYJetsToLL_M-50_HT-100to200_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 161.1
-
-DYJetsToLL_M-50_HT-200to400_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 48.66
-
-DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 6.968
-
-DYJetsToLL_M-50_HT-600to800_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 1.743
-
-DYJetsToLL_M-50_HT-800to1200_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.8052
-
-DYJetsToLL_M-50_HT-1200to2500_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.1933 
-
-DYJetsToLL_M-50_HT-2500toInf_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.003468
+    xsec: 5765.4
 
 WJetsToLNu_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 52940.0
-
-WJetsToLNu_HT-100To200_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 1395.0
-
-WJetsToLNu_HT-200To400_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 407.9
-
-WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 57.48
-
-WJetsToLNu_HT-600To800_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 12.87
-
-WJetsToLNu_HT-800To1200_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 5.366
-
-WJetsToLNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 1.074
-
-WJetsToLNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8:
-    xsec: 0.008001
+    xsec: 61526.7
 
 QCD_HT100to200_TuneCP5_13TeV-madgraph-pythia8:
     xsec: 23700000.0
