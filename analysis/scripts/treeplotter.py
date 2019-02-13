@@ -14,7 +14,10 @@ from multiprocessing import Pool, cpu_count
 def parser():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--processes", nargs="+", default = "all")
+    parser.add_argument("--background", nargs="+", default = ["TT+X", "T+X", "QCD", "W+j", "DY+j", "VV+VVV"])
+    parser.add_argument("--data", nargs="+", default = [])
+    parser.add_argument("--signal", nargs = "+", default = [])   
+
     parser.add_argument("--process-yaml", type = str, default = "{}/src/ChargedHiggs/analysis/data/process.yaml".format(os.environ["CMSSW_BASE"]))
     parser.add_argument("--skim-dir", type = str)
     parser.add_argument("--plot-dir", type = str, default = "{}/src/Plots".format(os.environ["CMSSW_BASE"]))
@@ -34,7 +37,7 @@ def createHistograms(process, filenames, parameters, cuts, outdir):
 
     timestamp1 = time.time()
     reader = ROOT.TreeReader(ROOT.std.string(process), parameters, cuts)
-    reader.EventLoop(filenames, 6)
+    reader.EventLoop(filenames)
     reader.Write(outname)
     timestamp2 = time.time()
 
@@ -42,8 +45,8 @@ def createHistograms(process, filenames, parameters, cuts, outdir):
 
 def makePlots(histDir, parameters, processes, plotDir):
 
-    plotter = ROOT.Plotter(histDir)
-    plotter.ConfigureHists(parameters, processes)
+    plotter = ROOT.Plotter(histDir, parameters)
+    plotter.ConfigureHists(processes)
     plotter.Draw(plotDir)
     
 def main():
@@ -67,15 +70,12 @@ def main():
             print "Created output path: {}".format(args.www)
             os.system("mkdir -p {}".format(args.www))
 
-    if args.processes == "all":
-        args.processes = process_dic.keys()
-
     ##Create std::vector for parameters
     parameters = ROOT.std.vector("string")()
     [parameters.push_back(param) for param in args.parameters]
 
     processes = ROOT.std.vector("string")()
-    [processes.push_back(proc) for proc in args.processes]
+    [processes.push_back(proc) for proc in args.background + args.data + args.signal]
 
     cuts = ROOT.std.vector("string")()
     [cuts.push_back(cut) for cut in args.cuts]
