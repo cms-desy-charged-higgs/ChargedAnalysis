@@ -22,7 +22,7 @@ scram b
 export NAME=$3
 export CONDITIONS=94X_mc2017_realistic_v10
 export ERA=Run2_2017,run2_nanoAOD_94XMiniAODv1
-export N=5
+export N=1000
 
 cmsDriver.py LHEtoEDM --filein file:${NAME}.lhe --fileout file:${NAME}_pLHE.root --mc --eventcontent LHE --datatier LHE --conditions $CONDITIONS --era $ERA --step NONE --python_filename ${NAME}_pLHE_cfg.py --customise Configuration/DataProcessing/Utils.addMonitoring -n $N 
 
