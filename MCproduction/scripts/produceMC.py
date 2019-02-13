@@ -10,22 +10,23 @@ import htcondor
 def parser():
     parser = argparse.ArgumentParser()
     
+    parser.add_argument("--MHc", type = int)
+    parser.add_argument("--Mh", type = int)
     parser.add_argument("--lhe-dir", type = str)
     parser.add_argument("--fragment", type = str)
 
     return parser.parse_args()
 
 
-def condor_submit(fragment, lhefile):
+def condor_submit(MHc, Mh, fragment, lhefile):
     job = htcondor.Submit()
     schedd = htcondor.Schedd()
 
     name = lhefile.split("/")[-1][:-4]
 
-    outdir = "/nfs/dust/cms/user/{}/Signal/{}".format(os.environ["USER"], name)
+    outdir = "/nfs/dust/cms/user/{}/Signal/Hc+hTol4b_MHc{}_Mh{}/Samples/".format(os.environ["USER"], MHc, Mh)
     os.system("mkdir -p {}".format(outdir)) 
     os.system("mkdir -p {}/log".format(outdir)) 
-    os.system("rm -f {}/log/*".format(outdir)) 
 
     job["executable"] = "{}/src/ChargedHiggs/MCproduction/batch/produceMC.sh".format(os.environ["CMSSW_BASE"])
     job["arguments"] = " ".join([fragment.split("/")[-1], lhefile.split("/")[-1], name])
@@ -41,7 +42,10 @@ def condor_submit(fragment, lhefile):
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{filename}_MINIAOD.root = {outdir}/{filename}_MINIAOD.root; {filename}_NANOAOD.root = {outdir}/{filename}_NANOAOD.root '.format(filename=name, outdir=outdir) + '"'
 
-    #job["+RequestRuntime"]    = "{}".format(60*60*12)
+    job["on_exit_hold"] = "(ExitBySignal == True) || (ExitCode != 0)"  
+    job["periodic_release"] =  "(NumJobStarts < 5) && ((CurrentTime - EnteredCurrentStatus) > 60)"
+
+    job["+RequestRuntime"]    = "{}".format(60*60*12)
 
     def submit(schedd, job):
         with schedd.transaction() as txn:
@@ -64,7 +68,7 @@ def main():
 
     for fname in os.listdir(args.lhe_dir):
         lhefile = "{}/{}".format(args.lhe_dir, fname)
-        condor_submit(args.fragment, lhefile)
+        condor_submit(args.MHc, args.Mh, args.fragment, lhefile)
     
 if __name__ == "__main__":
     main()
