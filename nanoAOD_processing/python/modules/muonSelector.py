@@ -47,7 +47,7 @@ class muonSelector(Module):
         self.muonVec = ROOT.std.vector(ROOT.Muon)()
         self.muonBranch = self.out.tree().Branch("muon", self.muonVec)
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
             self.isData = False
             
             ## 2D hist for SF for trigger
@@ -65,6 +65,8 @@ class muonSelector(Module):
             self.IDSFfile = ROOT.TFile(self.fileDir + self.IDSFfiles[self.era])
             self.mediumIDHist = self.IDSFfile.Get("NUM_MediumID_DEN_genTracks_pt_abseta")
             self.tightIDHist = self.IDSFfile.Get("NUM_TightID_DEN_genTracks_pt_abseta")
+
+            outputFile.cd()
 
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):

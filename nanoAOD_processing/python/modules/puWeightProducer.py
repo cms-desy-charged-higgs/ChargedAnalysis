@@ -30,7 +30,9 @@ class puWeightProducer(Module):
 
         self.pileUpWeight = ROOT.TH1F("puWeight", "puWeight", 100, 0, 100)
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
+            ROOT.gROOT.SetBatch(ROOT.kTRUE)
+
             self.isData = False
 
             pileUpFile = ROOT.TFile(self.fileDir + self.files[self.era])

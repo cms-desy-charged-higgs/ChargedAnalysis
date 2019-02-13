@@ -22,15 +22,14 @@ class nGenProducer(Module):
         self.out = wrappedOutputTree
         self.nGen = ROOT.TH1F("nGen", "nGen", 100, -1e7, 1e7)
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
             self.nGenWeighted = ROOT.TH1F("nGenWeighted", "nGen", 100, -1e7, 1e7)
-            
             self.isData = False
             
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.nGen.Write()
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if not self.isData:
             self.nGenWeighted.Write()
 
     def analyze(self, event):

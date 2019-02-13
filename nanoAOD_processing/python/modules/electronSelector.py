@@ -54,7 +54,7 @@ class electronSelector(Module):
         self.eleVec = ROOT.std.vector(ROOT.Electron)()
         self.eleBranch = self.out.tree().Branch("electron", self.eleVec)
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
             self.isData = False
             
             ## 2D hist for SF for reco
@@ -67,6 +67,8 @@ class electronSelector(Module):
 
             self.mvaTightSFfile = ROOT.TFile(self.fileDir + self.mvaSFfiles[self.era]["tight"])
             self.mvaTightSFhist = self.mvaTightSFfile.Get("EGamma_SF2D")
+
+            outputFile.cd()
    
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):

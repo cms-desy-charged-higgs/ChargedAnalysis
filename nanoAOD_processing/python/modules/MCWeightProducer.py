@@ -28,7 +28,7 @@ class MCWeightProducer(Module):
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.out = wrappedOutputTree
 
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
             self.isData = False
 
             self.out.branch("lumi", "F")

@@ -56,7 +56,7 @@ class jetSelector(Module):
         self.METBranch = self.out.tree().Branch("MET", self.MET)
 
         ##bTag SF reader
-        if "mc" in inputFile.GetName() or "user" in inputFile.GetName():
+        if hasattr(inputTree, "GenPart_pt"):
             self.isData = False
 
             self.jetSmearer = ROOT.JetSmearer(ROOT.std.string(self.jme[self.era][0]), ROOT.std.string(self.jme[self.era][1]))
