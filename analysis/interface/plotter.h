@@ -8,36 +8,33 @@
 #include <utility>
 #include <algorithm>
 
-#include "TError.h"
-#include "TGaxis.h"
-#include "TROOT.h"
-#include "TFile.h"
-#include "TH1F.h"
-#include "TGraph.h"
-#include "THStack.h"
-#include "TLegend.h"
-#include "TCanvas.h"
-#include "TPad.h"
-#include "TStyle.h"
-#include "TLatex.h"
-#include "Rtypes.h"
+#include <TLatex.h>
+#include <TGaxis.h>
+#include <TError.h>
+#include <TROOT.h>
+#include <TStyle.h>
 
 class Plotter{
-    
-    private:
-        std::string histdir;
-        std::vector<std::string> parameters;
+    protected:
+        enum Processes {BKG, DATA, SIGNAL};
 
-        std::vector<std::vector<TH1F*>> background;
-        std::vector<std::vector<TH1F*>> signal;
-        std::vector<TH1F*> data;
-        std::map<std::string, int> colors;
+        std::string histdir;
+        std::vector<std::string> xParameters;
+        std::vector<std::string> yParameters;
+
+        std::map<std::string, Processes> procDic;
+
+        void DrawHeader(const bool &twoPads, const std::string &cmsText);
 
     public:
+        virtual ~Plotter();
         Plotter();
-        Plotter(std::string &histdir, std::vector<std::string> &parameters);
-        void ConfigureHists(std::vector<std::string> &processes);
-        void Draw(std::vector<std::string> &outdirs);
+        Plotter(std::string &histdir, std::vector<std::string> &xParameters);
+        Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters);
+
+        virtual void ConfigureHists(std::vector<std::string> &processes) = 0;
+        void SetStyle();
+        virtual void Draw(std::vector<std::string> &outdirs) = 0;
         
 };
 
