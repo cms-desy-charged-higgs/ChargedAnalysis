@@ -40,8 +40,8 @@ DY+j:
 T+X:
     filenames:
         - ST_s-channel_4f_leptonDecays_TuneCP5_13TeV-amcatnlo-pythia8
-        #- ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8
-        #- ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8
+        - ST_tW_top_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8
+        - ST_tW_antitop_5f_inclusiveDecays_TuneCP5_13TeV-powheg-pythia8
         - ST_t-channel_antitop_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8
         - ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8
 
@@ -64,3 +64,7 @@ SingleMu:
 L4B_150_75:
     filenames:
         - Hc+hTol4b_MHc150_Mh75
+
+L4B_600_100:
+    filenames:
+        - Hc+hTol4b_MHc600_Mh100
