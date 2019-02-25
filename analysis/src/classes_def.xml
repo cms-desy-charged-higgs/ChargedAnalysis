@@ -1,5 +1,7 @@
 <lcgdict>
     <class name="TreeReader"/>
-    <class name="Plotter"/>
+    <class name="Plotter1D"/>
+    <class name="Plotter2D"/>
+    <class name="PlotterGen"/>
 </lcgdict>
 
