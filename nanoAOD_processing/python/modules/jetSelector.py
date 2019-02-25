@@ -148,9 +148,9 @@ class jetSelector(Module):
                 self.METBranch.Fill()
 
                 validJet.fourVec = jet4Vec
-                validJet.isLooseB = self.bTag[self.era]["loose"] > jet.btagDeepFlavB
-                validJet.isMediumB = self.bTag[self.era]["medium"] > jet.btagDeepFlavB
-                validJet.isTightB = self.bTag[self.era]["tight"] > jet.btagDeepFlavB
+                validJet.isLooseB = self.bTag[self.era]["loose"] < jet.btagDeepFlavB
+                validJet.isMediumB = self.bTag[self.era]["medium"] < jet.btagDeepFlavB
+                validJet.isTightB = self.bTag[self.era]["tight"] < jet.btagDeepFlavB
 
                 ##Calculate bTag SF
                 if not self.isData:
