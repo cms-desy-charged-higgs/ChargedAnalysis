@@ -6,10 +6,8 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 
 class triggerSelector(Module):
-    def __init__(self, pathToPass, pathNotToPass):
-
+    def __init__(self, pathToPass):
         self.pathToPass = pathToPass
-        self.pathNotToPass = pathNotToPass
 
     def beginJob(self):
         pass
@@ -25,16 +23,15 @@ class triggerSelector(Module):
 
     def analyze(self, event):
         passedPaths = [getattr(event, trigger) for trigger in self.pathToPass]
-        notPassedPaths = [getattr(event, trigger) for trigger in self.pathNotToPass]
 
         if False in passedPaths:
             return False
 
-        if True in notPassedPaths:
-            return False
+        #if True in notPassedPaths:
+         #   return False
 
         return True
             
 # define modules using the syntax 'name = lambda : constructor' to avoid having them loaded when not needed
 
-cHiggsTriggerSelector = lambda pathToPass, pathNotToPass : triggerSelector(pathToPass, pathNotToPass)
+cHiggsTriggerSelector = lambda pathToPass: triggerSelector(pathToPass)
