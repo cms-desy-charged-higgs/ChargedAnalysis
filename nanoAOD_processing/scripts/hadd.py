@@ -28,7 +28,7 @@ def main():
     haddtargets = get_hadd_targets(args.skim_dir)
 
     for target, rootfiles in haddtargets.iteritems():
-        os.system("hadd {}/{}/{}.root ".format(args.skim_dir, target, target) + " ".join(rootfiles))
+        os.system("hadd -j {}/{}/{}.root ".format(args.skim_dir, target, target) + " ".join(rootfiles))
 
         
 if __name__ == "__main__":
