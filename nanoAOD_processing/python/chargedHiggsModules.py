@@ -19,9 +19,10 @@ module_list = {
                     cHiggsnGenProducer(),
 
                     cHiggsMetFilter(2017),
-                    cHiggsTriggerSelector(["HLT_Ele35_WPTight_Gsf"], ["HLT_IsoMu27"]),
+                    cHiggsTriggerSelector(["HLT_Ele35_WPTight_Gsf"]),
                     cHiggsElectronSelector(2017, 38., 2.4, 1, 2),
-                    cHiggsJetSelector(2017, 30., 2.4, 0),
+                    cHiggsMuonSelector(2017, 20., 2.4, 0),
+                    cHiggsJetSelector(2017, 30., 2.4, 4),
    
                     cHiggsQuantitiesProducer(),
                     cHiggsMCWeightProducer(2017),
@@ -33,9 +34,10 @@ module_list = {
                     cHiggsnGenProducer(),
 
                     cHiggsMetFilter(2017),
-                    cHiggsTriggerSelector(["HLT_IsoMu27"], ["HLT_Ele35_WPTight_Gsf"]),
+                    cHiggsTriggerSelector(["HLT_IsoMu27"]),
                     cHiggsMuonSelector(2017, 30., 2.4, 1, 2),
-                    cHiggsJetSelector(2017, 30., 2.4, 0),
+                    cHiggsElectronSelector(2017, 20., 2.4, 0),
+                    cHiggsJetSelector(2017, 30., 2.4, 4),
    
                     cHiggsQuantitiesProducer(),
                     cHiggsMCWeightProducer(2017),
