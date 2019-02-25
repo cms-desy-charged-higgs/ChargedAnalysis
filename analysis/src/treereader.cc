@@ -4,9 +4,11 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(std::string &process, std::vector<std::string> &parameters, std::vector<std::string> &cutstrings):
+TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters,
+std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings):
     process(process),
-    parameters(parameters),
+    xParameters(xParameters),
+    yParameters(yParameters),
     cutstrings(cutstrings),
     procDic({
             {"DY+j", DY},
@@ -42,39 +44,6 @@ void TreeReader::ProgressBar(int progress){
 
 }
 
-float TreeReader::GetWeight(Event &event, std::vector<float> &weights){
-    float totalWeight = 1.;
-
-    //Weights given to this functions
-    for(const float &weight: weights){
-        totalWeight *= weight;
-    }
-
-    //Weights related to electrons
-    for(const Electron &electron: event.electrons){
-        if(electron.isMedium){
-            totalWeight *= electron.recoSF*electron.mediumMvaSF;
-        }
-    }
-
-    //Weights related to muon
-    for(const Muon &muon: event.muons){
-        if(muon.isMedium){
-            totalWeight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
-        }
-    }
-
-  
-    //Weights related to jets
-    for(const Jet &jet: event.jets){
-        if(jet.isMediumB){
-            //totalWeight *= jet.bTagSF;
-        }
-    }
-
-    return totalWeight;
-}
-
 void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, const int &entryStart, const int &entryEnd, const float &nGen)
 { 
     //Dont start immediately to avoid crashes of ROOT
@@ -83,19 +52,31 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     //Check out process you have
     Processes proc = procDic[process];
 
-    std::vector<TH1F*> histograms;
-    std::vector<parameterFunc> parameterFunctions;
+    std::vector<TH1F*> histograms1D;
+    std::vector<TH2F*> histograms2D;
+    std::vector<parameterFunc> xFunctions;
+    std::vector<parameterFunc> yFunctions;
 
     //Lock thread unsafe operation
     mutex.lock();
 
     //Create thread local histograms
-    for(const std::string &parameter: parameters){
-        TH1F* hist = new TH1F((parameter + std::to_string(entryEnd)).c_str(), (parameter + std::to_string(entryEnd)).c_str(), histValues[parameter].nBins, histValues[parameter].xMin, histValues[parameter].xMax);
-        hist->Sumw2();
-        histograms.push_back(hist);
+    for(const std::string &xParameter: xParameters){
+        TH1F* hist1D = new TH1F((xParameter + std::to_string(entryEnd)).c_str(), (xParameter + std::to_string(entryEnd)).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max);
 
-        parameterFunctions.push_back(histValues[parameter].parameterValue);
+        hist1D->Sumw2();
+        histograms1D.push_back(hist1D);
+
+        xFunctions.push_back(histValues[xParameter].parameterValue);
+
+        for(const std::string &yParameter: yParameters){
+            TH2F* hist2D = new TH2F((xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), (xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
+
+            hist2D->Sumw2();
+            histograms2D.push_back(hist2D);
+
+            yFunctions.push_back(histValues[yParameter].parameterValue);
+        }
     }
 
     //Define TTreeReader 
@@ -148,7 +129,7 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
         reader.SetEntry(i);  
-        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *quantities, *MET}; 
+        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *quantities, *MET, 1.}; 
 
         //Check if event passes cut
         bool passedCut = true;
@@ -156,20 +137,36 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
         for(const cut &cutValue: cuts){
             passedCut *= (this->*cutValue)(event);
         }
-        
+       
         //Fill histograms
         if(passedCut){
-            for(unsigned i=0; i < histograms.size(); i++){
+            if(proc != DATA){
+            //Fill additional weights
+                std::vector<float> weightVec = {*genWeight < 2 and *genWeight > 0.2 ? *genWeight: (float)1., *puWeight, (*lumi)*(float)1e3, *xSec, 1.f/nGen};
+
+                for(const float &weight: weightVec){
+                    event.weight *= weight;
+                }
+            }
+
+            for(unsigned i=0; i < histograms1D.size(); i++){
                 if(proc != DATA){
-                    std::vector<float> weightVec = {*genWeight, *puWeight, (*lumi)*(float)1e3, *xSec, 1.f/nGen};
-                    float weight = GetWeight(event, weightVec);
-                    histograms[i]->Fill((this->*parameterFunctions[i])(event), weight);
+                    histograms1D[i]->Fill((this->*xFunctions[i])(event), event.weight);
                 }
                     
                 else{
-                    histograms[i]->Fill((this->*parameterFunctions[i])(event));
+                    histograms1D[i]->Fill((this->*xFunctions[i])(event));
                 }
 
+                for(unsigned j=0; j < histograms2D.size(); j++){
+                    if(proc != DATA){
+                        histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);
+                    }
+                        
+                    else{
+                        histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event));
+                    }
+                }
             }
         }
     }
@@ -177,8 +174,12 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     //Lock again and merge local histograms into final histograms
     mutex.lock();
 
-    for(unsigned int i = 0; i < mergedHistograms.size(); i++){
-        mergedHistograms[i]->Add(histograms[i]);
+    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
+        merged1DHistograms[i]->Add(histograms1D[i]);
+    }
+
+    for(unsigned int j = 0; j < merged2DHistograms.size(); j++){
+        merged2DHistograms[j]->Add(histograms2D[j]);
     }
 
     progress += 100*(1.f/nCores);
@@ -189,17 +190,26 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 
 void TreeReader::EventLoop(std::vector<std::string> &filenames){
 
-    //Progress bar at 0 %
-    ProgressBar(progress);
-
     //Define final histogram for each parameter
-    for(const std::string &parameter: parameters){
-        TH1F* hist = new TH1F(parameter.c_str(), parameter.c_str(), histValues[parameter].nBins, histValues[parameter].xMin, histValues[parameter].xMax);
+    for(const std::string &xParameter: xParameters){
+        TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max);
         hist->Sumw2();
 
-        hist->GetXaxis()->SetTitle(histValues[parameter].xLabel.c_str());
+        hist->GetXaxis()->SetTitle(histValues[xParameter].Label.c_str());
 
-        mergedHistograms.push_back(hist);
+        merged1DHistograms.push_back(hist);
+
+        for(const std::string &yParameter: yParameters){
+            TH2F* hist = new TH2F((xParameter + "_VS_" + yParameter).c_str(), (xParameter + "_VS_" + yParameter).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
+
+            hist->Sumw2();
+
+            hist->GetXaxis()->SetTitle(histValues[xParameter].Label.c_str());
+            hist->GetYaxis()->SetTitle(histValues[yParameter].Label.c_str());
+
+            merged2DHistograms.push_back(hist);
+        }
+
     }
 
     //Configure threads
@@ -215,11 +225,16 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
     for(const std::string &filename: filenames){
         //Get nGen for each file
         TFile* file = TFile::Open(filename.c_str());
+        if(!file->GetListOfKeys()->Contains("Events")){
+            std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
+            continue;
+        }
+
         float nGen = 1.;
 
         if(procDic[process] != DATA){
             TH1F* hist = (TH1F*)file->Get("nGenWeighted");  
-            nGen = hist->Integral()*hist->GetMean();
+            nGen = hist->Integral();
             file->Close();
         }
 
@@ -256,6 +271,10 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
 
     }
 
+
+    //Progress bar at 0 %
+    ProgressBar(progress);
+
     //Let it run
     for(std::thread &thread: threads){
         thread.join();
@@ -268,9 +287,14 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
 //Write File
 
 void TreeReader::Write(std::string &outname){
-    TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open(outname.c_str(), "UPDATE");
 
-    for(TH1F* hist: mergedHistograms){
+    for(TH1F* hist: merged1DHistograms){
+        hist->Write();
+        delete hist;
+    }
+
+    for(TH2F* hist: merged2DHistograms){
         hist->Write();
         delete hist;
     }
