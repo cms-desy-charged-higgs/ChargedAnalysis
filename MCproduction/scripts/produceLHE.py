@@ -9,8 +9,8 @@ import htcondor
 def parser():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--MHc", type = int)
-    parser.add_argument("--Mh", type = int)
+    parser.add_argument("--MHc", type = str)
+    parser.add_argument("--Mh", type = str)
     parser.add_argument("--events-per-run", type = int, default = 1000)
     parser.add_argument("--runs", type = int, default = 2000)
 
@@ -52,7 +52,7 @@ def writeCommand(MHc, Mh, nEvents):
                 "done",       
     ]
 
-    with open(os.environ["CMSSW_BASE"] + "/src/command.txt", "w") as f: 
+    with open(os.environ["CMSSW_BASE"] + "/src/command_{}_{}.txt".format(MHc, Mh), "w") as f: 
         for command in commands:
             f.write(command)
             f.write("\n")
@@ -73,12 +73,13 @@ def submit(MHc, Mh):
     job["executable"] = "{}/src/ChargedHiggs/MCproduction/batch/produceLHE.sh".format(os.environ["CMSSW_BASE"])
     job["universe"]       = "vanilla"
 
+    job["arguments"] = " ".join([MHc, Mh])
     job["should_transfer_files"] = "YES"
-    job["transfer_input_files"]       = ",".join([os.environ["CMSSW_BASE"] + "/src/ChargedHiggs/MCproduction/MG5_aMC_v2_6_4", os.environ["CMSSW_BASE"] + "/src/command.txt", os.environ["CMSSW_BASE"] + "/src/ChargedHiggs/MCproduction/SLHA/Hc+hTol4b_MHc{}_Mh{}.shla".format(MHc, Mh)])
+    job["transfer_input_files"]       = ",".join([os.environ["CMSSW_BASE"] + "/src/ChargedHiggs/MCproduction/MG5_aMC_v2_6_4", os.environ["CMSSW_BASE"] + "/src/command_{}_{}.txt".format(MHc, Mh), os.environ["CMSSW_BASE"] + "/src/ChargedHiggs/MCproduction/SLHA/Hc+hTol4b_MHc{}_Mh{}.shla".format(MHc, Mh)])
 
-    job["log"]                    = "log/job_$(Cluster).log"
-    job["output"]                    = "log/job_$(Cluster).out"
-    job["error"]                    = "log/job_$(Cluster).err"
+    job["log"]                    =  outdir + "/log/job_$(Cluster).log"
+    job["output"]                    = outdir + "/log/job_$(Cluster).out"
+    job["error"]                    = outdir + "/log/job_$(Cluster).err"
 
     job["when_to_transfer_output"] = "ON_EXIT"
     job["transfer_output_remaps"] = '"' + '{} = {}/{}'.format(lhefile, outdir, outfile) + '"'
