@@ -24,25 +24,21 @@
 #include <TTreeReaderValue.h>
 #include <TMath.h>
 
-#include <ChargedHiggs/nanoAOD_processing/interface/quantities.h> 
-#include <ChargedHiggs/nanoAOD_processing/interface/jet.h> 
-#include <ChargedHiggs/nanoAOD_processing/interface/electron.h> 
-#include <ChargedHiggs/nanoAOD_processing/interface/muon.h> 
+#include <ChargedHiggs/nano_skimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/nano_skimming/interface/muonanalyzer.h> 
+#include <ChargedHiggs/nano_skimming/interface/jetanalyzer.h>
 
 
 class TreeReader {
-    
-    enum Processes {DY, QCD, TT, T, DATA, VV, WJ, SIGNAL};
-
     //Struct for reading out tree
     struct Event{ 
         //Initially given       
         std::vector<Electron> electrons;
         std::vector<Muon> muons;
         std::vector<Jet> jets;
-        Quantities quantities;
         TLorentzVector MET;  
         float weight; 
+        float HT;
 
         //Reconstructed during processing of the event
         TLorentzVector h1;
@@ -68,6 +64,10 @@ class TreeReader {
         int progress = 0;
         int nCores;
 
+        //Measure execution time
+        std::chrono::steady_clock::time_point start;
+        std::chrono::steady_clock::time_point end;
+
         //Needed parameter set in the constructor
         std::string process;
         std::vector<std::string> xParameters;
@@ -83,8 +83,7 @@ class TreeReader {
 
         //Helper function
         std::map<std::string, Hist> histValues; 
-        std::map<std::string, cut> cutValues; 
-        std::map<std::string, Processes> procDic;                   
+        std::map<std::string, cut> cutValues;                 
 
         //Setup fill in treereaderfunction.cc        
         void SetHistMap();
@@ -94,7 +93,7 @@ class TreeReader {
         void ProgressBar(int progress);
 
         //Loop for each thread
-        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float &nGen);
+        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float& nGen);
 
         //Function for reconstruct objects
         void WBoson(Event &event);
@@ -103,15 +102,23 @@ class TreeReader {
         //Functions for cuts 
         bool mediumSingleElectron(Event &event);
         bool mediumSingleMuon(Event &event);
+        bool mediumDoubleElectron(Event &event);
+        bool mediumDoubleMuon(Event &event);
+        bool NonIsoElectron(Event &event);
         bool ZeroBJets(Event &event);
         bool OneBJets(Event &event);
         bool TwoBJets(Event &event);
+        bool MassCut(Event &event);
+        bool AntiMassCut(Event &event);
+        bool PhiCut(Event &event);
 
         //Functions for calculating quantities
         float WBosonMT(Event &event);
         float WBosonPhi(Event &event);
         float WBosonPT(Event &event);
         float nElectron(Event &event);
+        float nMuon(Event &event);
+        float DiEleMass(Event &event);
         float ElectronPT(Event &event);
         float ElectronPhi(Event &event);
         float ElectronEta(Event &event);
@@ -149,12 +156,13 @@ class TreeReader {
         float dPhih2W(Event &event);
         float dPhih1Hc(Event &event);
         float dPhih2Hc(Event &event);
+        float Mh1h2(Event &event);
 
 
     public:
         TreeReader();
         TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings);
-        void EventLoop(std::vector<std::string> &filenames);
+        void EventLoop(std::vector<std::string> &filenames, std::string &channel);
         void Write(std::string &outname);
 };
 
