@@ -4,10 +4,16 @@
 void TreeReader::SetCutMap(){
     cutValues = {
          {"1ele",  &TreeReader::mediumSingleElectron},
+         {"2ele",  &TreeReader::mediumDoubleElectron},
          {"1mu",  &TreeReader::mediumSingleMuon},
+         {"2mu", &TreeReader::mediumDoubleMuon},
+         {"nonisoele", &TreeReader::NonIsoElectron},
          {"0bjets", &TreeReader::ZeroBJets},
          {"1bjets", &TreeReader::OneBJets},
          {"2bjets", &TreeReader::TwoBJets},
+         {"mass", &TreeReader::MassCut},
+         {"antimass", &TreeReader::AntiMassCut},
+         {"phi", &TreeReader::PhiCut},
     };
 }
 
@@ -18,10 +24,12 @@ void TreeReader::SetHistMap(){
         {"W_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(W) [rad]", &TreeReader::WBosonPhi}},
         {"W_pt", {30., 0., 600., "p_{T}(W) [GeV]", &TreeReader::WBosonPT}},
         {"nElectron", {4., 0., 4., "Electron multiplicity", &TreeReader::nElectron}},
-        {"e_pt", {40., 30., 400., "p_{T}(e) [GeV]", &TreeReader::ElectronPT}},
+        {"nMuon", {4., 0., 4., "Muon multiplicity", &TreeReader::nMuon}},
+        {"M_ee", {30., 50., 140., "m(e, e) [GeV]", &TreeReader::DiEleMass}},
+        {"e_pt", {30., 20., 400., "p_{T}(e) [GeV]", &TreeReader::ElectronPT}},
         {"e_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(e) [rad]", &TreeReader::ElectronPhi}},
         {"e_eta", {30., -2.4, 2.4, "#eta(e) [rad]", &TreeReader::ElectronEta}},
-        {"mu_pt", {30., 30., 400., "p_{T}(#mu) [GeV]", &TreeReader::MuonPT}},
+        {"mu_pt", {30., 20., 400., "p_{T}(#mu) [GeV]", &TreeReader::MuonPT}},
         {"mu_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(#mu) [rad]", &TreeReader::MuonPhi}},
         {"mu_eta", {30., -2.4, 2.4, "#eta(#mu) [rad]", &TreeReader::MuonEta}},
         {"j1_pt", {30., 30., 400., "p_{T}(j_{1}) [GeV]", &TreeReader::Jet1PT}},
@@ -55,6 +63,7 @@ void TreeReader::SetHistMap(){
         {"dPhih2W", {30., 0., TMath::Pi(), "#Delta#phi(h_{2}, W^{#pm}) [rad]", &TreeReader::dPhih2W}},
         {"dPhih1Hc", {30., 0., TMath::Pi(), "#Delta#phi(h_{1}, H^{#pm}) [rad]", &TreeReader::dPhih1Hc}},
         {"dPhih2Hc", {30., 0., TMath::Pi(), "#Delta#phi(h_{2}, H^{#pm}) [rad]", &TreeReader::dPhih2Hc}},
+        {"h1h2_m", {30., 0., 600., "m(h_{1}, h_{2}) [GeV]", &TreeReader::Mh1h2}},
     };
 }
 
@@ -123,6 +132,17 @@ void TreeReader::Higgs(Event &event){
 
 }
 
+//Functions for checking if cut is passed
+bool TreeReader::NonIsoElectron(Event &event){
+    bool cut = true;
+   
+    for(const Electron &electron: event.electrons){
+        cut *= (electron.isolation > 0.1);
+        event.weight *= electron.recoSF;
+    }
+
+    return cut;
+}
 
 //Functions for checking if cut is passed
 bool TreeReader::mediumSingleElectron(Event &event){
@@ -130,6 +150,21 @@ bool TreeReader::mediumSingleElectron(Event &event){
     
     cut *= (event.electrons.size() == 1);
     cut *= (event.muons.size() == 0);
+
+    cut *= (event.HT > 200);
+
+    for(const Electron &electron: event.electrons){
+        cut *= (electron.isTriggerMatched)*(electron.isMedium)*(electron.isolation < 0.1)*(electron.fourVec.Pt() > 30);
+        event.weight *= electron.recoSF*electron.mediumMvaSF;
+    }
+
+    return cut;
+}
+
+bool TreeReader::mediumDoubleElectron(Event &event){
+    bool cut = true;
+    
+    cut *= (event.electrons.size() == 2);
 
     for(const Electron &electron: event.electrons){
         cut *= (electron.isMedium)*(electron.isolation < 0.1);
@@ -146,6 +181,19 @@ bool TreeReader::mediumSingleMuon(Event &event){
     cut *= (event.electrons.size() == 0);
 
     for(const Muon &muon: event.muons){
+        cut *= (muon.isTriggerMatched)*(muon.isMedium)*(muon.isLooseIso);
+        //event.weight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
+    }
+
+    return cut;
+}
+
+bool TreeReader::mediumDoubleMuon(Event &event){
+    bool cut = true;
+    
+    cut *= (event.muons.size() == 2);
+
+    for(const Muon &muon: event.muons){
         cut *= (muon.isMedium)*(muon.isLooseIso);
         event.weight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
     }
@@ -154,17 +202,17 @@ bool TreeReader::mediumSingleMuon(Event &event){
 }
 
 bool TreeReader::ZeroBJets(Event &event){
-    return (this->nTightBJet(event) == 0);
+    return (this->nMediumBJet(event) == 0);
 }
 
 
 bool TreeReader::OneBJets(Event &event){
     bool cut = true;
-    
-    cut *= (this->nTightBJet(event) == 1);
+
+    cut *= (nMediumBJet(event) == 1);
 
     for(const Jet &jet: event.jets){
-        event.weight *= jet.bTagSF;
+        event.weight *= jet.mediumbTagSF;
     }
 
     return cut;
@@ -173,15 +221,26 @@ bool TreeReader::OneBJets(Event &event){
 bool TreeReader::TwoBJets(Event &event){
     bool cut = true;
     
-    cut *= (this->nTightBJet(event) >= 2);
+    cut *= (this->nMediumBJet(event) >= 3);
 
     for(const Jet &jet: event.jets){
-        event.weight *= jet.bTagSF;
+        event.weight *= jet.mediumbTagSF;
     }
 
     return cut;
 }
 
+bool TreeReader::MassCut(Event &event){
+    return (this->higgs1Mass(event) > 50)*(this->higgs2Mass(event) > 50)*(this->higgs1Mass(event) < 150)*(this->higgs2Mass(event) < 150);
+}
+
+bool TreeReader::AntiMassCut(Event &event){
+    return !MassCut(event);
+}
+
+bool TreeReader::PhiCut(Event &event){
+    return (dPhih2Hc(event) > 2.5);
+}
 
 //Functions calculating value of quantities
 
@@ -224,28 +283,42 @@ float TreeReader::nElectron(Event &event){
     return event.electrons.size();
 }
 
+float TreeReader::nMuon(Event &event){
+    return event.muons.size();
+}
+
+float TreeReader::DiEleMass(Event &event){
+    if(event.electrons.size() < 2){
+        return -999.;
+    } 
+
+    else{
+        return (event.electrons[0].fourVec + event.electrons[1].fourVec).M();
+    }
+}
+
 float TreeReader::ElectronPT(Event &event){
-    return event.electrons[0].fourVec.Pt();
+    return (event.electrons.size() > 0) ? event.electrons[0].fourVec.Pt() : -999;
 }
 
 float TreeReader::ElectronPhi(Event &event){
-    return event.electrons[0].fourVec.Phi();
+    return (event.electrons.size() > 0) ? event.electrons[0].fourVec.Phi() : -999;
 }
 
 float TreeReader::ElectronEta(Event &event){
-    return event.electrons[0].fourVec.Eta();
+    return (event.electrons.size() > 0) ? event.electrons[0].fourVec.Eta() : -999;
 }
 
 float TreeReader::MuonPT(Event &event){
-    return event.muons[0].fourVec.Pt();
+    return (event.muons.size() > 0) ? event.muons[0].fourVec.Pt() : -999;
 }
 
 float TreeReader::MuonPhi(Event &event){
-    return event.muons[0].fourVec.Phi();
+    return (event.muons.size() > 0) ? event.muons[0].fourVec.Phi() : -999;
 }
 
 float TreeReader::MuonEta(Event &event){
-    return event.muons[0].fourVec.Eta();
+    return (event.muons.size() > 0) ? event.muons[0].fourVec.Eta() : -999;
 }
 
 
@@ -282,7 +355,7 @@ float TreeReader::nLooseBJet(Event &event){
     
     for(const Jet &jet: event.jets){
         if(jet.isLooseB){
-            nbJets+=jet.bTagSF;
+            nbJets+=1;
         }        
     }
 
@@ -294,7 +367,7 @@ float TreeReader::nMediumBJet(Event &event){
     
     for(const Jet &jet: event.jets){
         if(jet.isMediumB){
-            nbJets+=jet.bTagSF;
+            nbJets+=1;
         }        
     }
 
@@ -306,7 +379,7 @@ float TreeReader::nTightBJet(Event &event){
     
     for(const Jet &jet: event.jets){
         if(jet.isTightB){
-            nbJets+=jet.bTagSF;
+            nbJets+=1;
         }        
     }
 
@@ -314,7 +387,7 @@ float TreeReader::nTightBJet(Event &event){
 }
 
 float TreeReader::HT(Event &event){
-    return event.quantities.HT;
+    return event.HT;
 }
 
 float TreeReader::MET(Event &event){
@@ -628,6 +701,23 @@ float TreeReader::cHiggsM(Event &event){
         else{
             Higgs(event);
             return event.Hc.M();
+        }
+    }
+}
+
+float TreeReader::Mh1h2(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.Hc != TLorentzVector()){
+            return (event.h1 + event.h2).M();
+        }
+
+        else{
+            Higgs(event);
+            return (event.h1 + event.h2).M();
         }
     }
 }
