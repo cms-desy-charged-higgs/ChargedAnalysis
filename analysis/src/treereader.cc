@@ -9,18 +9,9 @@ std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings):
     process(process),
     xParameters(xParameters),
     yParameters(yParameters),
-    cutstrings(cutstrings),
-    procDic({
-            {"DY+j", DY},
-            {"W+j", WJ},
-            {"SingleE", DATA},
-            {"SingleMu", DATA},
-            {"VV+VVV", VV},
-            {"QCD", QCD},
-            {"TT+X", TT},
-            {"T+X", T},
-            {"L4B_150_75", SIGNAL},
-    }){
+    cutstrings(cutstrings){
+
+    start = std::chrono::steady_clock::now();
 
     SetHistMap();   
     SetCutMap();
@@ -48,9 +39,6 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 { 
     //Dont start immediately to avoid crashes of ROOT
     std::this_thread::sleep_for (std::chrono::seconds(1));
-
-    //Check out process you have
-    Processes proc = procDic[process];
 
     std::vector<TH1F*> histograms1D;
     std::vector<TH2F*> histograms2D;
@@ -103,20 +91,14 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     }
 
     TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
-    TTreeReaderValue<Quantities> quantities(reader, "quantities");
-    TTreeReaderValue<TLorentzVector> MET(reader, "MET");
+    TTreeReaderValue<TLorentzVector> MET(reader, "met");
 
-    TTreeReaderValue<float> lumi;
-    TTreeReaderValue<float> xSec;
-    TTreeReaderValue<float> puWeight;
-    TTreeReaderValue<float> genWeight;
+    TTreeReaderValue<float> HT(reader, "HT");
+    TTreeReaderValue<float> lumi(reader, "lumi");
+    TTreeReaderValue<float> xSec(reader, "xsec");
+    TTreeReaderValue<float> puWeight(reader, "puWeight");
+    TTreeReaderValue<float> genWeight(reader, "genWeight");
 
-    if(proc != DATA){
-        lumi = TTreeReaderValue<float>(reader, "lumi");
-        xSec = TTreeReaderValue<float>(reader, "xsec");
-        puWeight = TTreeReaderValue<float>(reader, "puWeight");
-        genWeight = TTreeReaderValue<float>(reader, "genWeight");
-    } 
     mutex.unlock();
 
     //Fill vector with wished cut operation
@@ -129,7 +111,7 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
         reader.SetEntry(i);  
-        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *quantities, *MET, 1.}; 
+        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *MET, 1., *HT}; 
 
         //Check if event passes cut
         bool passedCut = true;
@@ -140,32 +122,18 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
        
         //Fill histograms
         if(passedCut){
-            if(proc != DATA){
             //Fill additional weights
-                std::vector<float> weightVec = {*genWeight < 2 and *genWeight > 0.2 ? *genWeight: (float)1., *puWeight, (*lumi)*(float)1e3, *xSec, 1.f/nGen};
+            std::vector<float> weightVec = {*genWeight < 2 and *genWeight > 0.2 ? *genWeight: (float)1., *puWeight, (*lumi), *xSec,  1.f/(nGen)};
 
-                for(const float &weight: weightVec){
-                    event.weight *= weight;
-                }
+            for(const float &weight: weightVec){
+                event.weight *= weight;
             }
 
             for(unsigned i=0; i < histograms1D.size(); i++){
-                if(proc != DATA){
-                    histograms1D[i]->Fill((this->*xFunctions[i])(event), event.weight);
-                }
-                    
-                else{
-                    histograms1D[i]->Fill((this->*xFunctions[i])(event));
-                }
+                histograms1D[i]->Fill((this->*xFunctions[i])(event), event.weight);
 
                 for(unsigned j=0; j < histograms2D.size(); j++){
-                    if(proc != DATA){
-                        histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);
-                    }
-                        
-                    else{
-                        histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event));
-                    }
+                    histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);                        
                 }
             }
         }
@@ -188,7 +156,7 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     mutex.unlock();
 }
 
-void TreeReader::EventLoop(std::vector<std::string> &filenames){
+void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &channel){
 
     //Define final histogram for each parameter
     for(const std::string &xParameter: xParameters){
@@ -220,28 +188,27 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames){
     int entryStart;
     int entryEnd;
 
+    float nGen = 1.;
+
     int assignedCore = 0;
 
     for(const std::string &filename: filenames){
         //Get nGen for each file
         TFile* file = TFile::Open(filename.c_str());
-        if(!file->GetListOfKeys()->Contains("Events")){
+        if(!file->GetListOfKeys()->Contains(channel.c_str())){
             std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
             continue;
         }
 
-        float nGen = 1.;
-
-        if(procDic[process] != DATA){
-            TH1F* hist = (TH1F*)file->Get("nGenWeighted");  
-            nGen = hist->Integral();
-            file->Close();
+        if(file->GetListOfKeys()->Contains("nGen")){
+            TH1F* genHist =  (TH1F*)file->Get("nGen");
+            nGen = genHist->Integral();
         }
 
         for(int i = 0; i < threadsPerFile; i++){
             //Make TChain for each file and wrap it with a vector, a TTree or bar TChain is not working
             std::vector<TChain*> v;
-            TChain* chain = new TChain("Events");
+            TChain* chain = new TChain(channel.c_str());
             chain->Add(filename.c_str());
 
             v.push_back(chain);
@@ -299,5 +266,9 @@ void TreeReader::Write(std::string &outname){
         delete hist;
     }
     
+    end = std::chrono::steady_clock::now();
+    std::cout << "Created histograms for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
+        
+
     outputFile->Close(); 
 }
