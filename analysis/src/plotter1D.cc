@@ -170,7 +170,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         mainpad->cd();
 
         //Draw CMS/lumi info
-        this->DrawHeader(true, "Work in progress");
+        this->DrawHeader(true, "#mu + 4 jets", "Work in progress");
            
         //If you have data, draw Data/MC ratio
         if(!data.empty()){
@@ -222,7 +222,10 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 significance->SetBinContent(j, value);
             }
 
-            significance->SetMarkerStyle(20);
+            significance->SetLineColor(kBlack);
+            significance->SetLineWidth(4);
+            significance->SetFillStyle(3353);
+            significance->SetFillColor(kGray);
             significance->SetTickLength(0.14, "X");
             significance->SetLabelSize(0.14, "XY");
             significance->SetTitleOffset(0.5, "Y");
@@ -296,7 +299,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             legend->AddEntry(signal[i][0], "Signal", "F");
             signal[i][0]->DrawNormalized("HIST SAME");
 
-            this->DrawHeader(false, "Work in progress");
+            this->DrawHeader(false, "#mu + 4 jets", "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + xParameters[i] + "_shape.pdf").c_str());

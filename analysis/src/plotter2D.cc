@@ -59,8 +59,8 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 bkgSum->Add(hist);
             }
             
-            bkgSum->DrawNormalized("LEGO2Z 0");
-            this->DrawHeader(false, "Work in progress");
+            bkgSum->DrawNormalized("COLZ 0");
+            this->DrawHeader(false, "#mu + 4 jets", "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.pdf").c_str());
@@ -70,7 +70,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
             
             for(TH2F* hist: signal[i][j]){
                 canvas->Clear();
-                hist->DrawNormalized("LEGO2Z 0");
+                hist->DrawNormalized("COLZ 0");
 
                 for(std::string outdir: outdirs){
                     canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.pdf").c_str());

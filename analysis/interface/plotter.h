@@ -24,7 +24,7 @@ class Plotter{
 
         std::map<std::string, Processes> procDic;
 
-        void DrawHeader(const bool &twoPads, const std::string &cmsText);
+        void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
 
     public:
         virtual ~Plotter();

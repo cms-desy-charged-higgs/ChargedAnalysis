@@ -23,6 +23,7 @@ class PlotterGen : public Plotter{
         TLorentzVector h2; 
         TLorentzVector W; //W originating from charged Higgs 
         TLorentzVector l;
+        TLorentzVector vl;
         TLorentzVector b1; //From h1
         TLorentzVector b2;
         TLorentzVector b3; //From h2

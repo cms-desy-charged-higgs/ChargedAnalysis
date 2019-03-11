@@ -21,27 +21,36 @@ void PlotterGen::ConfigureHists(std::vector<std::string> &processes){
         {"h2Eta", 30, -3, 3, "#eta^{gen}(h_{2}) [GeV]", [&](genEvent event){return event.h2.Eta();}},
         {"WPEta", 30, -3, 3, "#eta^{gen}(W^{#pm}) [GeV]", [&](genEvent event){return event.W.Eta();}},
         {"HcEta", 30, -3, 3, "#eta^{gen}(H^{#pm}) [GeV]", [&](genEvent event){return event.Hc.Eta();}},
-        {"lPt", 30, 0, 300, "p_{T}^{gen}(l) [GeV]", [&](genEvent event){return event.l.Pt();}},
+        {"vlPt", 30, 0, 200, "p_{T}^{gen}(#nu_{l}) [GeV]", [&](genEvent event){return event.vl.Pt();}},
+        {"lPt", 30, 0, 200, "p_{T}^{gen}(l) [GeV]", [&](genEvent event){return event.l.Pt();}},
         {"b1Pt", 30, 0, 300, "p_{T}^{gen}(b_{1}) [GeV]", [&](genEvent event){return event.b1.Pt();}},
-        {"b2Pt", 30, 0, 300, "p_{T}^{gen}(b_{2}) [GeV]", [&](genEvent event){return event.b2.Pt();}},
+        {"b2Pt", 30, 0, 150, "p_{T}^{gen}(b_{2}) [GeV]", [&](genEvent event){return event.b2.Pt();}},
         {"b3Pt", 30, 0, 300, "p_{T}^{gen}(b_{3}) [GeV]", [&](genEvent event){return event.b3.Pt();}},
-        {"b4Pt", 30, 0, 300, "p_{T}^{gen}(b_{4}) [GeV]", [&](genEvent event){return event.b4.Pt();}},
+        {"b4Pt", 30, 0, 250, "p_{T}^{gen}(b_{4}) [GeV]", [&](genEvent event){return event.b4.Pt();}},
         {"dPhib1b2", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{1}, b_{2}) [rad]", [&](genEvent event){return event.b1.DeltaPhi(event.b2);}},
         {"dPhib3b4", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{3}, b_{4}) [rad]", [&](genEvent event){return event.b3.DeltaPhi(event.b4);}},
         {"dPhih1W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaPhi(event.W);}},
         {"dPhih2W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{2}, W^{#pm}) [rad]", [&](genEvent event){return event.h2.DeltaPhi(event.W);}},
-        {"dRh1W", 30, 0, 2*TMath::Pi(), "#DeltaR^{gen}(h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaR(event.W);}},
+        {"dRh1W", 30, 0, 4, "#DeltaR^{gen}(h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaR(event.W);}},
         {"dRh2W", 30, 0, 2*TMath::Pi(), "#DeltaR^{gen}(h_{2}, W^{#pm}) [rad]", [&](genEvent event){return event.h2.DeltaR(event.W);}},
         {"dPhib1W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.b1.DeltaPhi(event.W);}},
         {"dPhib2W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{2}, W^{#pm}) [rad]", [&](genEvent event){return event.b2.DeltaPhi(event.W);}},
         {"dPhib3W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{3}, W^{#pm}) [rad]", [&](genEvent event){return event.b3.DeltaPhi(event.W);}},
         {"dPhib4W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{4}, W^{#pm}) [rad]", [&](genEvent event){return event.b4.DeltaPhi(event.W);}},
-        {"dRh1Hc", 30, 0, 2*TMath::Pi(), "#DeltaR^{gen}(h_{1}, H^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaR(event.Hc);}},
+        {"dRh1Hc", 30, 0, 4, "#DeltaR^{gen}(h_{1}, H^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaR(event.Hc);}},
         {"dRh2Hc", 30, 0, 2*TMath::Pi(), "#DeltaR^{gen}(h_{2}, H^{#pm}) [rad]", [&](genEvent event){return event.h2.DeltaR(event.Hc);}},
+        {"dPhih1h2", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{1}, h_{2}) [rad]", [&](genEvent event){return event.h1.DeltaPhi(event.h2);}},
         {"dPhih1Hc", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{1}, H^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaPhi(event.Hc);}},
         {"dPhih2Hc", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{2}, H^{#pm}) [rad]", [&](genEvent event){return event.h2.DeltaPhi(event.Hc);}},
+        {"dPhiWHc", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(W^{#pm}, H^{#pm}) [rad]", [&](genEvent event){return event.W.DeltaPhi(event.Hc);}},
         {"Angleh1Hc", 30, 0, TMath::Pi(), "Angle^{gen} (h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.Angle(event.W.Vect());}},
         {"Angleh2Hc", 30, 0, TMath::Pi(), "Angle^{gen}(h_{2}, W^{#pm}) [rad]", [&](genEvent event){return event.h2.Angle(event.W.Vect());}},
+        {"mh1h2", 30, 0, 600, "m(h_{1}, h_{2}) [GeV]", [&](genEvent event){return (event.h1 + event.h2).M();}},
+        {"mW", 30, 0, 200, "m(W^{#pm}) [GeV]", [&](genEvent event){return (event.l + event.vl).M();}},
+        {"mh1", 30, 0, 200, "m(h_{1}) [GeV]", [&](genEvent event){return (event.b1 + event.b2).M();}},
+        {"dPzlvl", 30, -50, 50, "#Deltap_{z}(l, #nu_{l}) [GeV]", [&](genEvent event){return event.l.Pz() - event.vl.Pz();}},
+        {"dEtalvl", 30, -2, 2, "#Delta#eta(l, #nu_{l}) [GeV]", [&](genEvent event){return event.l.Eta() - event.vl.Eta();}},
+        {"dElvl", 30, -50, 50, "#DeltaE(l, #nu_{l}) [GeV]", [&](genEvent event){return event.l.E() - event.vl.E();}},
     };
 
     for(histConfig config: histValues){
@@ -110,13 +119,14 @@ void PlotterGen::FillHists(){
             }
 
             if(abs(GenID[index]) == 11 or abs(GenID[index]) == 13){
-                if(abs(GenID[GenPartIdxMother[index]]) == indexW)
-                    event.l.SetPtEtaPhiM(GenPt[index], GenEta[index], GenPhi[index], GenM[index]);
-            }
-
-            if(abs(GenID[index]) == 11 or abs(GenID[index]) == 13){
                 if(GenID[GenPartIdxMother[index]] == GenID[indexW]){
                     event.l.SetPtEtaPhiM(GenPt[index], GenEta[index], GenPhi[index], GenM[index]);
+                }
+            }
+
+            if(abs(GenID[index]) == 12 or abs(GenID[index]) == 14){
+                if(GenID[GenPartIdxMother[index]] == GenID[indexW]){
+                    event.vl.SetPtEtaPhiM(GenPt[index], GenEta[index], GenPhi[index], GenM[index]);
                 }
             }
 
@@ -184,7 +194,7 @@ void PlotterGen::Draw(std::vector<std::string> &outdirs){
         mainpad->cd();
 
         hist->Draw("HIST");
-        this->DrawHeader(false, "Simulation");
+        this->DrawHeader(false, "", "Simulation");
 
         for(std::string outdir: outdirs){
             canvas->SaveAs((outdir + "/" + hist->GetName() + ".pdf").c_str());
