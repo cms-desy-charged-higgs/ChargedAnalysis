@@ -1,0 +1,2 @@
+/store/user/dbrunner/signalMC/Hc+hTol4b_MHc150_Mh75/NANOAOD/Hc+hTol4b_MHc150_Mh75_NANOAOD.root
+/store/user/dbrunner/signalMC/Hc+hTol4b_MHc600_Mh100/NANOAOD/Hc+hTol4b_MHc600_Mh100_NANOAOD.root
