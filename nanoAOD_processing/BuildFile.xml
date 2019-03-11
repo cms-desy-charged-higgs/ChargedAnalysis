@@ -1,8 +1,0 @@
-<use name="root"/>
-<use name="rootcore"/>
-<use name="rootphysics"/>
-<use name="rootgraphics"/>
-
-<export>
-    <lib name="1"/>
-</export>

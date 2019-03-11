@@ -1,2 +1,0 @@
-srm://dcache-se-cms.desy.de:8443/srm/managerv2?SFN=/pnfs/desy.de/cms/tier2/store/user/dbrunner/signalMC/Hc+hTol4b_MHc150_Mh75/NANOAOD
-srm://dcache-se-cms.desy.de:8443/srm/managerv2?SFN=/pnfs/desy.de/cms/tier2/store/user/dbrunner/signalMC/Hc+hTol4b_MHc600_Mh100/NANOAOD
