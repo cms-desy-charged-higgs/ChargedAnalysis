@@ -5,16 +5,18 @@
 TreeReader::TreeReader(){}
 
 TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters,
-std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings):
+std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings, const bool& saveTree):
     process(process),
     xParameters(xParameters),
     yParameters(yParameters),
-    cutstrings(cutstrings){
+    cutstrings(cutstrings),
+    saveTree(saveTree){
 
     start = std::chrono::steady_clock::now();
 
     SetHistMap();   
     SetCutMap();
+    SetTriggerMap();
 }
 
 void TreeReader::ProgressBar(int progress){
@@ -36,12 +38,18 @@ void TreeReader::ProgressBar(int progress){
 }
 
 void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, const int &entryStart, const int &entryEnd, const float &nGen)
-{ 
+{
     //Dont start immediately to avoid crashes of ROOT
     std::this_thread::sleep_for (std::chrono::seconds(1));
 
+    //Define Outtree if wished
+    TTree* tree = new TTree((std::to_string(entryEnd)).c_str(), (std::to_string(entryEnd)).c_str());
+    std::vector<float> branchValues;
+    std::vector<TBranch*> branches; 
+
+    //Define containers for histograms
     std::vector<TH1F*> histograms1D;
-    std::vector<TH2F*> histograms2D;
+    std::vector<std::vector<TH2F*>> histograms2D;
     std::vector<parameterFunc> xFunctions;
     std::vector<parameterFunc> yFunctions;
 
@@ -57,40 +65,53 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 
         xFunctions.push_back(histValues[xParameter].parameterValue);
 
+        std::vector<TH2F*> hists2D;
+
+        if(saveTree){
+            branchValues.push_back(0.);
+            branches.push_back(tree->Branch(xParameter.c_str(), &branchValues[branchValues.size()-1]));
+        }
+
         for(const std::string &yParameter: yParameters){
             TH2F* hist2D = new TH2F((xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), (xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
 
             hist2D->Sumw2();
-            histograms2D.push_back(hist2D);
+            hists2D.push_back(hist2D);
 
-            yFunctions.push_back(histValues[yParameter].parameterValue);
+            if(yFunctions.size() <= yParameter){
+                yFunctions.push_back(histValues[yParameter].parameterValue);
+            }
         }
+
+        histograms2D.push_back(hists2D);
     }
 
     //Define TTreeReader 
     TTreeReader reader(chainWrapper[0]);
 
-    //Check if electron or muon branche exist, if not give Event class empty vector
-    bool hasElectronCol = false;
-    std::vector<Electron> emptyEle = {};
+    //Vector of values for trigger
+    std::vector<std::pair<Trigger, TTreeReaderValue<int>>> triggers;
 
-    bool hasMuonCol = false;
-    std::vector<Muon> emptyMuon = {};
+    for(std::string &xParameter: xParameters){
+        if(trigNames.find(xParameter) != trigNames.end()){
+            TTreeReaderValue<int> triggerValue(reader, trigNames[xParameter].second.c_str());
 
-    TTreeReaderValue<std::vector<Electron>> electrons;
-    TTreeReaderValue<std::vector<Muon>> muons;
-    
-    if(chainWrapper[0]->GetBranchStatus("electron")){
-        electrons = TTreeReaderValue<std::vector<Electron>>(reader, "electron");
-        hasElectronCol = true;
+            triggers.push_back({trigNames[xParameter].first, triggerValue});
+        }
     }
 
-    if(chainWrapper[0]->GetBranchStatus("muon")){
-        muons = TTreeReaderValue<std::vector<Muon>>(reader, "muon");
-        hasMuonCol = true;
+    for(std::string &yParameter: yParameters){
+        if(trigNames.find(yParameter) != trigNames.end()){   
+            TTreeReaderValue<int> triggerValue(reader, trigNames[yParameter].second.c_str());
+ 
+            triggers.push_back({trigNames[yParameter].first, triggerValue});
+        }
     }
 
+    TTreeReaderValue<std::vector<Electron>> electrons(reader, "electron");
+    TTreeReaderValue<std::vector<Muon>> muons(reader, "muon");
     TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
+    TTreeReaderValue<std::vector<Jet>> fatjets(reader, "fatjet");
     TTreeReaderValue<TLorentzVector> MET(reader, "met");
 
     TTreeReaderValue<float> HT(reader, "HT");
@@ -107,11 +128,20 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     for(const std::string &cutstring: cutstrings){
         cuts.push_back(cutValues[cutstring]);
     }
-   
+
+    Event event;
+    std::map<Trigger, int> triggerDecisions = {};
+
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
-        reader.SetEntry(i);  
-        Event event = {hasElectronCol ? *electrons : emptyEle, hasMuonCol ? *muons: emptyMuon, *jets, *MET, 1., *HT}; 
+        reader.SetEntry(i); 
+
+        //Fill Map with trigger decision if wished
+        for(std::pair<Trigger, TTreeReaderValue<int>> &decision: triggers){
+            triggerDecisions[decision.first] = *(decision.second);
+        }
+    
+        event = {*electrons, *muons, *jets, *fatjets, *MET, 1., *HT, triggerDecisions}; 
 
         //Check if event passes cut
         bool passedCut = true;
@@ -123,17 +153,22 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
         //Fill histograms
         if(passedCut){
             //Fill additional weights
-            std::vector<float> weightVec = {*genWeight < 2 and *genWeight > 0.2 ? *genWeight: (float)1., *puWeight, (*lumi), *xSec,  1.f/(nGen)};
+            std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec,  1.f/(nGen)};
 
             for(const float &weight: weightVec){
                 event.weight *= weight;
             }
 
-            for(unsigned i=0; i < histograms1D.size(); i++){
+            for(unsigned i=0; i < xParameters.size(); i++){
+                if(saveTree){
+                    branchValues[i] = (this->*xFunctions[i])(event);
+                    branches[i]->Fill();
+                }
+
                 histograms1D[i]->Fill((this->*xFunctions[i])(event), event.weight);
 
-                for(unsigned j=0; j < histograms2D.size(); j++){
-                    histograms2D[j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);                        
+                for(unsigned j=0; j < yParameters.size(); j++){
+                    histograms2D[i][j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);                       
                 }
             }
         }
@@ -142,13 +177,15 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     //Lock again and merge local histograms into final histograms
     mutex.lock();
 
-    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
+    for(unsigned int i = 0; i < xParameters.size(); i++){
         merged1DHistograms[i]->Add(histograms1D[i]);
+
+        for(unsigned int j = 0; j < yParameters.size(); j++){
+            merged2DHistograms[i][j]->Add(histograms2D[i][j]);
+        }
     }
 
-    for(unsigned int j = 0; j < merged2DHistograms.size(); j++){
-        merged2DHistograms[j]->Add(histograms2D[j]);
-    }
+    //listTree->Add(tree);
 
     progress += 100*(1.f/nCores);
 
@@ -157,7 +194,6 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 }
 
 void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &channel){
-
     //Define final histogram for each parameter
     for(const std::string &xParameter: xParameters){
         TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max);
@@ -167,6 +203,8 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
 
         merged1DHistograms.push_back(hist);
 
+        std::vector<TH2F*> merged2DHists;
+
         for(const std::string &yParameter: yParameters){
             TH2F* hist = new TH2F((xParameter + "_VS_" + yParameter).c_str(), (xParameter + "_VS_" + yParameter).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
 
@@ -175,9 +213,10 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
             hist->GetXaxis()->SetTitle(histValues[xParameter].Label.c_str());
             hist->GetYaxis()->SetTitle(histValues[yParameter].Label.c_str());
 
-            merged2DHistograms.push_back(hist);
+            merged2DHists.push_back(hist);
         }
-
+        
+        merged2DHistograms.push_back(merged2DHists);
     }
 
     //Configure threads
@@ -247,6 +286,11 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
         thread.join();
     }
 
+    if(saveTree){
+        outTree = TTree::MergeTrees(listTree);
+        outTree->SetName(channel.c_str());
+    }
+
     //Progress bar at 100%
     ProgressBar(100);
 }
@@ -254,16 +298,22 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
 //Write File
 
 void TreeReader::Write(std::string &outname){
-    TFile* outputFile = TFile::Open(outname.c_str(), "UPDATE");
+    TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
 
     for(TH1F* hist: merged1DHistograms){
         hist->Write();
         delete hist;
     }
 
-    for(TH2F* hist: merged2DHistograms){
-        hist->Write();
-        delete hist;
+    for(std::vector<TH2F*> hists: merged2DHistograms){
+        for(TH2F* hist: hists){
+            hist->Write();
+            delete hist;
+        }
+    }
+
+    if(saveTree){
+        outTree->Write();
     }
     
     end = std::chrono::steady_clock::now();
