@@ -45,7 +45,7 @@ def getFilenames(txtFile):
 
     for setname in datasets:
         if "mc" in setname:
-            filelist[setname.split("/")[1]] = [global_director + filename['logical_file_name'] for filename in dbs.listFiles(dataset=setname, detail=1)]
+            filelist.setdefault(setname.split("/")[1], []).extend([global_director + filename['logical_file_name'] for filename in dbs.listFiles(dataset=setname, detail=1)])
             
         elif "user" in setname:
              filelist[setname.split("/")[5]] = [global_director + setname]
@@ -69,6 +69,9 @@ def condorSubmit(skimdir, dirname, filename, index, channels):
 
     job["should_transfer_files"] = "YES"
     job["transfer_input_files"]       = ",".join([os.environ["CMSSW_BASE"] + "/src/ChargedHiggs", os.environ["CMSSW_BASE"] + "/src/x509"])
+
+    job["on_exit_hold"] = "(ExitBySignal == True) || (ExitCode != 0)"  
+    job["periodic_release"] = "(NumJobStarts < 100) && ((CurrentTime - EnteredCurrentStatus) > 60)"
 
     job["log"]                    = "{}/{}/log/job_$(Cluster).log".format(skimdir, dirname)
     job["output"]                    = "{}/{}/log/job_$(Cluster).out".format(skimdir, dirname)
@@ -101,7 +104,7 @@ def skimmer(filename, channels, outputName):
         if key in outputName:
             xSec = xSecFile[key]["xsec"]
 
-    isData = "Single" in outputName
+    isData = True in [name in outputName for name in ["Electron", "Muon", "MET"]]
 
     skimmer = ROOT.NanoSkimmer(ROOT.std.string(filename), isData)
     skimmer.Configure(xSec)
