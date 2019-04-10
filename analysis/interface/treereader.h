@@ -30,21 +30,30 @@
 
 
 class TreeReader {
+    //Enumeration for trigger names
+    enum Trigger{MET200, ELE35, ELE30JET35, ELE28HT150, MU27};
+
     //Struct for reading out tree
     struct Event{ 
         //Initially given       
         std::vector<Electron> electrons;
         std::vector<Muon> muons;
         std::vector<Jet> jets;
+        std::vector<Jet> fatjets;
         TLorentzVector MET;  
         float weight; 
         float HT;
+
+        std::map<Trigger, int> trigger;
 
         //Reconstructed during processing of the event
         TLorentzVector h1;
         TLorentzVector h2;
         TLorentzVector W;
         TLorentzVector Hc;
+
+        TLorentzVector top1;
+        TLorentzVector top2;
     };
 
     //typedef for pointer to member functions
@@ -79,15 +88,22 @@ class TreeReader {
 
         //Final histograms
         std::vector<TH1F*> merged1DHistograms;
-        std::vector<TH2F*> merged2DHistograms;
+        std::vector<std::vector<TH2F*>> merged2DHistograms;
+
+        //Save tree if wished
+        bool saveTree;
+        TList* listTree;
+        TTree* outTree;
 
         //Helper function
+        std::map<std::string, std::pair<Trigger, std::string>> trigNames;
         std::map<std::string, Hist> histValues; 
         std::map<std::string, cut> cutValues;                 
 
         //Setup fill in treereaderfunction.cc        
         void SetHistMap();
         void SetCutMap();
+        void SetTriggerMap();
     
         //Progress bar function
         void ProgressBar(int progress);
@@ -96,6 +112,7 @@ class TreeReader {
         void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float& nGen);
 
         //Function for reconstruct objects
+        void Top(Event &event);
         void WBoson(Event &event);
         void Higgs(Event &event);
 
@@ -108,11 +125,34 @@ class TreeReader {
         bool ZeroBJets(Event &event);
         bool OneBJets(Event &event);
         bool TwoBJets(Event &event);
+        bool ThreeBJets(Event &event);
+        bool XBJets(Event &event);
+        bool TwoJetsOneFat(Event &event);
+        bool FourJets(Event &event);
         bool MassCut(Event &event);
         bool AntiMassCut(Event &event);
         bool PhiCut(Event &event);
 
         //Functions for calculating quantities
+        float HLTEle30Jet35(Event &event);
+        float HLTEle28HT150(Event &event);
+        float HLTEle35(Event &event);
+        float HLTMu27(Event &event);
+        float HLTMet200(Event &event);
+        float HLTEle35AndMet200(Event &event);
+        float HLTEle30Jet35AndMet200(Event &event);
+        float HLTEle28HT150AndMet200(Event &event);
+        float HLTEleAllAndMet200(Event &event);
+        float HLTMu27AndMet200(Event &event);
+        float top1Mass(Event &event);
+        float top2Mass(Event &event);
+        float top1PT(Event &event);
+        float top2PT(Event &event);
+        float dPhitop1top2(Event &event);
+        float dRtop1top2(Event &event);
+        float dMtop1top2(Event &event);
+        float dPhitop1W(Event &event);
+        float dPhitop2W(Event &event);
         float WBosonMT(Event &event);
         float WBosonPhi(Event &event);
         float WBosonPT(Event &event);
@@ -132,6 +172,7 @@ class TreeReader {
         float Jet2Phi(Event &event);
         float Jet2Eta(Event &event);
         float nJet(Event &event);
+        float nFatJet(Event &event);
         float nLooseBJet(Event &event);
         float nMediumBJet(Event &event);
         float nTightBJet(Event &event);
@@ -144,6 +185,7 @@ class TreeReader {
         float higgs2PT(Event &event);
         float higgs1Phi(Event &event);
         float higgs2Phi(Event &event);
+        float dMh1h2(Event &event);
         float cHiggsPT(Event &event);
         float cHiggsMT(Event &event);
         float cHiggsM(Event &event);
@@ -157,11 +199,15 @@ class TreeReader {
         float dPhih1Hc(Event &event);
         float dPhih2Hc(Event &event);
         float Mh1h2(Event &event);
+        float SumLepJet(Event &event);
+        float VecSumLepJet(Event &event);
+        float dPth2Hc(Event &event);
+        float RMHcMTop(Event &event);
 
 
     public:
         TreeReader();
-        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings);
+        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings, const bool &saveTree = false);
         void EventLoop(std::vector<std::string> &filenames, std::string &channel);
         void Write(std::string &outname);
 };

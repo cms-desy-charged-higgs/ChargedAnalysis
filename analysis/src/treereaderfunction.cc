@@ -1,6 +1,16 @@
 #include <ChargedHiggs/analysis/interface/treereader.h>
 
 
+void TreeReader::SetTriggerMap(){
+    trigNames = {
+         {"HLT_ele35", {ELE35, "HLT_Ele35_WPTight_Gsf"}},
+         {"HLT_ele30jet35", {ELE30JET35, "HLT_Ele30_eta2p1_WPTight_Gsf_CentralPFJet35_EleCleaned"}},
+         {"HLT_ele28HT150", {ELE28HT150, "HLT_Ele28_eta2p1_WPTight_Gsf_HT150"}},
+         {"HLT_met200", {MET200, "HLT_PFMET200_HBHECleaned"}},
+         {"HLT_mu27", {MU27, "HLT_IsoMu27"}},
+    };
+}
+
 void TreeReader::SetCutMap(){
     cutValues = {
          {"1ele",  &TreeReader::mediumSingleElectron},
@@ -11,6 +21,10 @@ void TreeReader::SetCutMap(){
          {"0bjets", &TreeReader::ZeroBJets},
          {"1bjets", &TreeReader::OneBJets},
          {"2bjets", &TreeReader::TwoBJets},
+         {"3bjets", &TreeReader::ThreeBJets},
+         {"xbjets", &TreeReader::XBJets},
+         {"2jets1fat", &TreeReader::TwoJetsOneFat},
+         {"4jets", &TreeReader::FourJets},
          {"mass", &TreeReader::MassCut},
          {"antimass", &TreeReader::AntiMassCut},
          {"phi", &TreeReader::PhiCut},
@@ -20,16 +34,26 @@ void TreeReader::SetCutMap(){
 //Saves configuration of the histogram for wished quantity
 void TreeReader::SetHistMap(){
     histValues = {
+        {"HLT_ele35", {2., 0., 2., "HLT_Ele35_WPTight_Gsf", &TreeReader::HLTEle35}},
+        {"HLT_ele28HT150", {2., 0., 2., "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", &TreeReader::HLTEle28HT150}},
+        {"HLT_ele30jet35", {2., 0., 2., "HLT_Ele30_eta2p1_WPTight_Gsf_CentralPFJet35_EleCleaned", &TreeReader::HLTEle30Jet35}},
+        {"HLT_mu27", {2., 0., 2., "HLT_IsoMu27", &TreeReader::HLTMu27}},
+        {"HLT_met200", {2., 0., 2., "HLT_met200", &TreeReader::HLTMet200}},
+        {"HLT_mu27_and_met200", {2., 0., 2., "HLT_IsoMu27 && HLT_met200", &TreeReader::HLTMu27AndMet200}},
+        {"HLT_ele35_and_met200", {2., 0., 2., "HLT_Ele35 && HLT_met200", &TreeReader::HLTEle35AndMet200}},
+        {"HLT_ele30Jet35_and_met200", {2., 0., 2., "HLT_Ele30Jet35 && HLT_met200", &TreeReader::HLTEle30Jet35AndMet200}},
+        {"HLT_ele28HT150_and_met200", {2., 0., 2., "HLT_Ele28HT150 && HLT_met200", &TreeReader::HLTEle28HT150AndMet200}},
+        {"HLT_eleAll_and_met200", {2., 0., 2., "HLT_Ele35 || HLT_Ele30Jet35 || HLT_Ele28HT150 && HLT_met200", &TreeReader::HLTEleAllAndMet200}},
         {"W_mt", {30., 0., 600., "m_{T}(W) [GeV]", &TreeReader::WBosonMT}},
         {"W_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(W) [rad]", &TreeReader::WBosonPhi}},
         {"W_pt", {30., 0., 600., "p_{T}(W) [GeV]", &TreeReader::WBosonPT}},
         {"nElectron", {4., 0., 4., "Electron multiplicity", &TreeReader::nElectron}},
         {"nMuon", {4., 0., 4., "Muon multiplicity", &TreeReader::nMuon}},
         {"M_ee", {30., 50., 140., "m(e, e) [GeV]", &TreeReader::DiEleMass}},
-        {"e_pt", {30., 20., 400., "p_{T}(e) [GeV]", &TreeReader::ElectronPT}},
+        {"e_pt", {20., 0., 300., "p_{T}(e) [GeV]", &TreeReader::ElectronPT}},
         {"e_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(e) [rad]", &TreeReader::ElectronPhi}},
         {"e_eta", {30., -2.4, 2.4, "#eta(e) [rad]", &TreeReader::ElectronEta}},
-        {"mu_pt", {30., 20., 400., "p_{T}(#mu) [GeV]", &TreeReader::MuonPT}},
+        {"mu_pt", {40., 20., 150., "p_{T}(#mu) [GeV]", &TreeReader::MuonPT}},
         {"mu_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(#mu) [rad]", &TreeReader::MuonPhi}},
         {"mu_eta", {30., -2.4, 2.4, "#eta(#mu) [rad]", &TreeReader::MuonEta}},
         {"j1_pt", {30., 30., 400., "p_{T}(j_{1}) [GeV]", &TreeReader::Jet1PT}},
@@ -39,6 +63,7 @@ void TreeReader::SetHistMap(){
         {"j2_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(j_{2}) [GeV]", &TreeReader::Jet2Phi}},
         {"j2_eta", {30., -2.4, 2.4, "#eta(j_{1}) [rad]", &TreeReader::Jet2Eta}},
         {"nJet", {10., 0., 10., "Jet multiplicity", &TreeReader::nJet}},
+        {"nFatJet", {3., 0., 3., "Fat jet multiplicity", &TreeReader::nFatJet}},
         {"nLooseBJet", {6., 0., 6., "Loose b-jet multiplicity", &TreeReader::nLooseBJet}},
         {"nMediumBJet", {6., 0., 6., "Medium b-jet multiplicity", &TreeReader::nMediumBJet}},
         {"nTightBJet", {6., 0., 6., "Tight b-jet multiplicity", &TreeReader::nTightBJet}},
@@ -53,7 +78,7 @@ void TreeReader::SetHistMap(){
         {"h2_phi", {30., -TMath::Pi(), TMath::Pi(), "#phi(h_{2}) [rad]", &TreeReader::higgs2Phi}},
         {"Hc_pt", {30., 0., 300., "p_{T}(H^{#pm}) [GeV]", &TreeReader::cHiggsPT}},
         {"Hc_mt", {30., 0., 300., "m_{T}(H^{#pm}) [GeV]", &TreeReader::cHiggsMT}},
-        {"Hc_m", {50., 0., 800., "m(H^{#pm}) [GeV]", &TreeReader::cHiggsM}},
+        {"Hc_m", {20., 100., 1000., "m(H^{#pm}) [GeV]", &TreeReader::cHiggsM}},
         {"dphih1h2", {30., 0., TMath::Pi(), "#Delta#phi(h_{1}, h_{2}) [rad]", &TreeReader::dPhih1h2}},
         {"dRh1W", {30., 0., 2*TMath::Pi(), "#DeltaR(h_{1}, W^{#pm}) [rad]", &TreeReader::dRh1W}},
         {"dRh2W", {30., 0., 2*TMath::Pi(), "#DeltaR(h_{2}, W^{#pm}) [rad]", &TreeReader::dRh2W}},
@@ -63,26 +88,35 @@ void TreeReader::SetHistMap(){
         {"dPhih2W", {30., 0., TMath::Pi(), "#Delta#phi(h_{2}, W^{#pm}) [rad]", &TreeReader::dPhih2W}},
         {"dPhih1Hc", {30., 0., TMath::Pi(), "#Delta#phi(h_{1}, H^{#pm}) [rad]", &TreeReader::dPhih1Hc}},
         {"dPhih2Hc", {30., 0., TMath::Pi(), "#Delta#phi(h_{2}, H^{#pm}) [rad]", &TreeReader::dPhih2Hc}},
-        {"h1h2_m", {30., 0., 600., "m(h_{1}, h_{2}) [GeV]", &TreeReader::Mh1h2}},
+        {"top1_m", {30., 0., 400., "m(t_{1}) [GeV]", &TreeReader::top1Mass}},
+        {"top2_m", {30., 0., 400., "m(t_{2}) [GeV]", &TreeReader::top2Mass}},
+        {"top1_pt", {30., 0., 300., "p_{T}(t_{1}) [GeV]", &TreeReader::top1PT}},
+        {"top2_pt", {30., 0., 300., "p_{T}(t_{2}) [GeV]", &TreeReader::top2PT}},
+        {"dPhitop1top2", {30., 0., TMath::Pi(), "#Delta#phi(t_{1}, t_{2}) [rad]", &TreeReader::dPhitop1top2}},
+        {"dRtop1top2", {30., 0., 2*TMath::Pi(), "#DeltaR(t_{1}, t_{2}) [rad]", &TreeReader::dRtop1top2}},
+        {"dMtop1top2", {30, -50., 50., "#DeltaM(t_{1}, t_{2}) [GeV]", &TreeReader::dMtop1top2}},
+        {"dMh1h2", {30, -50., 50., "#DeltaM(h_{1}, h_{2}) [GeV]", &TreeReader::dMh1h2}},
+        {"dPhitop1W", {30., 0., TMath::Pi(), "#Delta#phi(t_{1}, W^{#pm}) [rad]", &TreeReader::dPhitop1W}},
+        {"dPhitop2W", {30., 0., TMath::Pi(), "#Delta#phi(t_{2}, W^{#pm}) [rad]", &TreeReader::dPhitop2W}},
+        {"sumljet", {30., 0., 600, "p_{T}(l) + #sum p_{T}(j)", &TreeReader::SumLepJet}},
+        {"vecsumljet", {30., 0., 600, "(p^{#mu}(l) + #sum p^{#mu}(j))_{T}", &TreeReader::VecSumLepJet}},
+        {"dPth2Hc", {30., 0., 600, "(p^{#mu}(H^{#pm}) + p^{#mu}(h_{2}))_{T}", &TreeReader::dPth2Hc}},
+        {"RMHcMTop", {30., 0., 1., "m(H^{#pm})/m(t_{1})", &TreeReader::RMHcMTop}},
     };
 }
 
 //Functions for reconstruct mother final state particles
 
 void TreeReader::WBoson(Event &event){
-    //Lepton momenta 
-    float pXL = event.muons[0].fourVec.Px(); 
-    float pYL = event.muons[0].fourVec.Py();
-    float pZL = event.muons[0].fourVec.Pz();
+    TLorentzVector lep = event.muons.size() != 0 ? event.muons[0].fourVec : event.electrons[0].fourVec;
 
     float pXNu = event.MET.Pt()*std::cos(event.MET.Phi());
     float pYNu = event.MET.Pt()*std::sin(event.MET.Phi());
-    float EL = event.muons[0].fourVec.E();
     float mW = 80.399;
     
-    float pZNu1 = (-EL*std::sqrt(-4*EL*EL*pXNu*pXNu - 4*EL*EL*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*pXL*pXNu + 4*mW*mW*pYL*pYNu + 4*pXL*pXL*pXNu*pXNu + 8*pXL*pXNu*pYL*pYNu + 4*pXNu*pXNu*pZL*pZL + 4*pYL*pYL*pYNu*pYNu + 4*pYNu*pYNu*pZL*pZL)/2 + mW*mW*pZL/2 + pXL*pXNu*pZL + pYL*pYNu*pZL)/(EL*EL - pZL*pZL);
+    float pZNu1 = (-lep.E()*std::sqrt(-4*lep.E()*lep.E()*pXNu*pXNu - 4*lep.E()*lep.E()*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*lep.Px()*pXNu + 4*mW*mW*lep.Py()*pYNu + 4*lep.Px()*lep.Px()*pXNu*pXNu + 8*lep.Px()*pXNu*lep.Py()*pYNu + 4*pXNu*pXNu*lep.Pz()*lep.Pz() + 4*lep.Py()*lep.Py()*pYNu*pYNu + 4*pYNu*pYNu*lep.Pz()*lep.Pz())/2 + mW*mW*lep.Pz()/2 + lep.Px()*pXNu*lep.Pz() + lep.Py()*pYNu*lep.Pz())/(lep.E()*lep.E() - lep.Pz()*lep.Pz());
 
-    float pZNu2 = (EL*std::sqrt(-4*EL*EL*pXNu*pXNu - 4*EL*EL*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*pXL*pXNu + 4*mW*mW*pYL*pYNu + 4*pXL*pXL*pXNu*pXNu + 8*pXL*pXNu*pYL*pYNu + 4*pXNu*pXNu*pZL*pZL + 4*pYL*pYL*pYNu*pYNu + 4*pYNu*pYNu*pZL*pZL)/2 + mW*mW*pZL/2 + pXL*pXNu*pZL + pYL*pYNu*pZL)/(EL*EL - pZL*pZL);
+    float pZNu2 = (lep.E()*std::sqrt(-4*lep.E()*lep.E()*pXNu*pXNu - 4*lep.E()*lep.E()*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*lep.Px()*pXNu + 4*mW*mW*lep.Py()*pYNu + 4*lep.Px()*lep.Px()*pXNu*pXNu + 8*lep.Px()*pXNu*lep.Py()*pYNu + 4*pXNu*pXNu*lep.Pz()*lep.Pz() + 4*lep.Py()*lep.Py()*pYNu*pYNu + 4*pYNu*pYNu*lep.Pz()*lep.Pz())/2 + mW*mW*lep.Pz()/2 + lep.Px()*pXNu*lep.Pz() + lep.Py()*pYNu*lep.Pz())/(lep.E()*lep.E() - lep.Pz()*lep.Pz());
 
     TLorentzVector v1;
     v1.SetPxPyPzE(pXNu, pYNu, pZNu1, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu1*pZNu1));
@@ -90,7 +124,45 @@ void TreeReader::WBoson(Event &event){
     TLorentzVector v2;
     v2.SetPxPyPzE(pXNu, pYNu, pZNu2, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu2*pZNu2));
 
-    event.W = abs((event.muons[0].fourVec + v1).M() - mW) < abs((event.muons[0].fourVec + v2).M() - mW) ? event.muons[0].fourVec + v1 : event.muons[0].fourVec + v2;
+    event.W = abs((lep + v1).M() - mW) < abs((lep + v2).M() - mW) ? lep + v1 : lep + v2;
+}
+
+
+void TreeReader::Top(Event &event){
+    //Vector of candPairs
+    typedef std::pair<TLorentzVector, TLorentzVector> Pair;
+    typedef std::pair<TLorentzVector, std::vector<TLorentzVector>> WPair;
+    std::vector<Pair> topPairs; 
+    std::vector<WPair> Wcands; 
+
+    //Check if W Boson already reconstructed
+    if(event.W == TLorentzVector()) WBoson(event);
+
+    //Reconstruct other W Boson
+    float mW = 80.399;
+
+    std::function<bool(WPair, WPair)> sortW = [&](WPair W1, WPair W2){return abs(W1.first.M() - mW) < abs(W2.first.M() - mW);};
+
+    Wcands.push_back({event.jets[0].fourVec + event.jets[1].fourVec, {event.jets[2].fourVec, event.jets[3].fourVec}});
+    Wcands.push_back({event.jets[0].fourVec + event.jets[2].fourVec, {event.jets[1].fourVec, event.jets[3].fourVec}});
+    Wcands.push_back({event.jets[0].fourVec + event.jets[3].fourVec, {event.jets[2].fourVec, event.jets[1].fourVec}});
+    Wcands.push_back({event.jets[1].fourVec + event.jets[2].fourVec, {event.jets[0].fourVec, event.jets[3].fourVec}});
+    Wcands.push_back({event.jets[1].fourVec + event.jets[3].fourVec, {event.jets[0].fourVec, event.jets[2].fourVec}});
+    Wcands.push_back({event.jets[2].fourVec + event.jets[3].fourVec, {event.jets[0].fourVec, event.jets[1].fourVec}});
+
+    std::sort(Wcands.begin(), Wcands.end(), sortW);
+
+    //Push back each combination of top pair canditates
+    topPairs.push_back({event.W + Wcands[0].second[0], Wcands[0].first + Wcands[0].second[1]});
+    topPairs.push_back({event.W + Wcands[0].second[1], Wcands[0].first + Wcands[0].second[0]});
+
+    //Sort candPairs for mass diff of top pairs, where index 0 is the best pair
+    std::function<bool(Pair, Pair)> sortFunc = [&](Pair pair1, Pair pair2){return std::abs(pair1.first.M() -pair1.second.M()) < std::abs(pair2.first.M() - pair2.second.M());};
+
+    std::sort(topPairs.begin(), topPairs.end(), sortFunc);
+
+    event.top1 = topPairs[0].first;
+    event.top2 = topPairs[0].second;
 }
 
 
@@ -107,9 +179,9 @@ void TreeReader::Higgs(Event &event){
     candPairs.push_back({event.jets[0].fourVec + event.jets[3].fourVec,  event.jets[1].fourVec + event.jets[2].fourVec});
 
     //Sort candPairs for mass diff of jet pairs, where index 0 is the best pair
-    std::function<bool(hPair, hPair)> sortFunc = [](hPair pair1, hPair pair2){return std::abs(pair1.first.M() -pair1.second.M()) < std::abs(pair2.first.M() - pair2.second.M());};
+    std::function<bool(hPair, hPair)> sortFunc = [&](hPair pair1, hPair pair2){return std::abs(pair1.first.M() -pair1.second.M()) < std::abs(pair2.first.M() - pair2.second.M());};
 
-    std::sort(candPairs.begin(), candPairs.end(), sortFunc);;
+    std::sort(candPairs.begin(), candPairs.end(), sortFunc);
 
     //Check if W Boson alread reconstructed
     if(event.W == TLorentzVector()) WBoson(event);
@@ -132,12 +204,14 @@ void TreeReader::Higgs(Event &event){
 
 }
 
+
+
 //Functions for checking if cut is passed
 bool TreeReader::NonIsoElectron(Event &event){
     bool cut = true;
    
     for(const Electron &electron: event.electrons){
-        cut *= (electron.isolation > 0.1);
+        cut = cut && (electron.isolation > 0.1);
         event.weight *= electron.recoSF;
     }
 
@@ -148,13 +222,11 @@ bool TreeReader::NonIsoElectron(Event &event){
 bool TreeReader::mediumSingleElectron(Event &event){
     bool cut = true;
     
-    cut *= (event.electrons.size() == 1);
+    cut = cut && (event.electrons.size() == 1);
     cut *= (event.muons.size() == 0);
 
-    cut *= (event.HT > 200);
-
     for(const Electron &electron: event.electrons){
-        cut *= (electron.isTriggerMatched)*(electron.isMedium)*(electron.isolation < 0.1)*(electron.fourVec.Pt() > 30);
+        cut = cut && (electron.isTriggerMatched) && (electron.isMedium) && (electron.isolation < 0.1);
         event.weight *= electron.recoSF*electron.mediumMvaSF;
     }
 
@@ -164,10 +236,10 @@ bool TreeReader::mediumSingleElectron(Event &event){
 bool TreeReader::mediumDoubleElectron(Event &event){
     bool cut = true;
     
-    cut *= (event.electrons.size() == 2);
+    cut = cut && (event.electrons.size() == 2);
 
     for(const Electron &electron: event.electrons){
-        cut *= (electron.isMedium)*(electron.isolation < 0.1);
+        cut = cut && (electron.isMedium) && (electron.isolation < 0.1);
         event.weight *= electron.recoSF*electron.mediumMvaSF;
     }
 
@@ -177,12 +249,12 @@ bool TreeReader::mediumDoubleElectron(Event &event){
 bool TreeReader::mediumSingleMuon(Event &event){
     bool cut = true;
     
-    cut *= (event.muons.size() == 1);
-    cut *= (event.electrons.size() == 0);
+    cut = cut && (event.muons.size() == 1);
+    cut = cut && (event.electrons.size() == 0);
 
     for(const Muon &muon: event.muons){
-        cut *= (muon.isTriggerMatched)*(muon.isMedium)*(muon.isLooseIso);
-        //event.weight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
+        cut = cut && (muon.isTriggerMatched) && (muon.isMedium) && (muon.isLooseIso);
+        event.weight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
     }
 
     return cut;
@@ -191,10 +263,10 @@ bool TreeReader::mediumSingleMuon(Event &event){
 bool TreeReader::mediumDoubleMuon(Event &event){
     bool cut = true;
     
-    cut *= (event.muons.size() == 2);
+    cut = cut && (event.muons.size() == 2);
 
     for(const Muon &muon: event.muons){
-        cut *= (muon.isMedium)*(muon.isLooseIso);
+        cut = cut && (muon.isMedium) && (muon.isLooseIso);
         event.weight *= muon.triggerSF*muon.mediumSF*muon.looseIsoMediumSF;
     }
 
@@ -202,17 +274,17 @@ bool TreeReader::mediumDoubleMuon(Event &event){
 }
 
 bool TreeReader::ZeroBJets(Event &event){
-    return (this->nMediumBJet(event) == 0);
+    return (this->nTightBJet(event) == 0);
 }
 
 
 bool TreeReader::OneBJets(Event &event){
     bool cut = true;
 
-    cut *= (nMediumBJet(event) == 1);
+    cut *= (nTightBJet(event) == 1);
 
     for(const Jet &jet: event.jets){
-        event.weight *= jet.mediumbTagSF;
+        event.weight *= jet.tightbTagSF;
     }
 
     return cut;
@@ -221,21 +293,62 @@ bool TreeReader::OneBJets(Event &event){
 bool TreeReader::TwoBJets(Event &event){
     bool cut = true;
     
-    cut *= (this->nMediumBJet(event) >= 3);
+    cut *= (this->nTightBJet(event) == 2);
 
     for(const Jet &jet: event.jets){
-        event.weight *= jet.mediumbTagSF;
+        event.weight *= jet.tightbTagSF;
     }
 
     return cut;
 }
 
+bool TreeReader::ThreeBJets(Event &event){
+    bool cut = true;
+    
+    cut *= (this->nTightBJet(event) == 3);
+
+    for(const Jet &jet: event.jets){
+        event.weight *= jet.tightbTagSF;
+    }
+
+    return cut;
+}
+
+bool TreeReader::XBJets(Event &event){
+    bool cut = true;
+    
+    cut *= (this->nTightBJet(event) > 3);
+
+    for(const Jet &jet: event.jets){
+        event.weight *= jet.tightbTagSF;
+    }
+
+    return cut;
+}
+
+bool TreeReader::TwoJetsOneFat(Event &event){
+    bool cut = true;
+    
+    cut *= (nJet(event) >= 2 and nFatJet(event) >= 1);
+
+    return cut;
+}
+
+bool TreeReader::FourJets(Event &event){
+    bool cut = true;
+    
+    cut *= (nJet(event) >= 4 and nFatJet(event) == 0);
+
+    return cut;
+}
+
+
 bool TreeReader::MassCut(Event &event){
-    return (this->higgs1Mass(event) > 50)*(this->higgs2Mass(event) > 50)*(this->higgs1Mass(event) < 150)*(this->higgs2Mass(event) < 150);
+    return (higgs1Mass(event) < 150) && (higgs2Mass(event) < 150);
 }
 
 bool TreeReader::AntiMassCut(Event &event){
-    return !MassCut(event);
+    return (higgs1Mass(event) > 150) && (higgs2Mass(event) > 150);
 }
 
 bool TreeReader::PhiCut(Event &event){
@@ -243,6 +356,77 @@ bool TreeReader::PhiCut(Event &event){
 }
 
 //Functions calculating value of quantities
+
+float TreeReader::HLTMu27(Event &event){
+    if(event.trigger.find(MU27) == event.trigger.end()){
+        return -999.;
+    }
+
+    else{
+        return event.trigger[MU27];
+    }
+}
+
+float TreeReader::HLTEle35(Event &event){
+    if(event.trigger.find(ELE35) == event.trigger.end()){
+        return -999.;
+    }
+
+    else{
+        return event.trigger[ELE35];
+    }
+}
+
+float TreeReader::HLTEle30Jet35(Event &event){
+    if(event.trigger.find(ELE30JET35) == event.trigger.end()){
+        return -999.;
+    }
+
+    else{
+        return event.trigger[ELE30JET35];
+    }
+}
+
+float TreeReader::HLTEle28HT150(Event &event){
+    if(event.trigger.find(ELE28HT150) == event.trigger.end()){
+        return -999.;
+    }
+
+    else{
+        return event.trigger[ELE28HT150];
+    }
+}
+
+float TreeReader::HLTMet200(Event &event){
+    if(event.trigger.find(MET200) == event.trigger.end()){
+        return -999.;
+    }
+
+    else{
+        return event.trigger[MET200];
+    }
+}
+
+float TreeReader::HLTEle35AndMet200(Event &event){
+    return HLTEle35(event)*HLTMet200(event);
+}
+
+float TreeReader::HLTEle30Jet35AndMet200(Event &event){
+    return HLTEle30Jet35(event)*HLTMet200(event);
+}
+
+float TreeReader::HLTEle28HT150AndMet200(Event &event){
+    return HLTEle28HT150(event)*HLTMet200(event);
+}
+
+float TreeReader::HLTEleAllAndMet200(Event &event){
+    return (HLTEle35(event) || HLTEle28HT150(event) || HLTEle30Jet35(event))*HLTMet200(event);
+}
+
+float TreeReader::HLTMu27AndMet200(Event &event){
+    return HLTMu27(event)*HLTMet200(event);
+}
+
 
 float TreeReader::WBosonMT(Event &event){
     if(event.W != TLorentzVector()){
@@ -348,6 +532,11 @@ float TreeReader::Jet2Phi(Event &event){
 
 float TreeReader::nJet(Event &event){
     return event.jets.size();
+}
+
+
+float TreeReader::nFatJet(Event &event){
+    return event.fatjets.size();
 }
 
 float TreeReader::nLooseBJet(Event &event){
@@ -705,19 +894,249 @@ float TreeReader::cHiggsM(Event &event){
     }
 }
 
-float TreeReader::Mh1h2(Event &event){
+float TreeReader::dMh1h2(Event &event){
     if(event.jets.size() < 4){
         return -999.;
     }
 
     else{
-        if(event.Hc != TLorentzVector()){
-            return (event.h1 + event.h2).M();
+        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+            return event.h1.M() - event.h2.M();
         }
 
         else{
             Higgs(event);
-            return (event.h1 + event.h2).M();
+            return event.h1.M() - event.h2.M();
+        }
+    }
+}
+
+float TreeReader::top1Mass(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector()){
+            return event.top1.M();
+        }
+
+        else{
+            Top(event);
+            return event.top1.M();
+        }
+    }
+}
+
+float TreeReader::top2Mass(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top2 != TLorentzVector()){
+            return event.top2.M();
+        }
+
+        else{
+            Top(event);
+            return event.top2.M();
+        }
+    }
+}
+
+float TreeReader::top1PT(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.h1 != TLorentzVector()){
+            return event.top1.Pt();
+        }
+
+        else{
+            Top(event);
+            return event.top1.Pt();
+        }
+    }
+}
+
+float TreeReader::top2PT(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.h2 != TLorentzVector()){
+            return event.top2.Pt();
+        }
+
+        else{
+            Top(event);
+            return event.top2.Pt();
+        }
+    }
+}
+
+float TreeReader::dPhitop1top2(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+            return event.top2.DeltaPhi(event.top1);
+        }
+
+        else{
+            Top(event);
+            return event.top2.DeltaPhi(event.top1);
+        }
+    }
+}
+
+float TreeReader::dRtop1top2(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+            return event.top2.DeltaR(event.top1);
+        }
+
+        else{
+            Top(event);
+            return event.top2.DeltaR(event.top1);
+        }
+    }
+}
+
+float TreeReader::dMtop1top2(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+            return event.top1.M() - event.top2.M();
+        }
+
+        else{
+            Top(event);
+            return event.top1.M() - event.top2.M();
+        }
+    }
+}
+
+float TreeReader::dPhitop1W(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+            return event.top1.DeltaPhi(event.W);
+        }
+
+        else{
+            Top(event);
+            return event.top1.DeltaPhi(event.W);
+        }
+    }
+}
+
+float TreeReader::dPhitop2W(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+            return event.top2.DeltaPhi(event.W);
+        }
+
+        else{
+            Top(event);
+            return event.top2.DeltaPhi(event.W);
+        }
+    }
+}
+
+float TreeReader::SumLepJet(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.electrons.size() == 1){
+            return event.electrons[0].fourVec.Pt() + event.jets[0].fourVec.Pt() + event.jets[1].fourVec.Pt() + event.jets[2].fourVec.Pt() + event.jets[3].fourVec.Pt();
+        }
+
+        else if(event.muons.size() == 1){
+            return event.muons[0].fourVec.Pt() + event.jets[0].fourVec.Pt() + event.jets[1].fourVec.Pt() + event.jets[2].fourVec.Pt() + event.jets[3].fourVec.Pt();
+        }
+
+        else{
+            return -999.;
+        }
+    }
+}
+
+float TreeReader::VecSumLepJet(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+    else{
+        if(event.electrons.size() == 1){
+            return (event.electrons[0].fourVec + event.jets[0].fourVec + event.jets[1].fourVec + event.jets[2].fourVec + event.jets[3].fourVec).Pt();
+        }
+
+        else if(event.muons.size() == 1){
+            return (event.electrons[0].fourVec + event.jets[0].fourVec + event.jets[1].fourVec + event.jets[2].fourVec + event.jets[3].fourVec).Pt();
+        }
+
+        else{
+            return -999.;
+        }
+    }
+}
+
+float TreeReader::dPth2Hc(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+
+    else{
+        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+            return (event.Hc + event.h2).Pt();
+        }
+
+        else{
+            Higgs(event);
+            return (event.Hc + event.h2).Pt();
+        }
+    }
+}
+
+float TreeReader::RMHcMTop(Event &event){
+    if(event.jets.size() < 4){
+        return -999.;
+    }
+
+
+    else{
+        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector() and event.top1 != TLorentzVector()){
+            return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
+        }
+
+        else{
+            Higgs(event);
+            Top(event);
+            return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
         }
     }
 }
