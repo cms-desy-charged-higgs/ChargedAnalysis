@@ -48,6 +48,7 @@ class BaseAnalyzer{
         bool triggerMatching(const TLorentzVector &particle, const int &particleID);
 
     public:
+        virtual ~BaseAnalyzer(){};
         BaseAnalyzer();
         virtual void BeginJob(TTreeReader &reader, TTree *tree, bool &isData) = 0;
         virtual bool Analyze() = 0;
