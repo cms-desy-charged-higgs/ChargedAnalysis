@@ -6,7 +6,7 @@ WeightAnalyzer::WeightAnalyzer(const float era, const float xSec):
     xSec(xSec)
     {
         //Set lumi map
-        lumis = {{2016, 35.87*1e3}, {2017, 41.37*1e3}};
+        lumis = {{2016, 35.92*1e3}, {2017, 41.53*1e3}};
 
         pileUpFiles = {
                 {2017, filePath + "pileUp/data_pileUp2017.root"}, 
@@ -49,7 +49,7 @@ bool WeightAnalyzer::Analyze(){
     //Set values if not data
     if(!this->isData){
         lumi = lumis[era];
-        puWeight = pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get()));
+        puWeight = pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) != 0 ? pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) : 1.;
         genWeight = *genWeightValue->Get();
 
         nGen->Fill(1);
