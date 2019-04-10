@@ -40,6 +40,7 @@ void ElectronAnalyzer::SetGenParticles(Electron &validElectron, const int &i){
 void ElectronAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     //Set data bool
     this->isData = isData;
+    TTree* eventTree = reader.GetTree();
 
     //Hist with scale factors
     TFile* recoSFfile = TFile::Open(recoSFfiles[era].c_str());
@@ -57,8 +58,17 @@ void ElectronAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     elePhi = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_phi");
     eleCharge = std::make_unique<TTreeReaderArray<int>>(reader, "Electron_charge");
     eleIso = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_pfRelIso03_all");
-    eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP80");
-    eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP90");
+
+    if(eventTree->GetBranchStatus("Electron_mvaFall17V1Iso_WP80")){
+        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17V1Iso_WP80");
+        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17V1Iso_WP80");
+    }
+
+    else{
+        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP80");
+        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP80");
+    }
+
 
     if(!this->isData){
         eleGenIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Electron_genPartIdx");
