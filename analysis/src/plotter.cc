@@ -4,42 +4,68 @@ Plotter::Plotter(){}
 
 Plotter::~Plotter(){}
 
-Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters):
+Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel):
     histdir(histdir),
     xParameters(xParameters),
     yParameters({}),
+    channel(channel),
     procDic({
             {"DY+j", BKG},
             {"W+j", BKG},
             {"SingleE", DATA},
             {"SingleMu", DATA},
+            {"MET", DATA},
             {"VV+VVV", BKG},
             {"QCD", BKG},
             {"TT+X", BKG},
             {"T+X", BKG},
             {"L4B_150_75", SIGNAL},
             {"L4B_200_100", SIGNAL},
+            {"L4B_250_100", SIGNAL},
+            {"L4B_300_100", SIGNAL},
+            {"L4B_350_100", SIGNAL},
+            {"L4B_400_100", SIGNAL},
+            {"L4B_450_100", SIGNAL},
+            {"L4B_500_100", SIGNAL},
+            {"L4B_550_100", SIGNAL},
             {"L4B_600_100", SIGNAL},
+    }),
+    channelHeader({
+            {"ele+4j", "e + 4 jets"},
+            {"mu+4j", "#mu + 4 jets"},
     })
 {}
 
 
-Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters):
+Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel):
     histdir(histdir),
     xParameters(xParameters),
     yParameters(yParameters),
+    channel(channel),
     procDic({
             {"DY+j", BKG},
             {"W+j", BKG},
             {"SingleE", DATA},
             {"SingleMu", DATA},
+            {"MET", DATA},
             {"VV+VVV", BKG},
             {"QCD", BKG},
             {"TT+X", BKG},
             {"T+X", BKG},
             {"L4B_150_75", SIGNAL},
             {"L4B_200_100", SIGNAL},
+            {"L4B_250_100", SIGNAL},
+            {"L4B_300_100", SIGNAL},
+            {"L4B_350_100", SIGNAL},
+            {"L4B_400_100", SIGNAL},
+            {"L4B_450_100", SIGNAL},
+            {"L4B_500_100", SIGNAL},
+            {"L4B_550_100", SIGNAL},
             {"L4B_600_100", SIGNAL},
+    }),
+    channelHeader({
+            {"ele+4j", "e + 4 jets"},
+            {"mu+4j", "#mu + 4 jets"},
     })
 {}
 
@@ -54,6 +80,7 @@ void Plotter::SetStyle(){
     gROOT->SetBatch();
     gErrorIgnoreLevel = kWarning;
 }
+
 
 void Plotter::DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText){
     //CMS Work in Progres and Lumi information
