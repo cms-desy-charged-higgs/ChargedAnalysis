@@ -2,10 +2,10 @@
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 source /cvmfs/cms.cern.ch/crab3/crab.sh
-export SCRAM_ARCH=slc6_amd64_gcc630
+export SCRAM_ARCH=slc6_amd64_gcc700
 
-eval `scramv1 project CMSSW CMSSW_9_4_11_patch1`
-cd CMSSW_9_4_11_patch1/src/
+eval `scramv1 project CMSSW CMSSW_10_4_0`
+cd CMSSW_10_4_0/src/
 eval `scramv1 runtime -sh`
 
 mv ../../ChargedHiggs/ ./
