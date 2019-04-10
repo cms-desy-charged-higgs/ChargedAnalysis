@@ -15,6 +15,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <functional>
 
 class Plotter1D : public Plotter{
     
@@ -26,7 +27,7 @@ class Plotter1D : public Plotter{
 
     public:
         Plotter1D();
-        Plotter1D(std::string &histdir, std::vector<std::string> &xParameters);
+        Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel);
         void ConfigureHists(std::vector<std::string> &processes);
         void Draw(std::vector<std::string> &outdirs);
         

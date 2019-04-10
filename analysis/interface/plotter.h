@@ -22,15 +22,17 @@ class Plotter{
         std::vector<std::string> xParameters;
         std::vector<std::string> yParameters;
 
+        std::string channel;
         std::map<std::string, Processes> procDic;
+        std::map<std::string, std::string> channelHeader;
 
         void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
 
     public:
         virtual ~Plotter();
         Plotter();
-        Plotter(std::string &histdir, std::vector<std::string> &xParameters);
-        Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters);
+        Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel);
+        Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel);
 
         virtual void ConfigureHists(std::vector<std::string> &processes) = 0;
         void SetStyle();

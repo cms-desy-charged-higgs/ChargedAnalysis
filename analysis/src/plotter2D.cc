@@ -3,8 +3,8 @@
 Plotter2D::Plotter2D() : Plotter(){}
 
 
-Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters) :
-    Plotter(histdir, xParameters, yParameters),
+Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel) :
+    Plotter(histdir, xParameters, yParameters, channel),
     background({}),
     signal({}),
     data({})
@@ -29,10 +29,14 @@ void Plotter2D::ConfigureHists(std::vector<std::string> &processes){
                 TH2F* hist = (TH2F*)file->Get((xParameter + "_VS_" + yParameter).c_str());
 
                 if(procDic[process] == BKG){
+                    hist->SetMarkerColor(kRed);
+                    hist->SetMarkerStyle(20);
                     bkgHists.push_back(hist);
                 }
 
                 if(procDic[process] == SIGNAL){
+                    hist->SetMarkerColor(kBlue);
+                    hist->SetMarkerStyle(20);
                     sigHists.push_back(hist);
                 }
             }
@@ -47,11 +51,10 @@ void Plotter2D::ConfigureHists(std::vector<std::string> &processes){
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
+    TCanvas *canvas = new TCanvas("canvas", "canvas", 1000, 800); 
+
     for(unsigned int i = 0; i < xParameters.size(); i++){
         for(unsigned int j = 0; j < yParameters.size(); j++){
-            TCanvas *canvas = new TCanvas((std::string("canvas") + std::to_string(i*j + j)).c_str(), (std::string("canvas") + std::to_string(i*j + j)).c_str(), 1000, 800); 
-
-            
             TH2F* bkgSum =  (TH2F*)background[i][j][0]->Clone();
             bkgSum->Clear();
 
@@ -59,27 +62,27 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 bkgSum->Add(hist);
             }
             
-            bkgSum->DrawNormalized("COLZ 0");
-            this->DrawHeader(false, "#mu + 4 jets", "Work in progress");
+            canvas->Clear();
+            bkgSum->DrawNormalized("COLZ");
+            this->DrawHeader(false, channelHeader[channel], "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.pdf").c_str());
                 canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.png").c_str());
             }
 
-            
-            for(TH2F* hist: signal[i][j]){
-                canvas->Clear();
-                hist->DrawNormalized("COLZ 0");
+            canvas->Clear();
+            signal[i][j][0]->DrawNormalized("COLZ");
+            this->DrawHeader(false, channelHeader[channel], "Work in progress");
 
-                for(std::string outdir: outdirs){
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.pdf").c_str());
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.png").c_str());
-                }
+            for(std::string outdir: outdirs){
+                canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.pdf").c_str());
+                canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.png").c_str());
             }
 
-            delete canvas;
             std::cout << "Plot created for: " << xParameters[i] << " VS " << yParameters[j] << std::endl;
         }   
     }
+    
+    delete canvas;
 }

@@ -16,7 +16,7 @@ class Plotter2D : public Plotter{
 
     public:
         Plotter2D();
-        Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters);
+        Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel);
         void ConfigureHists(std::vector<std::string> &processes);
         void Draw(std::vector<std::string> &outdirs);
         
