@@ -11,12 +11,14 @@ QCD:
 
 TT+X: 
     filenames:
-        - TTJets_TuneCP5_13TeV-madgraphMLM-pythia8 
+        - TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8
+        - TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8
+        - TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8
+       # - TTJets_TuneCP5_13TeV-madgraphMLM-pythia8 
         - TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8
         - TTZToQQ_TuneCP5_13TeV-amcatnlo-pythia8
         - TTWJetsToQQ_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8
-        - TTWJetsToLNu_TuneCP5_PSweights_13TeV-amcatnloFXFX-madspin-pythia8
-       # - ttH_M125_mtop1735_TuneCP5_13TeV-powheg-pythia8
+        - TTWJetsToLNu_TuneCP5_13TeV-amcatnloFXFX-madspin-pythia8
 
 VV+VVV:
     filenames:
@@ -35,7 +37,7 @@ W+j:
 DY+j:
     filenames:
         - DYJetsToLL_M-10to50_TuneCP5_13TeV-madgraphMLM-pythia8
-        - DYJetsToLL_M-50_TuneCP5_13TeV-madgraphMLM-pythia8
+        - DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8
         
 T+X:
     filenames:
@@ -47,19 +49,27 @@ T+X:
 
 SingleE:
     filenames:
-        - SingleElectron-Run2017B-31Mar2018-v1
-        - SingleElectron-Run2017C-31Mar2018-v1
-        - SingleElectron-Run2017D-31Mar2018-v1
-        - SingleElectron-Run2017E-31Mar2018-v1
-        - SingleElectron-Run2017F-31Mar2018-v1
+        - SingleElectron-Run2017B-Nano14Dec2018-v1
+        - SingleElectron-Run2017C-Nano14Dec2018-v1
+        - SingleElectron-Run2017D-Nano14Dec2018-v1
+        - SingleElectron-Run2017E-Nano14Dec2018-v1
+        - SingleElectron-Run2017F-Nano14Dec2018-v1
 
 SingleMu:
     filenames:
-        - SingleMuon-Run2017B-31Mar2018-v1
-        - SingleMuon-Run2017C-31Mar2018-v1
-        - SingleMuon-Run2017D-31Mar2018-v1
-        - SingleMuon-Run2017E-31Mar2018-v1
-        - SingleMuon-Run2017F-31Mar2018-v1
+        - SingleMuon-Run2017B-Nano14Dec2018-v1
+        - SingleMuon-Run2017C-Nano14Dec2018-v1
+        - SingleMuon-Run2017D-Nano14Dec2018-v1
+        - SingleMuon-Run2017E-Nano14Dec2018-v1
+        - SingleMuon-Run2017F-Nano14Dec2018-v1
+
+MET:
+    filenames:
+        - MET-Run2017B-Nano14Dec2018-v1
+        - MET-Run2017C-Nano14Dec2018-v1
+        - MET-Run2017D-Nano14Dec2018-v1
+        - MET-Run2017E-Nano14Dec2018-v1
+        - MET-Run2017F-Nano14Dec2018-v1
 
 L4B_150_75:
     filenames:
@@ -68,6 +78,34 @@ L4B_150_75:
 L4B_200_100:
     filenames:
         - Hc+hTol4b_MHc200_Mh100
+
+L4B_250_100:
+    filenames:
+        - Hc+hTol4b_MHc250_Mh100
+
+L4B_300_100:
+    filenames:
+        - Hc+hTol4b_MHc300_Mh100
+
+L4B_350_100:
+    filenames:
+        - Hc+hTol4b_MHc350_Mh100
+
+L4B_400_100:
+    filenames:
+        - Hc+hTol4b_MHc400_Mh100
+
+L4B_450_100:
+    filenames:
+        - Hc+hTol4b_MHc450_Mh100
+
+L4B_500_100:
+    filenames:
+        - Hc+hTol4b_MHc500_Mh100
+
+L4B_550_100:
+    filenames:
+        - Hc+hTol4b_MHc550_Mh100
 
 L4B_600_100:
     filenames:
