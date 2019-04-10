@@ -96,13 +96,13 @@ bool MuonAnalyzer::Analyze(){
             validMuon.isTriggerMatched = triggerMatching(validMuon.fourVec, 13);
             
             if(!isData){
-                validMuon.triggerSF = triggerSFhist->GetBinContent(triggerSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.mediumSF = mediumIDHist->GetBinContent(mediumIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.tightSF = tightIDHist->GetBinContent(tightIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.looseIsoMediumSF = looseIsoMediumSFhist->GetBinContent(looseIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.tightIsoMediumSF = tightIsoMediumSFhist->GetBinContent(tightIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.looseIsoTightSF = looseIsoTightSFhist->GetBinContent(looseIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
-                validMuon.tightIsoTightSF = tightIsoTightSFhist->GetBinContent(tightIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))));
+                validMuon.triggerSF = triggerSFhist->GetBinContent(triggerSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? triggerSFhist->GetBinContent(triggerSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i))))  : 1.;
+                validMuon.mediumSF = mediumIDHist->GetBinContent(mediumIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? mediumIDHist->GetBinContent(mediumIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
+                validMuon.tightSF = tightIDHist->GetBinContent(tightIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? tightIDHist->GetBinContent(tightIDHist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
+                validMuon.looseIsoMediumSF = looseIsoMediumSFhist->GetBinContent(looseIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? looseIsoMediumSFhist->GetBinContent(looseIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
+                validMuon.tightIsoMediumSF = tightIsoMediumSFhist->GetBinContent(tightIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? tightIsoMediumSFhist->GetBinContent(tightIsoMediumSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
+                validMuon.looseIsoTightSF = looseIsoTightSFhist->GetBinContent(looseIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? looseIsoTightSFhist->GetBinContent(looseIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
+                validMuon.tightIsoTightSF = tightIsoTightSFhist->GetBinContent(tightIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) != 0 ? tightIsoTightSFhist->GetBinContent(tightIsoTightSFhist->FindBin(muonPt->At(i), abs(muonEta->At(i)))) : 1.;
 
                 //Save gen particle information
                 SetGenParticles(validMuon, i);
