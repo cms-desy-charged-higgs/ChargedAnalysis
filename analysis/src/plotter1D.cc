@@ -2,8 +2,8 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters) :
-    Plotter(histdir, xParameters),
+Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel) :
+    Plotter(histdir, xParameters, channel),
     background({}),
     signal({}),
     data({}),
@@ -44,8 +44,8 @@ void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
 
             //Signal configuration
             else if(procDic[process] == SIGNAL){
-	            hist->SetLineColor(kBlack + signalHists.size());
-                hist->SetLineWidth(4);
+                hist->SetLineWidth(1 + 3*signalHists.size());
+                hist->SetLineColor(kBlack);
 
                 std::vector<std::string> massStrings;
                 std::string massString;
@@ -83,19 +83,21 @@ void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
 }
 
 void Plotter1D::Draw(std::vector<std::string> &outdirs){
+    //Define canvas and pads
+    TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 800);
+    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
+    TPad* legendpad = new TPad("legendpad", "legendpad", 0.87, 0.3 , 1., 0.8);
+    TPad* pullpad = new TPad("pullpad", "pullpad", 0., 0.0 , 0.95, .25);
 
     for(unsigned int i = 0; i < xParameters.size(); i++){
-        //Define canvas and pads
-        TCanvas* canvas = new TCanvas((std::string("canvas") + std::to_string(i)).c_str(), (std::string("canvas") + std::to_string(i)).c_str(), 1000, 800);
-        TPad* mainpad = new TPad((std::string("mainpad") + std::to_string(i)).c_str(), (std::string("mainpad") + std::to_string(i)).c_str(), 0., !data.empty() or !signal[i].empty()? 0.25: 0. , 0.95, 1.);
-        TPad* legendpad = new TPad((std::string("legendpad") + std::to_string(i)).c_str(), (std::string("legendpad") + std::to_string(i)).c_str(), 0.87, !data.empty() or !signal[i].empty() ? 0.5: 0.3 , 1., 0.8);
-        TPad* pullpad = NULL;
+        canvas->cd();
 
-        if(!data.empty() or !signal.empty()){
+        if(!data.empty()){
             //Create pad for pull plot if data is not empty and resize canvas
-            pullpad =  new TPad((std::string("pullpad") + std::to_string(i)).c_str(), (std::string("pullpad") + std::to_string(i)).c_str(), 0., 0.0 , 0.95, .25);
- 
             canvas->SetWindowSize(1000,1000);  
+            mainpad->SetPad(0., 0.25 , 0.95, 1.);
+            legendpad->SetPad(0.87, 0.5, 1., 0.8);
+
             canvas->cd();
             pullpad->SetBottomMargin(0.2);
             pullpad->SetLeftMargin(0.15); 
@@ -138,6 +140,15 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         stack->GetXaxis()->SetLabelSize(0.05);
         stack->GetYaxis()->SetLabelSize(0.05);
 
+        //Draw errorband
+        sumbkg->SetFillStyle(3354);
+        sumbkg->SetFillColorAlpha(kBlack, 0.8);
+        sumbkg->SetMarkerColor(kBlack);
+            
+        sumbkg->SetName("Bkg. unc.");     
+        sumbkg->Draw("SAME E2");    
+        legend->AddEntry(sumbkg, "Bkg. unc.", "F");
+
         //Maximum value for scaling axis
         float maximum = data.size() != 0 ? std::max(stack->GetMaximum(), data[i]->GetMaximum()) : stack->GetMaximum();
         stack->SetMaximum(maximum*1.25); 
@@ -170,7 +181,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         mainpad->cd();
 
         //Draw CMS/lumi info
-        this->DrawHeader(true, "#mu + 4 jets", "Work in progress");
+        this->DrawHeader(data.size() == 0 ? false : true, channelHeader[channel], "Work in progress");
            
         //If you have data, draw Data/MC ratio
         if(!data.empty()){
@@ -189,61 +200,34 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 pull->SetBinContent(j, pullvalue);
             }
            
+            pull->SetMinimum(0.5);
+            pull->SetMaximum(1.5);
             pull->SetMarkerStyle(20);
             pull->SetTickLength(0.14, "X");
             pull->SetLabelSize(0.14, "XY");
             pull->SetTitleOffset(0.5, "Y");
             pull->SetTitleSize(0., "X");
             pull->SetTitleSize(0.12, "Y");
+            pull->SetMarkerColor(kBlack);
             pull->GetYaxis()->SetTitle("#frac{N_{data}}{N_{bkg}}");
+
+            //Error band
+            TH1F* err =  (TH1F*)sumbkg->Clone();
+            err->Divide(sumbkg);
 
             //Pull pad settings
 		    pullpad->cd();
             pull->Draw("EP");  
-
-            //Important, go back to mainpad
-            mainpad->cd(); 
-        }
- 
-
-        //If you have signal and not data, draw s/b 
-        if(!signal[i].empty() and data.empty()){
-            //Fill hist for pull plot
-            TH1F* significance = (TH1F*)sumbkg->Clone();
-            significance->Reset();
-
-            for(int j = 1; j < sumbkg->GetNbinsX(); j++){
-                float value = 0.;
-
-                if(sumbkg->GetBinError(j) != 0){          
-                    value = sumbkg->GetBinContent(j) != 0 ? signal[i][0]->GetBinContent(j)/TMath::Sqrt(sumbkg->GetBinContent(j)) : 0;
-                }
-    
-                significance->SetBinContent(j, value);
-            }
-
-            significance->SetLineColor(kBlack);
-            significance->SetLineWidth(4);
-            significance->SetFillStyle(3353);
-            significance->SetFillColor(kGray);
-            significance->SetTickLength(0.14, "X");
-            significance->SetLabelSize(0.14, "XY");
-            significance->SetTitleOffset(0.5, "Y");
-            significance->SetTitleSize(0., "X");
-            significance->SetTitleSize(0.12, "Y");
-            significance->GetYaxis()->SetTitle("#frac{N_{S}}{#sqrt{N_{B}}}");
-           
-            //Pull pad settings
-		    pullpad->cd();
-            significance->Draw("HIST");  
+            err->Draw("SAME E2");
 
             //Important, go back to mainpad
             mainpad->cd(); 
         }
 
-       
         
         //Save canvas in non-log and log scale
+        mainpad->SetLogy(0);
+
         for(std::string outdir: outdirs){
             canvas->SaveAs((outdir + "/" + xParameters[i] + ".pdf").c_str());
             canvas->SaveAs((outdir + "/" + xParameters[i] + ".png").c_str());
@@ -258,57 +242,77 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             canvas->SaveAs((outdir + "/" + xParameters[i] + "_log.png").c_str());
         }
 
-        if(!signal[i].empty()){
-            //Draw shape plot
-            canvas->SetWindowSize(1000,800); 
-            mainpad->SetLogy(0);
-            mainpad->Clear();
-            mainpad->SetPad(0., 0. , 0.95, 1.);
-            legend->Clear();
+        if(!signal.empty()){
+            for(TH1F* hist: signal[i]){
+                //Clear pads
+                for(TPad* pad: {legendpad, mainpad}){
+                    pad->cd();
+                    pad->Clear();
+                }
 
-            float max = std::max(signal[i][0]->GetMaximum()/signal[i][0]->Integral(), sumbkg->GetMaximum()/sumbkg->Integral());
+                //Draw shape plot
+                canvas->SetWindowSize(1000,800); 
+                mainpad->SetLogy(0);
+                mainpad->SetPad(0., 0. , 0.95, 1.);
+                legendpad->SetPad(0.87, 0.3, 1., 0.8);
 
-            //frame hist because scaling axis does not work with normalized draw 
-            TH1F* frame = (TH1F*)sumbkg->Clone();
-            frame->Reset();
-            
-            frame->SetMaximum(1.3*max); 
-            frame->GetXaxis()->SetTitleSize(0.05);
-            frame->GetYaxis()->SetTitleSize(0.05);
-            frame->GetXaxis()->SetTitleOffset(1.1);
-            frame->GetYaxis()->SetTitle("Events");
-            frame->GetXaxis()->SetLabelSize(0.05);
-            frame->GetYaxis()->SetLabelSize(0.05);
-            frame->Draw();
+                float max = std::max(hist->GetMaximum()/hist->Integral(), sumbkg->GetMaximum()/sumbkg->Integral());
 
-            //Bkg hist fill style
-            sumbkg->SetFillStyle(3353);
-            sumbkg->SetFillColor(kRed);
-            sumbkg->SetLineColor(kRed+1);
-            sumbkg->SetLineWidth(4);
+                //TLegend
+                TLegend* legendSig = new TLegend(0.0, 0.0, 1.0, 1.0);
+                legendSig->AddEntry(sumbkg, "Bkg", "F");
+                legendSig->AddEntry(hist, "Signal", "F");
 
-            legend->AddEntry(sumbkg, "Bkg", "F");
-            sumbkg->DrawNormalized("HIST SAME");
+                //frame hist because scaling axis does not work with normalized draw 
+                TH1F* frame = (TH1F*)sumbkg->Clone();
+                frame->Reset();
+                
+                frame->SetMaximum(1.3*max); 
+                frame->GetXaxis()->SetTitleSize(0.05);
+                frame->GetYaxis()->SetTitleSize(0.05);
+                frame->GetXaxis()->SetTitleOffset(1.1);
+                frame->GetYaxis()->SetTitle("Events");
+                frame->GetXaxis()->SetLabelSize(0.05);
+                frame->GetYaxis()->SetLabelSize(0.05);
+                frame->Draw();
 
-            //Sig hist fill style
-            signal[i][0]->SetFillStyle(3335);
-            signal[i][0]->SetFillColor(kBlue);
-            signal[i][0]->SetLineColor(kBlue+1);
-            signal[i][0]->SetLineWidth(4);
+                //Bkg hist fill style
+                sumbkg->SetFillStyle(3353);
+                sumbkg->SetFillColor(kRed);
+                sumbkg->SetLineColor(kRed+1);
+                sumbkg->SetLineWidth(4);
+
+                sumbkg->DrawNormalized("HIST SAME");
+
+                //Sig hist fill style
+                hist->SetFillStyle(3335);
+                hist->SetFillColor(kBlue);
+                hist->SetLineColor(kBlue+1);
+                hist->SetLineWidth(4);
+                   
+                hist->DrawNormalized("HIST SAME");
+
+                this->DrawHeader(false, channelHeader[channel], "Work in progress");
+
+                legendpad->cd();
+                legendSig->SetTextSize(0.2);
+                legendSig->Draw();
                
-            legend->AddEntry(signal[i][0], "Signal", "F");
-            signal[i][0]->DrawNormalized("HIST SAME");
+                //Save canvas
+                std::string massString = {hist->GetName()[9], hist->GetName()[10], hist->GetName()[11]};
 
-            this->DrawHeader(false, "#mu + 4 jets", "Work in progress");
-
-            for(std::string outdir: outdirs){
-                canvas->SaveAs((outdir + "/" + xParameters[i] + "_shape.pdf").c_str());
-                canvas->SaveAs((outdir + "/" + xParameters[i] + "_shape.png").c_str());
+                for(std::string outdir: outdirs){
+                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_" + massString + "_shape.pdf").c_str());
+                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_" + massString + "_shape.png").c_str());
+                }
             }
-
         }
-
-        delete canvas;
         std::cout << "Plot created for: " << xParameters[i] << std::endl;
+
+        //Clear pads
+        for(TPad* pad: {mainpad, pullpad, legendpad}){
+            pad->cd();
+            pad->Clear();
+        }
     }
 }
