@@ -98,8 +98,6 @@ void TreeReader::SetHistMap(){
         {"dMh1h2", {30, -50., 50., "#DeltaM(h_{1}, h_{2}) [GeV]", &TreeReader::dMh1h2}},
         {"dPhitop1W", {30., 0., TMath::Pi(), "#Delta#phi(t_{1}, W^{#pm}) [rad]", &TreeReader::dPhitop1W}},
         {"dPhitop2W", {30., 0., TMath::Pi(), "#Delta#phi(t_{2}, W^{#pm}) [rad]", &TreeReader::dPhitop2W}},
-        {"sumljet", {30., 0., 600, "p_{T}(l) + #sum p_{T}(j)", &TreeReader::SumLepJet}},
-        {"vecsumljet", {30., 0., 600, "(p^{#mu}(l) + #sum p^{#mu}(j))_{T}", &TreeReader::VecSumLepJet}},
         {"dPth2Hc", {30., 0., 600, "(p^{#mu}(H^{#pm}) + p^{#mu}(h_{2}))_{T}", &TreeReader::dPth2Hc}},
         {"RMHcMTop", {30., 0., 1., "m(H^{#pm})/m(t_{1})", &TreeReader::RMHcMTop}},
     };
@@ -168,18 +166,57 @@ void TreeReader::Top(Event &event){
 
 void TreeReader::Higgs(Event &event){
     //Vector of candPairs
-    typedef std::pair<TLorentzVector, TLorentzVector> hPair;
-    std::vector<hPair> candPairs; 
+    typedef std::pair<TLorentzVector, TLorentzVector> hCands;
+    std::vector<hCands> candPairs; 
     
-    //Push back each combination of jet pair which could originate from Higgs
-    candPairs.push_back({event.jets[0].fourVec + event.jets[1].fourVec,  event.jets[2].fourVec + event.jets[3].fourVec});
+    //Intermediate step to save all possible combinations of two jets from jet collection
+    std::vector<std::pair<int, int>> combi;
+    
+    for(unsigned int i = 0; i < event.jets.size(); i++){
+        for(unsigned int j = 0; j < i; j++){
+            combi.push_back({i, j});
+        }
+    }
 
-    candPairs.push_back({event.jets[0].fourVec + event.jets[2].fourVec,  event.jets[1].fourVec + event.jets[3].fourVec});
+    //If 4 jets and no fat jets
+    if(event.jets.size() >= 4){
+        //Construct all pairs of possible jet pairs
+        for(unsigned int i = 0; i < combi.size(); i++){
+            for(unsigned int j = 0; j < i; j++){
+                //Check if not same jet in both pair
+                std::set<int> check = {combi[i].first, combi[i].second, combi[j].first, combi[j].second};
+                
+                if(check.size() == 4){
+                    candPairs.push_back({event.jets[combi[i].first].fourVec + event.jets[combi[i].second].fourVec, event.jets[combi[j].first].fourVec + event.jets[combi[j].second].fourVec});
+                }
+            }
+        }
+    }
 
-    candPairs.push_back({event.jets[0].fourVec + event.jets[3].fourVec,  event.jets[1].fourVec + event.jets[2].fourVec});
+    //If 2 jets and one fat jet
+    else if(event.jets.size() >= 2 and event.fatjets.size() >= 1){
+        for(std::pair<int, int> jetIndex: combi){
+            candPairs.push_back({event.fatjets[0].fourVec, event.jets[jetIndex.first].fourVec + event.jets[jetIndex.first].fourVec});
+        }
+    }
+
+    //If 2 fat jets
+    else if(event.fatjets.size() >= 2){
+        candPairs.push_back({event.fatjets[0].fourVec, event.fatjets[1].fourVec});
+    }
+
+    //Not valid event
+    else{
+        event.Hc = TLorentzVector(-999., -999., -999., -999.);
+        event.h1 = TLorentzVector(-999., -999., -999., -999.);
+        event.h2 = TLorentzVector(-999., -999., -999., -999.);
+        return;
+    }
 
     //Sort candPairs for mass diff of jet pairs, where index 0 is the best pair
-    std::function<bool(hPair, hPair)> sortFunc = [&](hPair pair1, hPair pair2){return std::abs(pair1.first.M() -pair1.second.M()) < std::abs(pair2.first.M() - pair2.second.M());};
+    std::function<bool(hCands, hCands)> sortFunc = [&](hCands cands1, hCands cands2){
+        return std::abs(cands1.first.M() - cands1.second.M()) < std::abs(cands2.first.M() - cands2.second.M());
+    };
 
     std::sort(candPairs.begin(), candPairs.end(), sortFunc);
 
@@ -588,555 +625,333 @@ float TreeReader::METPhi(Event &event){
 }
 
 float TreeReader::higgs1Mass(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector()){
+        return event.h1.M();
     }
 
     else{
-        if(event.h1 != TLorentzVector()){
-            return event.h1.M();
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.M();
-        }
+        Higgs(event);
+        return event.h1.M();
     }
 }
 
 float TreeReader::higgs2Mass(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h2 != TLorentzVector()){
+        return event.h2.M();
     }
 
     else{
-        if(event.h2 != TLorentzVector()){
-            return event.h2.M();
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.M();
-        }
+        Higgs(event);
+        return event.h2.M();
     }
 }
 
 float TreeReader::higgs1PT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector()){
+        return event.h1.Pt();
     }
 
     else{
-        if(event.h1 != TLorentzVector()){
-            return event.h1.Pt();
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.Pt();
-        }
+        Higgs(event);
+        return event.h1.Pt();
     }
 }
 
 float TreeReader::higgs2PT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h2 != TLorentzVector()){
+        return event.h2.Pt();
     }
 
     else{
-        if(event.h2 != TLorentzVector()){
-            return event.h2.Pt();
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.Pt();
-        }
+        Higgs(event);
+        return event.h2.Pt();
     }
 }
 
 float TreeReader::higgs1Phi(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
-    }
+   if(event.h2 != TLorentzVector()){
+       return event.h1.Phi();
+   }
 
-    else{
-        if(event.h2 != TLorentzVector()){
-            return event.h1.Phi();
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.Phi();
-        }
+   else{
+       Higgs(event);
+       return event.h1.Phi();
     }
 }
 
 float TreeReader::higgs2Phi(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+   if(event.h2 != TLorentzVector()){
+        return event.h2.Phi();
     }
 
-    else{
-        if(event.h2 != TLorentzVector()){
-            return event.h2.Phi();
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.Phi();
-        }
+   else{
+       Higgs(event);
+       return event.h2.Phi();
     }
 }
 
 float TreeReader::dPhih1h2(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
-    }
+   if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.DeltaPhi(event.h2);
+   }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.DeltaPhi(event.h2);
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.DeltaPhi(event.h2);
-        }
+        Higgs(event);
+        return event.h1.DeltaPhi(event.h2);
     }
 }
 
 
 float TreeReader::dRh1W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.DeltaR(event.W);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.DeltaR(event.W);
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.DeltaR(event.W);
-        }
+        Higgs(event);
+        return event.h1.DeltaR(event.W);
     }
 }
 
 float TreeReader::dRh2W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h2.DeltaR(event.W);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h2.DeltaR(event.W);
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.DeltaR(event.W);
-        }
+        Higgs(event);
+        return event.h2.DeltaR(event.W);
     }
 }
 
 float TreeReader::dRh1Hc(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.DeltaR(event.Hc);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.DeltaR(event.Hc);
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.DeltaR(event.Hc);
-        }
+        Higgs(event);
+        return event.h1.DeltaR(event.Hc);
     }
 }
 
 float TreeReader::dRh2Hc(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h2.DeltaR(event.Hc);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h2.DeltaR(event.Hc);
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.DeltaR(event.Hc);
-        }
+        Higgs(event);
+        return event.h2.DeltaR(event.Hc);
     }
 }
 
 float TreeReader::dPhih1W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.DeltaPhi(event.W);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.DeltaPhi(event.W);
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.DeltaPhi(event.W);
-        }
+        Higgs(event);
+        return event.h1.DeltaPhi(event.W);
     }
 }
 
 float TreeReader::dPhih2W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h2.DeltaPhi(event.W);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h2.DeltaPhi(event.W);
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.DeltaPhi(event.W);
-        }
+        Higgs(event);
+        return event.h2.DeltaPhi(event.W);
     }
 }
 
 float TreeReader::dPhih1Hc(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.DeltaPhi(event.Hc);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.DeltaPhi(event.Hc);
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.DeltaPhi(event.Hc);
-        }
+        Higgs(event);
+        return event.h1.DeltaPhi(event.Hc);
     }
 }
 
 float TreeReader::dPhih2Hc(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h2.DeltaPhi(event.Hc);
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h2.DeltaPhi(event.Hc);
-        }
-
-        else{
-            Higgs(event);
-            return event.h2.DeltaPhi(event.Hc);
-        }
+        Higgs(event);
+        return event.h2.DeltaPhi(event.Hc);
     }
 }
 
 float TreeReader::cHiggsPT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.Hc != TLorentzVector()){
+        return event.Hc.Pt();
     }
 
     else{
-        if(event.Hc != TLorentzVector()){
-            return event.Hc.Pt();
-        }
-
-        else{
-            Higgs(event);
-            return event.Hc.Pt();
-        }
+        Higgs(event);
+        return event.Hc.Pt();
     }
 }
 
 float TreeReader::cHiggsMT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.Hc != TLorentzVector()){
+        return event.Hc.Pt();
     }
 
     else{
-        if(event.Hc != TLorentzVector()){
-            return event.Hc.Pt();
-        }
-
-        else{
-            Higgs(event);
-            return event.Hc.Pt();
-        }
+        Higgs(event);
+        return event.Hc.Pt();
     }
 }
 
 float TreeReader::cHiggsM(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.Hc != TLorentzVector()){
+        return event.Hc.M();
     }
 
     else{
-        if(event.Hc != TLorentzVector()){
-            return event.Hc.M();
-        }
-
-        else{
-            Higgs(event);
-            return event.Hc.M();
-        }
+        Higgs(event);
+        return event.Hc.M();
     }
 }
 
 float TreeReader::dMh1h2(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return event.h1.M() - event.h2.M();
     }
 
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return event.h1.M() - event.h2.M();
-        }
-
-        else{
-            Higgs(event);
-            return event.h1.M() - event.h2.M();
-        }
+        Higgs(event);
+        return event.h1.M() - event.h2.M();
     }
 }
 
 float TreeReader::top1Mass(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector()){
+        return event.top1.M();
     }
 
     else{
-        if(event.top1 != TLorentzVector()){
-            return event.top1.M();
-        }
-
-        else{
-            Top(event);
-            return event.top1.M();
-        }
+        Top(event);
+        return event.top1.M();
     }
 }
 
 float TreeReader::top2Mass(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top2 != TLorentzVector()){
+        return event.top2.M();
     }
 
     else{
-        if(event.top2 != TLorentzVector()){
-            return event.top2.M();
-        }
-
-        else{
-            Top(event);
-            return event.top2.M();
-        }
+        Top(event);
+        return event.top2.M();
     }
 }
 
 float TreeReader::top1PT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector()){
+        return event.top1.Pt();
     }
 
     else{
-        if(event.h1 != TLorentzVector()){
-            return event.top1.Pt();
-        }
-
-        else{
-            Top(event);
-            return event.top1.Pt();
-        }
+        Top(event);
+        return event.top1.Pt();
     }
 }
 
 float TreeReader::top2PT(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h2 != TLorentzVector()){
+        return event.top2.Pt();
     }
 
     else{
-        if(event.h2 != TLorentzVector()){
-            return event.top2.Pt();
-        }
-
-        else{
-            Top(event);
-            return event.top2.Pt();
-        }
+        Top(event);
+        return event.top2.Pt();
     }
 }
 
 float TreeReader::dPhitop1top2(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+        return event.top2.DeltaPhi(event.top1);
     }
 
     else{
-        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
-            return event.top2.DeltaPhi(event.top1);
-        }
-
-        else{
-            Top(event);
-            return event.top2.DeltaPhi(event.top1);
-        }
+        Top(event);
+        return event.top2.DeltaPhi(event.top1);
     }
 }
 
 float TreeReader::dRtop1top2(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+        return event.top2.DeltaR(event.top1);
     }
 
     else{
-        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
-            return event.top2.DeltaR(event.top1);
-        }
-
-        else{
-            Top(event);
-            return event.top2.DeltaR(event.top1);
-        }
+        Top(event);
+        return event.top2.DeltaR(event.top1);
     }
 }
 
 float TreeReader::dMtop1top2(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+        return event.top1.M() - event.top2.M();
     }
 
     else{
-        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
-            return event.top1.M() - event.top2.M();
-        }
-
-        else{
-            Top(event);
-            return event.top1.M() - event.top2.M();
-        }
+        Top(event);
+        return event.top1.M() - event.top2.M();
     }
 }
 
 float TreeReader::dPhitop1W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+        return event.top1.DeltaPhi(event.W);
     }
 
     else{
-        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
-            return event.top1.DeltaPhi(event.W);
-        }
-
-        else{
-            Top(event);
-            return event.top1.DeltaPhi(event.W);
-        }
+        Top(event);
+        return event.top1.DeltaPhi(event.W);
     }
 }
 
 float TreeReader::dPhitop2W(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
+        return event.top2.DeltaPhi(event.W);
     }
 
     else{
-        if(event.top1 != TLorentzVector() and event.top2 != TLorentzVector()){
-            return event.top2.DeltaPhi(event.W);
-        }
-
-        else{
-            Top(event);
-            return event.top2.DeltaPhi(event.W);
-        }
-    }
-}
-
-float TreeReader::SumLepJet(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
-    }
-
-    else{
-        if(event.electrons.size() == 1){
-            return event.electrons[0].fourVec.Pt() + event.jets[0].fourVec.Pt() + event.jets[1].fourVec.Pt() + event.jets[2].fourVec.Pt() + event.jets[3].fourVec.Pt();
-        }
-
-        else if(event.muons.size() == 1){
-            return event.muons[0].fourVec.Pt() + event.jets[0].fourVec.Pt() + event.jets[1].fourVec.Pt() + event.jets[2].fourVec.Pt() + event.jets[3].fourVec.Pt();
-        }
-
-        else{
-            return -999.;
-        }
-    }
-}
-
-float TreeReader::VecSumLepJet(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
-    }
-
-    else{
-        if(event.electrons.size() == 1){
-            return (event.electrons[0].fourVec + event.jets[0].fourVec + event.jets[1].fourVec + event.jets[2].fourVec + event.jets[3].fourVec).Pt();
-        }
-
-        else if(event.muons.size() == 1){
-            return (event.electrons[0].fourVec + event.jets[0].fourVec + event.jets[1].fourVec + event.jets[2].fourVec + event.jets[3].fourVec).Pt();
-        }
-
-        else{
-            return -999.;
-        }
+        Top(event);
+        return event.top2.DeltaPhi(event.W);
     }
 }
 
 float TreeReader::dPth2Hc(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
+        return (event.Hc + event.h2).Pt();
     }
 
-
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector()){
-            return (event.Hc + event.h2).Pt();
-        }
-
-        else{
-            Higgs(event);
-            return (event.Hc + event.h2).Pt();
-        }
+        Higgs(event);
+        return (event.Hc + event.h2).Pt();
     }
 }
 
 float TreeReader::RMHcMTop(Event &event){
-    if(event.jets.size() < 4){
-        return -999.;
+    if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector() and event.top1 != TLorentzVector()){
+        return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
     }
 
-
     else{
-        if(event.h1 != TLorentzVector() and event.h2 != TLorentzVector() and event.top1 != TLorentzVector()){
-            return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
-        }
-
-        else{
-            Higgs(event);
-            Top(event);
-            return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
-        }
+        Higgs(event);
+        Top(event);
+        return (event.top1.M() - event.top2.M())/(event.top1.M() + event.top2.M());
     }
 }

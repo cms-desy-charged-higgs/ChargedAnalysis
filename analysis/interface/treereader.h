@@ -6,7 +6,8 @@
 #include <string>
 #include <functional>
 #include <map> 
-#include <cmath>	
+#include <cmath>
+#include <set>	
 
 #include <thread>
 #include <mutex>
@@ -199,8 +200,6 @@ class TreeReader {
         float dPhih1Hc(Event &event);
         float dPhih2Hc(Event &event);
         float Mh1h2(Event &event);
-        float SumLepJet(Event &event);
-        float VecSumLepJet(Event &event);
         float dPth2Hc(Event &event);
         float RMHcMTop(Event &event);
 
