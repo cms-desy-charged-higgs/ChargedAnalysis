@@ -242,6 +242,41 @@ bool JetAnalyzer::Analyze(){
     float metPx = *metPt->Get()*std::cos(*metPhi->Get());
     float metPy = *metPt->Get()*std::sin(*metPhi->Get());
     
+    //Loop over all fat jets
+    for(unsigned int i = 0; i < fatJetPt->GetSize(); i++){
+        //Define fat jet
+        Jet fatJet;
+        fatJet.fourVec.SetPtEtaPhiM(fatJetPt->At(i), fatJetEta->At(i), fatJetPhi->At(i), fatJetMass->At(i));
+    
+        //Smear pt if not data
+        if(!isData){
+            smearFac = SmearEnergy(fatJetPt->At(i), fatJetPhi->At(i), fatJetEta->At(i), *jetRho->Get(), 0.8, AK8);
+            fatJet.fourVec *= smearFac;
+
+            //Correct met
+            metPx+= std::cos(fatJetPhi->At(i))*fatJetPt->At(i) - std::cos(fatJet.fourVec.Phi())*fatJet.fourVec.Pt();
+            metPy+= std::sin(fatJetPhi->At(i))*fatJetPt->At(i) - std::sin(fatJet.fourVec.Phi())*fatJet.fourVec.Pt();
+        }
+
+        if(fatJet.fourVec.M() > 50. and abs(fatJet.fourVec.Eta()) < etaCut){
+            //Check for btag
+            fatJet.isLooseB = bTagCuts[AK8][era][0] < fatJetCSV->At(i);
+            fatJet.isMediumB = bTagCuts[AK8][era][1] < fatJetCSV->At(i);
+
+            //Nsubjettiness
+            fatJet.twoSubJettiness = fatJetTau2->At(i);
+            fatJet.threeSubJettiness = fatJetTau3->At(i);
+
+            if(!isData){
+                //btag SF
+                fatJet.loosebTagSF = looseReader[AK8].eval_auto_bounds("central", BTagEntry::FLAV_B, abs(fatJet.fourVec.Eta()), fatJet.fourVec.Pt());
+                fatJet.mediumbTagSF = mediumReader[AK8].eval_auto_bounds("central", BTagEntry::FLAV_B, abs(fatJet.fourVec.Eta()), fatJet.fourVec.Pt());
+            }
+
+            fatJets.push_back(fatJet);
+        }
+    }
+
     //Loop over all jets
     for(unsigned int i = 0; i < jetPt->GetSize(); i++){
         //Clean jets from electron and muon
@@ -265,13 +300,32 @@ bool JetAnalyzer::Analyze(){
         if(!isData){
             smearFac = SmearEnergy(jetPt->At(i), jetPhi->At(i), jetEta->At(i), *jetRho->Get(), 0.4, AK4);
             jetCand.fourVec *= smearFac;
-
-            //Correct met
-            metPx+= std::cos(jetPhi->At(i))*jetPt->At(i) - std::cos(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
-            metPy+= std::sin(jetPhi->At(i))*jetPt->At(i) - std::sin(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
         }
 
         if(jetCand.fourVec.Pt() > ptCut and abs(jetCand.fourVec.Eta()) < etaCut){
+            //bool for cleaning fatjets from AK4 jets
+            bool isCleaned = true;
+
+            //Check overlap with AK4 valid jets
+            for(Jet fatJet: fatJets){
+                if(fatJet.fourVec.DeltaR(jetCand.fourVec) < 0.6){
+                    isCleaned = false;
+                    break;
+                }
+            }        
+
+            if(!isData){
+                //Correct met
+                metPx+= std::cos(jetPhi->At(i))*jetPt->At(i) - std::cos(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
+                metPy+= std::sin(jetPhi->At(i))*jetPt->At(i) - std::sin(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
+            }
+
+            //If not cleaned dont use this fatjet
+            if(!isCleaned){
+                continue;
+            }
+
+
             //Check for btag
             jetCand.isLooseB = bTagCuts[AK4][era][0] < jetDeepBValue->At(i);
             jetCand.isMediumB = bTagCuts[AK4][era][1] < jetDeepBValue->At(i);
@@ -292,56 +346,6 @@ bool JetAnalyzer::Analyze(){
         } 
     }
 
-    //Loop over all fat jets
-    for(unsigned int i = 0; i < fatJetPt->GetSize(); i++){
-        //Define fat jet
-        Jet fatJet;
-        fatJet.fourVec.SetPtEtaPhiM(fatJetPt->At(i), fatJetEta->At(i), fatJetPhi->At(i), fatJetMass->At(i));
-    
-        //Smear pt if not data
-        if(!isData){
-            smearFac = SmearEnergy(fatJetPt->At(i), fatJetPhi->At(i), fatJetEta->At(i), *jetRho->Get(), 0.8, AK8);
-            fatJet.fourVec *= smearFac;
-        }
-
-        //bool for cleaning fatjets from AK4 jets
-        bool isCleaned = true;
-
-        //Check overlap with AK4 valid jets
-        for(Jet jet: validJets){
-            if(fatJet.fourVec.DeltaR(jet.fourVec) < 0.6){
-                isCleaned = false;
-                break;
-            }
-        }        
-
-        //If not cleaned dont use this fatjet
-        if(!isCleaned){
-            continue;
-        }
-
-        if(!isData){
-            //Correct met
-            metPx+= std::cos(fatJetPhi->At(i))*fatJetPt->At(i) - std::cos(fatJet.fourVec.Phi())*fatJet.fourVec.Pt();
-            metPy+= std::sin(fatJetPhi->At(i))*fatJetPt->At(i) - std::sin(fatJet.fourVec.Phi())*fatJet.fourVec.Pt();
-        }
-
-        //Check for btag
-        fatJet.isLooseB = bTagCuts[AK8][era][0] < fatJetCSV->At(i);
-        fatJet.isMediumB = bTagCuts[AK8][era][1] < fatJetCSV->At(i);
-
-        //Nsubjettiness
-        fatJet.twoSubJettiness = fatJetTau2->At(i);
-        fatJet.threeSubJettiness = fatJetTau3->At(i);
-
-        if(!isData){
-            //btag SF
-            fatJet.loosebTagSF = looseReader[AK8].eval_auto_bounds("central", BTagEntry::FLAV_B, abs(fatJet.fourVec.Eta()), fatJet.fourVec.Pt());
-            fatJet.mediumbTagSF = mediumReader[AK8].eval_auto_bounds("central", BTagEntry::FLAV_B, abs(fatJet.fourVec.Eta()), fatJet.fourVec.Pt());
-        }
-
-        fatJets.push_back(fatJet);
-    }
 
     //Set HT
     HT = *valueHT->Get();
