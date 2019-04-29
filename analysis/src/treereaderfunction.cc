@@ -58,8 +58,11 @@ float TreeReader::NParticle(Event &event, Hist &hist){
         case JET:
             return event.jets.size();
 
-        case BJET:
-            for(const Jet &jet: event.jets){
+        case FATJET:
+            return event.fatjets.size();
+
+        case BJET: case BFATJET:
+            for(const Jet &jet: hist.parts[0] == BJET ? event.jets: event.fatjets){
                 if(jet.*bJetID[hist.func]){
                     nPart++;
 
@@ -68,7 +71,6 @@ float TreeReader::NParticle(Event &event, Hist &hist){
             }
     
             return nPart;
-            
         default: return -999.;
     }
 }
@@ -91,7 +93,29 @@ const TLorentzVector& TreeReader::GetParticle(Event &event, Particle &part, cons
         case ELECTRON: return (unsigned int)index <= event.electrons.size() ? event.electrons[index-1].fourVec : event.dummy;
         case MUON: return (unsigned int)index <= event.muons.size() ? event.muons[index-1].fourVec : event.dummy;
         case JET: return (unsigned int)index <= event.jets.size() ? event.jets[index-1].fourVec : event.dummy;
+        case FATJET: return (unsigned int)index <= event.fatjets.size() ? event.fatjets[index-1].fourVec : event.dummy;
         case MET: return event.MET;
+        case W: 
+            if(event.W.Pt() == 0){
+                WBoson(event);
+                return event.W;
+            }
+
+            return event.W;
+        case HC: 
+            if(event.Hc.Pt() == 0){
+                Higgs(event);
+                return event.Hc;
+            }
+
+            return event.Hc;
+        case h: 
+            if(event.h.empty()){
+                Higgs(event);
+                return event.h[index-1];
+            }
+
+            return event.h[index-1];
         default: return event.dummy;
     }
 }
@@ -164,9 +188,7 @@ void TreeReader::Higgs(Event &event){
 
     //Not valid event
     else{
-        event.Hc = TLorentzVector(-999., -999., -999., -999.);
-        event.h1 = TLorentzVector(-999., -999., -999., -999.);
-        event.h2 = TLorentzVector(-999., -999., -999., -999.);
+        event.h = {TLorentzVector(), TLorentzVector()};
         return;
     }
 
@@ -186,13 +208,11 @@ void TreeReader::Higgs(Event &event){
 
     if(Hc1.DeltaPhi(candPairs[0].second) > Hc2.DeltaPhi(candPairs[0].first) and Hc1.DeltaPhi(candPairs[0].first) < Hc2.DeltaPhi(candPairs[0].second)){
         event.Hc = Hc1;
-        event.h1 = candPairs[0].first;
-        event.h2 = candPairs[0].second;
+        event.h = {candPairs[0].first, candPairs[0].second};
     }
 
     else{
         event.Hc = Hc2;
-        event.h1 = candPairs[0].second;
-        event.h2 = candPairs[0].first;
+        event.h = {candPairs[0].second, candPairs[0].first};
     }
 }

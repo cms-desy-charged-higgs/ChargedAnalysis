@@ -11,8 +11,8 @@ TreeReader::TreeReader(std::string &process, const bool& saveTree):
     start = std::chrono::steady_clock::now();
 
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER}};
-    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"bj", BJET}, {"met", MET}};
-    partLabel = {{ELECTRON, "e_{}"}, {MUON, "#mu_{}"}, {JET, "j_{}"}, {BJET, "b-tagged j_{}"}, {MET, "#slash{E}_{T}"}};
+    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"h", h}};
+    partLabel = {{ELECTRON, "e_{}"}, {MUON, "#mu_{}"}, {JET, "j_{}"}, {FATJET, "j_{}^{AK8}"}, {BJET, "b-tagged j_{}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {h, "h_{}"}};
 
     strToFunc = {
                     {"m", MASS}, 
@@ -38,7 +38,7 @@ TreeReader::TreeReader(std::string &process, const bool& saveTree):
     };
 
     binning = {
-                {MASS, {30., 0., 300.}},
+                {MASS, {30., 50., 700.}},
                 {PT, {30., 0., 200.}},
                 {ETA, {30., -2.4, 2.4}},
                 {PHI, {30., 0., 2.*TMath::Pi()}},
@@ -187,7 +187,7 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
         merged1DHistograms[i].hist->Add(histograms1D[i].hist);
     }
 
-    //listTree->Add(tree);
+    listTree->Add(tree);
 
     progress += 100*(1.f/nCores);
 
@@ -373,6 +373,10 @@ void TreeReader::Write(std::string &outname){
         delete hist.hist;
     }
     
+    for(TTree* tree: listTree){
+        tree->Write();
+    }
+
     end = std::chrono::steady_clock::now();
     std::cout << "Created histograms for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
         

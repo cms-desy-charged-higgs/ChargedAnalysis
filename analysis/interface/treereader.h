@@ -34,7 +34,7 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, BJET, MET};
+        enum Particle{ELECTRON, MUON, JET, BJET, FATJET, BFATJET, MET, W, HC, h};
 
         //Enumeration for functions to calculate quantities
         enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT};
@@ -54,8 +54,7 @@ class TreeReader {
             float HT;
 
             //Reconstructed during processing of the event
-            TLorentzVector h1;
-            TLorentzVector h2;
+            std::vector<TLorentzVector> h;
             TLorentzVector W;
             TLorentzVector Hc;
 
