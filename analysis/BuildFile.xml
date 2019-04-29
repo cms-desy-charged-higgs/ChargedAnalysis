@@ -8,8 +8,7 @@
 <use name="CondTools/BTau"/>
 <use name="JetMETCorrections/Modules"/>
 
-
-<Flags CXXFLAGS="-Wall"/>
+<flags CXXFLAGS="-Wall -std=c++17"/>
 
 <export>
     <lib name="1"/>
