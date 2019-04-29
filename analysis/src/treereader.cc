@@ -4,22 +4,99 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters,
-std::vector<std::string> &yParameters, std::vector<std::string> &cutstrings, const bool& saveTree):
+TreeReader::TreeReader(std::string &process, const bool& saveTree):
     process(process),
-    xParameters(xParameters),
-    yParameters(yParameters),
-    cutstrings(cutstrings),
     saveTree(saveTree){
 
     start = std::chrono::steady_clock::now();
 
-    SetHistMap();   
-    SetCutMap();
-    SetTriggerMap();
+    strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER}};
+    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"bj", BJET}, {"met", MET}};
+    partLabel = {{ELECTRON, "e_{}"}, {MUON, "#mu_{}"}, {JET, "j_{}"}, {BJET, "b-tagged j_{}"}, {MET, "#slash{E}_{T}"}};
+
+    strToFunc = {
+                    {"m", MASS}, 
+                    {"phi", PHI}, 
+                    {"eta", ETA}, 
+                    {"pt", PT},     
+                    {"dphi", DPHI},
+                    {"dR", DR},
+                    {"lN", LOOSENPART},
+                    {"mN", MEDIUMNPART},
+                    {"tN", TIGHTNPART},
+                    {"HT", HT}
+    };
+    
+    funcLabel = {
+                    {MASS, "m() [GeV]"}, 
+                    {PHI, "#phi() [rad]"}, 
+                    {ETA, "#eta() [rad]"}, 
+                    {PT, "p_{T}() [GeV]"}, 
+                    {DPHI, "#Delta#phi(,) [rad]"}, 
+                    {DR, "#DeltaR(,) [rad]"},
+                    {HT, "H_{T} [GeV]"}, 
+    };
+
+    binning = {
+                {MASS, {30., 0., 300.}},
+                {PT, {30., 0., 200.}},
+                {ETA, {30., -2.4, 2.4}},
+                {PHI, {30., 0., 2.*TMath::Pi()}},
+                {DPHI, {30., 0., TMath::Pi()}},
+                {DR, {30., 0., 6.}},
+                {HT, {30., 0., 500.}},
+                {LOOSENPART, {6., 0., 6.}},
+                {MEDIUMNPART, {6., 0., 6.}},
+                {TIGHTNPART, {6., 0., 6.}},
+    };
+
+    funcDir = {
+                {MASS, &TreeReader::Mass},
+                {PT, &TreeReader::Pt},
+                {PHI, &TreeReader::Phi},
+                {ETA, &TreeReader::Eta},
+                {DPHI, &TreeReader::DeltaPhi},
+                {DR, &TreeReader::DeltaR},
+                {HT, &TreeReader::HadronicEnergy},
+                {LOOSENPART, &TreeReader::NParticle},
+                {MEDIUMNPART, &TreeReader::NParticle},
+                {TIGHTNPART, &TreeReader::NParticle},
+    };
+
+    eleID = {
+                {MEDIUMNPART, {&Electron::isMedium, 0.2}}, 
+                {TIGHTNPART, {&Electron::isTight, 0.1}}
+    };
+
+    eleSF = {
+                {MEDIUMNPART, &Electron::mediumMvaSF}, 
+                {TIGHTNPART, &Electron::mediumMvaSF}
+    };
+
+    muonID = {
+                {MEDIUMNPART, {&Muon::isMedium, &Muon::isLooseIso}}, 
+                {TIGHTNPART, {&Muon::isTight, &Muon::isTightIso}}
+    };
+
+    muonSF = {
+                {MEDIUMNPART, {&Muon::mediumSF, &Muon::looseIsoMediumSF}}, 
+                {TIGHTNPART, {&Muon::tightSF, &Muon::tightIsoTightSF}}
+    };
+
+    bJetID = {
+                {LOOSENPART, &Jet::isLooseB}, 
+                {MEDIUMNPART, &Jet::isMediumB}, 
+                {TIGHTNPART, &Jet::isTightB}
+    };
+
+    bJetSF = {
+                {LOOSENPART, &Jet::loosebTagSF}, 
+                {MEDIUMNPART, &Jet::mediumbTagSF}, 
+                {TIGHTNPART, &Jet::tightbTagSF}
+    };
 }
 
-void TreeReader::ProgressBar(int progress){
+void TreeReader::ProgressBar(const int &progress){
     std::string progressBar = "["; 
 
     for(int i = 0; i < progress; i++){
@@ -42,79 +119,31 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     //Dont start immediately to avoid crashes of ROOT
     std::this_thread::sleep_for (std::chrono::seconds(1));
 
-    //Define Outtree if wished
-    TTree* tree = new TTree((std::to_string(entryEnd)).c_str(), (std::to_string(entryEnd)).c_str());
-    std::vector<float> branchValues;
-    std::vector<TBranch*> branches; 
-
     //Define containers for histograms
-    std::vector<TH1F*> histograms1D;
-    std::vector<std::vector<TH2F*>> histograms2D;
-    std::vector<parameterFunc> xFunctions;
-    std::vector<parameterFunc> yFunctions;
+    std::vector<Hist> histograms1D;
 
     //Lock thread unsafe operation
     mutex.lock();
 
     //Create thread local histograms
-    for(const std::string &xParameter: xParameters){
-        TH1F* hist1D = new TH1F((xParameter + std::to_string(entryEnd)).c_str(), (xParameter + std::to_string(entryEnd)).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max);
+    for(const Hist &hist: merged1DHistograms){
+        TH1F* hist1D = new TH1F(std::string("h" + std::to_string(nHist)).c_str(), std::string("h" + std::to_string(nHist)).c_str(), binning[hist.func][0], binning[hist.func][1], binning[hist.func][2]);
+        nHist++;
 
         hist1D->Sumw2();
-        histograms1D.push_back(hist1D);
-
-        xFunctions.push_back(histValues[xParameter].parameterValue);
-
-        std::vector<TH2F*> hists2D;
-
-        if(saveTree){
-            branchValues.push_back(0.);
-            branches.push_back(tree->Branch(xParameter.c_str(), &branchValues[branchValues.size()-1]));
-        }
-
-        for(const std::string &yParameter: yParameters){
-            TH2F* hist2D = new TH2F((xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), (xParameter + "_VS_" + yParameter + std::to_string(entryEnd)).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
-
-            hist2D->Sumw2();
-            hists2D.push_back(hist2D);
-
-            if(yFunctions.size() <= yParameter){
-                yFunctions.push_back(histValues[yParameter].parameterValue);
-            }
-        }
-
-        histograms2D.push_back(hists2D);
+        histograms1D.push_back({hist1D, hist.parts, hist.indeces, hist.func});
     }
 
     //Define TTreeReader 
     TTreeReader reader(chainWrapper[0]);
-
-    //Vector of values for trigger
-    std::vector<std::pair<Trigger, TTreeReaderValue<int>>> triggers;
-
-    for(std::string &xParameter: xParameters){
-        if(trigNames.find(xParameter) != trigNames.end()){
-            TTreeReaderValue<int> triggerValue(reader, trigNames[xParameter].second.c_str());
-
-            triggers.push_back({trigNames[xParameter].first, triggerValue});
-        }
-    }
-
-    for(std::string &yParameter: yParameters){
-        if(trigNames.find(yParameter) != trigNames.end()){   
-            TTreeReaderValue<int> triggerValue(reader, trigNames[yParameter].second.c_str());
- 
-            triggers.push_back({trigNames[yParameter].first, triggerValue});
-        }
-    }
 
     TTreeReaderValue<std::vector<Electron>> electrons(reader, "electron");
     TTreeReaderValue<std::vector<Muon>> muons(reader, "muon");
     TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
     TTreeReaderValue<std::vector<Jet>> fatjets(reader, "fatjet");
     TTreeReaderValue<TLorentzVector> MET(reader, "met");
-
     TTreeReaderValue<float> HT(reader, "HT");
+
     TTreeReaderValue<float> lumi(reader, "lumi");
     TTreeReaderValue<float> xSec(reader, "xsec");
     TTreeReaderValue<float> puWeight(reader, "puWeight");
@@ -122,54 +151,31 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 
     mutex.unlock();
 
-    //Fill vector with wished cut operation
-    std::vector<cut> cuts; 
-        
-    for(const std::string &cutstring: cutstrings){
-        cuts.push_back(cutValues[cutstring]);
-    }
-
     Event event;
-    std::map<Trigger, int> triggerDecisions = {};
 
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
         reader.SetEntry(i); 
 
-        //Fill Map with trigger decision if wished
-        for(std::pair<Trigger, TTreeReaderValue<int>> &decision: triggers){
-            triggerDecisions[decision.first] = *(decision.second);
-        }
-    
-        event = {*electrons, *muons, *jets, *fatjets, *MET, 1., *HT, triggerDecisions}; 
+        event = {*electrons, *muons, *jets, *fatjets, *MET, 1., *HT}; 
 
         //Check if event passes cut
         bool passedCut = true;
  
-        for(const cut &cutValue: cuts){
-            passedCut *= (this->*cutValue)(event);
-        }
-       
-        //Fill histograms
+        for(Hist &cut: cuts){
+            passedCut *= Cut(event, cut);
+        }   
+
         if(passedCut){
             //Fill additional weights
-            std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec,  1.f/(nGen)};
+            std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec, 1.f/(nGen)};
 
             for(const float &weight: weightVec){
                 event.weight *= weight;
             }
 
-            for(unsigned i=0; i < xParameters.size(); i++){
-                if(saveTree){
-                    branchValues[i] = (this->*xFunctions[i])(event);
-                    branches[i]->Fill();
-                }
-
-                histograms1D[i]->Fill((this->*xFunctions[i])(event), event.weight);
-
-                for(unsigned j=0; j < yParameters.size(); j++){
-                    histograms2D[i][j]->Fill((this->*xFunctions[i])(event), (this->*yFunctions[j])(event), event.weight);                       
-                }
+            for(Hist &hist: histograms1D){
+                hist.hist->Fill((this->*funcDir[hist.func])(event, hist), event.weight);
             }
         }
     }
@@ -177,12 +183,8 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     //Lock again and merge local histograms into final histograms
     mutex.lock();
 
-    for(unsigned int i = 0; i < xParameters.size(); i++){
-        merged1DHistograms[i]->Add(histograms1D[i]);
-
-        for(unsigned int j = 0; j < yParameters.size(); j++){
-            merged2DHistograms[i][j]->Add(histograms2D[i][j]);
-        }
+    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
+        merged1DHistograms[i].hist->Add(histograms1D[i].hist);
     }
 
     //listTree->Add(tree);
@@ -193,32 +195,99 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     mutex.unlock();
 }
 
-void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &channel){
+void TreeReader::SetHistograms(std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cuts){
+
+    //Function which handles splitting of string input
+    std::function<std::vector<std::string>(std::string)> splitString = [&](std::string input){
+        std::vector<std::string> splittedString;
+        std::string string;
+        std::istringstream splittedStream(input);
+        while (std::getline(splittedStream, string,  '_')){
+            splittedString.push_back(string);
+        }
+
+        return splittedString;
+    };
+
     //Define final histogram for each parameter
-    for(const std::string &xParameter: xParameters){
-        TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max);
+    for(std::string xParameter: xParameters){
+        //Split input string into information for particle and function to call value
+        std::vector<std::string> splittedString = splitString(xParameter);
+  
+        //Translate strings into enumeration
+        Function func = strToFunc[splittedString[0]];
+        std::vector<Particle> parts;
+        std::vector<int> indeces;
+    
+        for(std::string part: std::vector<std::string>(splittedString.begin()+1, splittedString.end())){ 
+            try{
+                indeces.push_back(std::stoi(std::string(part.end()-1 ,part.end())));
+                parts.push_back(strToPart[std::string(part.begin(),part.end()-1)]);
+            }
+
+            catch(...){
+                indeces.push_back(-1);
+                parts.push_back(strToPart[part]);
+            }
+        }
+
+        //Create final histogram
+        TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), binning[func][0], binning[func][1], binning[func][2]);
         hist->Sumw2();
 
-        hist->GetXaxis()->SetTitle(histValues[xParameter].Label.c_str());
+        std::string fLabel = funcLabel[func];
 
-        merged1DHistograms.push_back(hist);
+        //Set axis label
+        if(parts.size() == 1){
+            std::string pLabel = partLabel[parts[0]];
+            if(indeces[0] != -1) pLabel.insert(pLabel.find("{") + 1, std::to_string(indeces[0]));
 
-        std::vector<TH2F*> merged2DHists;
-
-        for(const std::string &yParameter: yParameters){
-            TH2F* hist = new TH2F((xParameter + "_VS_" + yParameter).c_str(), (xParameter + "_VS_" + yParameter).c_str(), histValues[xParameter].nBins, histValues[xParameter].Min, histValues[xParameter].Max, histValues[yParameter].nBins, histValues[yParameter].Min, histValues[yParameter].Max);
-
-            hist->Sumw2();
-
-            hist->GetXaxis()->SetTitle(histValues[xParameter].Label.c_str());
-            hist->GetYaxis()->SetTitle(histValues[yParameter].Label.c_str());
-
-            merged2DHists.push_back(hist);
+            hist->GetXaxis()->SetTitle(fLabel.insert(fLabel.find("(") + 1, pLabel).c_str());
         }
-        
-        merged2DHistograms.push_back(merged2DHists);
+
+        else if(parts.size() == 2){
+            std::string pLabel1 = partLabel[parts[0]];
+            if(indeces[0] != -1) pLabel1.insert(pLabel1.find("{") + 1, std::to_string(indeces[0]));
+            std::string pLabel2 = partLabel[parts[1]];
+            if(indeces[1] != -1) pLabel2.insert(pLabel2.find("{") + 1, std::to_string(indeces[1]));
+
+            hist->GetXaxis()->SetTitle(fLabel.insert(fLabel.find("(") + 1, pLabel1).insert(fLabel.find(",") + 1, pLabel2).c_str());
+        }
+
+        //Add hist to collection
+        merged1DHistograms.push_back({hist, parts, indeces, func});
     }
 
+    //Cut configuration
+    for(std::string cut: cuts){
+        //Split input string into information for particle and function to call value
+        std::vector<std::string> splittedString = splitString(cut);
+        
+        //Translate strings into enumeration
+        Function func = strToFunc[splittedString[0]];
+        std::vector<Particle> parts;
+        std::vector<int> indeces;
+    
+        for(std::string part: std::vector<std::string>(splittedString.begin()+1, splittedString.end()-1)){ 
+            try{
+                indeces.push_back(std::stoi(std::string(part.end()-1 ,part.end())));
+                parts.push_back(strToPart[std::string(part.begin(),part.end()-1)]);
+            }
+
+            catch(...){
+                indeces.push_back(-1);
+                parts.push_back(strToPart[part]);
+            }
+        }
+
+        Operator op = strToOp[std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[0]];
+        float cutValue = std::stof(std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[1]);
+
+        this->cuts.push_back({NULL, parts, indeces, func, {op, cutValue}});
+    }
+}
+
+void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &channel){
     //Configure threads
     nCores = (int)std::thread::hardware_concurrency();   
     int threadsPerFile = nCores/filenames.size();   
@@ -277,7 +346,6 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
 
     }
 
-
     //Progress bar at 0 %
     ProgressBar(progress);
 
@@ -300,20 +368,9 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &cha
 void TreeReader::Write(std::string &outname){
     TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
 
-    for(TH1F* hist: merged1DHistograms){
-        hist->Write();
-        delete hist;
-    }
-
-    for(std::vector<TH2F*> hists: merged2DHistograms){
-        for(TH2F* hist: hists){
-            hist->Write();
-            delete hist;
-        }
-    }
-
-    if(saveTree){
-        outTree->Write();
+    for(Hist hist: merged1DHistograms){
+        hist.hist->Write();
+        delete hist.hist;
     }
     
     end = std::chrono::steady_clock::now();
