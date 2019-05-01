@@ -34,6 +34,7 @@ void WeightAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
         //Initiliaze TTreeReaderValues
         genWeightValue = std::make_unique<TTreeReaderValue<float>>(reader, "Generator_weight");
         nPU = std::make_unique<TTreeReaderValue<float>>(reader, "Pileup_nTrueInt");
+        evtNumber = std::make_unique<TTreeReaderValue<ULong64_t>>(reader, "event");
 
         nGen = new TH1F("nGen", "nGen", 100, 0, 2);
     }
@@ -43,6 +44,7 @@ void WeightAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
     tree->Branch("xsec", &xSec);
     tree->Branch("genWeight", &genWeight);
     tree->Branch("puWeight", &puWeight);
+    tree->Branch("eventNumber", &eventNumber);
 }
 
 bool WeightAnalyzer::Analyze(){
@@ -51,6 +53,7 @@ bool WeightAnalyzer::Analyze(){
         lumi = lumis[era];
         puWeight = pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) != 0 ? pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) : 1.;
         genWeight = *genWeightValue->Get();
+        eventNumber = *evtNumber->Get();
 
         nGen->Fill(1);
     }

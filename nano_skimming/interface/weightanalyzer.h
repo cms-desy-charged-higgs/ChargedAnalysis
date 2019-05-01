@@ -16,6 +16,7 @@ class WeightAnalyzer : public BaseAnalyzer {
         float lumi = 1.;
         float genWeight = 1.;
         float puWeight = 1.;
+        float eventNumber = 1.;
         TH1F* nGen;
 
         //Lumi information
@@ -28,6 +29,7 @@ class WeightAnalyzer : public BaseAnalyzer {
         //TTreeReader Values
         std::unique_ptr<TTreeReaderValue<float>> nPU;
         std::unique_ptr<TTreeReaderValue<float>> genWeightValue;
+        std::unique_ptr<TTreeReaderValue<ULong64_t>> evtNumber;
 
 
     public:
