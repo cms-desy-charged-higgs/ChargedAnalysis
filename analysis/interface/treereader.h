@@ -37,10 +37,10 @@ class TreeReader {
         enum Particle{ELECTRON, MUON, JET, BJET, FATJET, BFATJET, MET, W, HC, h};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT, EVENTNUMBER};
 
         //Enumeration for cut operation
-        enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER};
+        enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
 
         //Struct for reading out tree
         struct Event{ 
@@ -52,6 +52,7 @@ class TreeReader {
             TLorentzVector MET;  
             float weight; 
             float HT;
+            float eventNumber;
 
             //Reconstructed during processing of the event
             std::vector<TLorentzVector> h;
@@ -94,20 +95,23 @@ class TreeReader {
 
         //Needed parameter set in the constructor
         std::string process;
+        std::vector<std::string> xParameters; 
+        std::vector<std::string> yParameters;
+        std::vector<std::string> cutStrings;
+        std::string outname;
 
         //Class for locking thread unsafe operation
         std::mutex mutex;
 
         //Final histograms
         std::vector<Hist> merged1DHistograms;
+        TFile* outputFile;
 
         //Vector with cut information
         std::vector<Hist> cuts;
 
         //Save tree if wished
         bool saveTree;
-        TList* listTree;
-        TTree* outTree;
     
         //Progress bar function
         void ProgressBar(const int &progress);
@@ -127,6 +131,7 @@ class TreeReader {
         float DeltaR(Event &event, Hist &hist);
 
         float HadronicEnergy(Event &event, Hist &hist);
+        float EventNumber(Event &event, Hist &hist);
 
         float NParticle(Event &event, Hist &hist);
         //Mapping for IDS/sf
@@ -149,10 +154,10 @@ class TreeReader {
 
     public:
         TreeReader();
-        TreeReader(std::string &process, const bool &saveTree = false);
-        void SetHistograms(std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cuts);
+        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, const bool &saveTree = false);
+        void SetHistograms();
         void EventLoop(std::vector<std::string> &filenames, std::string &channel);
-        void Write(std::string &outname);
+        void Write();
 };
 
 #endif
