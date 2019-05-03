@@ -29,6 +29,10 @@ float TreeReader::HadronicEnergy(Event &event, Hist &hist){
     return event.HT;
 }
 
+float TreeReader::EventNumber(Event &event, Hist &hist){
+    return event.eventNumber;
+}
+
 float TreeReader::NParticle(Event &event, Hist &hist){
     int nPart = 0;
 
@@ -83,6 +87,8 @@ bool TreeReader::Cut(Event &event, Hist &hist){
         case EQSMALLER: return (this->*funcDir[hist.func])(event, hist) <= hist.cutValues.second;
         case BIGGER: return (this->*funcDir[hist.func])(event, hist) > hist.cutValues.second;
         case SMALLER: return (this->*funcDir[hist.func])(event, hist) < hist.cutValues.second;
+        case DIVISIBLE: return (int)(this->*funcDir[hist.func])(event, hist) % (int)hist.cutValues.second == 0;
+        case NOTDIVISIBLE: return (int)(this->*funcDir[hist.func])(event, hist) % (int)hist.cutValues.second != 0;
         default: return true;
     }
 }
