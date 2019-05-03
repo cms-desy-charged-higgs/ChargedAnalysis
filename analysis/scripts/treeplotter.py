@@ -33,12 +33,12 @@ def parser():
     return parser.parse_args()
 
 def createHistograms(process, filenames, xParameters, yParameters, cuts, outdir, channel):
-
     outname = ROOT.std.string("{}/{}.root".format(outdir, process))
 
-    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, yParameters, cuts)
+    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, yParameters, cuts, outname)
+    reader.SetHistograms()
     reader.EventLoop(filenames, ROOT.std.string(channel))
-    reader.Write(outname)
+    reader.Write()
 
 def makePlotsTriggerEff(histDir, trigger, processes, plotDir, channel, yParameters):
 
@@ -120,7 +120,6 @@ def main():
         [filenames.push_back(fname) for fname in ["{skim}{file}/{file}.root".format(skim = args.skim_dir, file = process_file) for process_file in process_dic[process]["filenames"]]]       
 
         if args.x_parameters:
-            pass
             createHistograms(process, filenames, xParameters, yParameters, cuts, histDir, args.channel)
 
         elif args.passed_trigger:
@@ -137,6 +136,7 @@ def main():
         makePlotsTriggerEff(histDir, trigger, processes, outDir, args.channel, yParameters, args.channel)
 
     if args.x_parameters:
+        pass
         makePlots1D(histDir, xParameters, processes, outDir, args.channel)
 
     if args.y_parameters:
