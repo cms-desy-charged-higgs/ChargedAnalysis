@@ -4,5 +4,6 @@
     <class name="Plotter1D"/>
     <class name="Plotter2D"/>
     <class name="PlotterGen"/>
+    <class name="BDT"/>
 </lcgdict>
 
