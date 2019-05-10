@@ -18,7 +18,7 @@ def parser():
     parser = argparse.ArgumentParser(description = "Script to skim NANOAOD root files", formatter_class=argparse.RawTextHelpFormatter)
     
     parser.add_argument("--filename", action = "store", help = "Name of the input NANOAOD root file")
-    parser.add_argument("--channel", nargs="+", choices = ["ele+4j", "mu+4j"], default = ["ele+4j", "mu+4j"], help = "Final state which is of interest")
+    parser.add_argument("--channel", nargs="+", choices = ["mu4j", "e4j", "mu2j1f", "e2j1f", "mu2f", "e2f"], default = ["mu4j", "e4j", "mu2j1f", "e2j1f", "mu2f", "e2f"], help = "Final state which is of interest")
 
     parser.add_argument("--bkg-txt", action = "store", help = "Txt file with data set names of bkg samples")
     parser.add_argument("--data-txt", action = "store", help = "Txt file with data set names of data samples")
@@ -61,10 +61,11 @@ def condorSubmit(skimdir, dirname, filename, index, channels):
     schedd = htcondor.Schedd()
 
     skimFilename = dirname + "_{}.root".format(index)
+    inputFilename = filename.split("/")[7] + ".root"
 
     ##Condor configuration
     job["executable"] = "{}/src/ChargedHiggs/nano_skimming/batch/produceSkim.sh".format(os.environ["CMSSW_BASE"])
-    job["arguments"] = " ".join([filename, skimFilename] + list(channels))
+    job["arguments"] = " ".join([filename, inputFilename, skimFilename] + list(channels))
     job["universe"]       = "vanilla"
 
     job["should_transfer_files"] = "YES"
