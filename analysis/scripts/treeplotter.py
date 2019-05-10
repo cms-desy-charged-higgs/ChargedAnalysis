@@ -35,9 +35,9 @@ def parser():
 def createHistograms(process, filenames, xParameters, yParameters, cuts, outdir, channel):
     outname = ROOT.std.string("{}/{}.root".format(outdir, process))
 
-    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, yParameters, cuts, outname)
+    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, yParameters, cuts, outname,  ROOT.std.string(channel))
     reader.SetHistograms()
-    reader.EventLoop(filenames, ROOT.std.string(channel))
+    reader.EventLoop(filenames)
     reader.Write()
 
 def makePlotsTriggerEff(histDir, trigger, processes, plotDir, channel, yParameters):
