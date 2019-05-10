@@ -38,29 +38,77 @@ void NanoSkimmer::ProgressBar(const int &progress){
 
 void NanoSkimmer::Configure(const float &xSec){
     analyzerMap = {
-        {"ele+4j", 
+        {"e4j", 
                 {
                     std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
                     std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_Ele35_WPTight_Gsf", "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", "HLT_Ele30_eta2p1_WPTight_Gsf_CentralPFJet35_EleCleaned"})),
                     std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
-                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{4,0}, {2,1}, {0,2}})),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{4,0}})),
                     std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 25., 2.4, 1)),
                     std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 20., 2.4, 0)),
                     std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
                 }
         },
 
-        {"mu+4j", 
+        {"mu4j", 
                 {
                     std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
                     std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_IsoMu27"})),
                     std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
-                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{4,0}, {2,1}, {0,2}})),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{4,0}})),
                     std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 25., 2.4, 1)),
                     std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 20., 2.4, 0)),
                     std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
                 }
-        }
+        },
+
+        {"e2j1f", 
+                {
+                    std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
+                    std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_Ele35_WPTight_Gsf", "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", "HLT_Ele30_eta2p1_WPTight_Gsf_CentralPFJet35_EleCleaned"})),
+                    std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{2,1}})),
+                    std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 25., 2.4, 1)),
+                    std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 20., 2.4, 0)),
+                    std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
+                }
+        },
+
+        {"mu2j1f", 
+                {
+                    std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
+                    std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_IsoMu27"})),
+                    std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{2,1}})),
+                    std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 25., 2.4, 1)),
+                    std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 20., 2.4, 0)),
+                    std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
+                }
+        },
+
+        {"e2f", 
+                {
+                    std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
+                    std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_Ele35_WPTight_Gsf", "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", "HLT_Ele30_eta2p1_WPTight_Gsf_CentralPFJet35_EleCleaned"})),
+                    std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{0,2}})),
+                    std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 25., 2.4, 1)),
+                    std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 20., 2.4, 0)),
+                    std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
+                }
+        },
+
+        {"mu2f", 
+                {
+                    std::shared_ptr<WeightAnalyzer>(new WeightAnalyzer(2017, xSec)),
+                    std::shared_ptr<TriggerAnalyzer>(new TriggerAnalyzer({"HLT_IsoMu27"})),
+                    std::shared_ptr<MetFilterAnalyzer>(new MetFilterAnalyzer(2017)),
+                    std::shared_ptr<JetAnalyzer>(new JetAnalyzer(2017, 30., 2.4, {{0,2}})),
+                    std::shared_ptr<MuonAnalyzer>(new MuonAnalyzer(2017, 25., 2.4, 1)),
+                    std::shared_ptr<ElectronAnalyzer>(new ElectronAnalyzer(2017, 20., 2.4, 0)),
+                    std::shared_ptr<GenPartAnalyzer>(new GenPartAnalyzer()),
+                }
+        },
     }; 
 }
 
