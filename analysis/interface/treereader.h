@@ -30,6 +30,8 @@
 #include <ChargedHiggs/nano_skimming/interface/muonanalyzer.h> 
 #include <ChargedHiggs/nano_skimming/interface/jetanalyzer.h>
 
+#include <ChargedHiggs/analysis/interface/bdt.h>
+
 
 class TreeReader {
     private:
@@ -37,7 +39,7 @@ class TreeReader {
         enum Particle{ELECTRON, MUON, JET, BJET, FATJET, BFATJET, MET, W, HC, h};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT, EVENTNUMBER};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT, EVENTNUMBER, BDTSCORE};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
@@ -99,6 +101,7 @@ class TreeReader {
         std::vector<std::string> yParameters;
         std::vector<std::string> cutStrings;
         std::string outname;
+        std::string channel;
 
         //Class for locking thread unsafe operation
         std::mutex mutex;
@@ -119,9 +122,12 @@ class TreeReader {
         //Loop for each thread
         void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float& nGen);
 
+        //Function for converting string into wished enumerations
+        Hist ConvertStringToEnums(std::string &input, const bool &isCutString = false);
+
         const TLorentzVector& GetParticle(Event &event, Particle &part, const int &index = 1);
 
-        //Methods to calculate wished quantity
+        //Methods to calculate wished quantity (Defined in treereaderfunction.cc)
         float Mass(Event &event, Hist &hist);
         float Phi(Event &event, Hist &hist);
         float Pt(Event &event, Hist &hist);
@@ -132,6 +138,12 @@ class TreeReader {
 
         float HadronicEnergy(Event &event, Hist &hist);
         float EventNumber(Event &event, Hist &hist);
+
+        float BDTScore(Event &event, Hist &hist);
+        //Function to get values for input parameter for BDT evaluation
+        std::map<std::thread::id, std::vector<Hist>> bdtFunctions;
+        std::map<std::thread::id, BDT> evenClassifier;
+        std::map<std::thread::id, BDT> oddClassifier;
 
         float NParticle(Event &event, Hist &hist);
         //Mapping for IDS/sf
@@ -154,9 +166,9 @@ class TreeReader {
 
     public:
         TreeReader();
-        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, const bool &saveTree = false);
+        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false);
         void SetHistograms();
-        void EventLoop(std::vector<std::string> &filenames, std::string &channel);
+        void EventLoop(std::vector<std::string> &filenames);
         void Write();
 };
 

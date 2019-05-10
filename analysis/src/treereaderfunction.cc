@@ -15,6 +15,7 @@ float TreeReader::Phi(Event &event, Hist &hist){
 
 float TreeReader::Eta(Event &event, Hist &hist){
     return GetParticle(event, hist.parts[0], hist.indeces[0]).Eta();
+
 }
 
 float TreeReader::DeltaPhi(Event &event, Hist &hist){
@@ -31,6 +32,18 @@ float TreeReader::HadronicEnergy(Event &event, Hist &hist){
 
 float TreeReader::EventNumber(Event &event, Hist &hist){
     return event.eventNumber;
+}
+
+float TreeReader::BDTScore(Event &event, Hist &hist){
+    std::thread::id index = std::this_thread::get_id();
+    std::vector<float> paramValues;
+
+    for(Hist funcs: bdtFunctions[index]){
+        paramValues.push_back((this->*funcDir[funcs.func])(event, funcs));
+    }
+
+    float score = (int)EventNumber(event, hist) % 2 == 0 ? oddClassifier[index].Evaluate(paramValues) : evenClassifier[index].Evaluate(paramValues);
+    return score;
 }
 
 float TreeReader::NParticle(Event &event, Hist &hist){

@@ -4,17 +4,20 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, const bool& saveTree):
+TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree):
     process(process),
     xParameters(xParameters),
     yParameters(yParameters),
     cutStrings(cutStrings),
     outname(outname),
+    channel(channel),
     saveTree(saveTree){
 
+    //Start measure execution time
     start = std::chrono::steady_clock::now();
     outputFile = TFile::Open(outname.c_str(), "RECREATE");
 
+    //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
     strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"h", h}};
     partLabel = {{ELECTRON, "e_{}"}, {MUON, "#mu_{}"}, {JET, "j_{}"}, {FATJET, "j_{}^{AK8}"}, {BJET, "b-tagged j_{}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {h, "h_{}"}};
@@ -31,6 +34,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {"tN", TIGHTNPART},
                     {"HT", HT},
                     {"evNr", EVENTNUMBER},
+                    {"bdt", BDTSCORE},
 
     };
     
@@ -42,10 +46,12 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {DPHI, "#Delta#phi(,) [rad]"}, 
                     {DR, "#DeltaR(,) [rad]"},
                     {HT, "H_{T} [GeV]"}, 
+                    {BDTSCORE, "BDT score"},
     };
 
+    //Maps of all binning, functions and SF
     binning = {
-                {MASS, {30., 50., 700.}},
+                {MASS, {30., 20., 300.}},
                 {PT, {30., 0., 200.}},
                 {ETA, {30., -2.4, 2.4}},
                 {PHI, {30., 0., 2.*TMath::Pi()}},
@@ -55,6 +61,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {LOOSENPART, {6., 0., 6.}},
                 {MEDIUMNPART, {6., 0., 6.}},
                 {TIGHTNPART, {6., 0., 6.}},
+                {BDTSCORE, {30., -0.5, 0.5}},
     };
 
     funcDir = {
@@ -69,6 +76,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {MEDIUMNPART, &TreeReader::NParticle},
                 {TIGHTNPART, &TreeReader::NParticle},
                 {EVENTNUMBER, &TreeReader::EventNumber},
+                {BDTSCORE, &TreeReader::BDTScore},
     };
 
     eleID = {
@@ -171,6 +179,29 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     TTreeReaderValue<float> puWeight(reader, "puWeight");
     TTreeReaderValue<float> genWeight(reader, "genWeight");
 
+    if(std::find(xParameters.begin(), xParameters.end(), "bdt") != xParameters.end() or std::find(cutStrings.begin(), cutStrings.end(), "bdt") != cutStrings.end()){
+        //BDT intialization
+        std::map<std::string, std::string> chanPaths = {
+                    {"e4j", "Electron4J"},
+                    {"mu4j", "Muon4J"},
+                    {"e2j1f", "Electron2J1F"},
+                    {"mu2j1f", "Muon2J1F"},
+                    {"e2f", "Electron2F"},
+                    {"mu2f", "Muon2F"},
+        };
+
+        std::thread::id index = std::this_thread::get_id();
+
+        std::string bdtPath = std::string(std::getenv("CMSSW_BASE")) + "/src/BDT/" + chanPaths[channel]; 
+
+        std::vector<std::string> bdtVar = evenClassifier[index].SetEvaluation(bdtPath + "/Even/");
+        oddClassifier[index].SetEvaluation(bdtPath + "/Odd/");
+
+        for(std::string param: bdtVar){
+            bdtFunctions[index].push_back(ConvertStringToEnums(param));
+        }
+    }
+
     mutex.unlock();
 
     Event event;
@@ -229,31 +260,29 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
     mutex.unlock();
 }
 
-void TreeReader::SetHistograms(){
-
+TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool &isCutString){
     //Function which handles splitting of string input
-    std::function<std::vector<std::string>(std::string)> splitString = [&](std::string input){
-        std::vector<std::string> splittedString;
-        std::string string;
-        std::istringstream splittedStream(input);
-        while (std::getline(splittedStream, string,  '_')){
-            splittedString.push_back(string);
-        }
-
-        return splittedString;
-    };
-
-    //Define final histogram for each parameter
-    for(std::string xParameter: xParameters){
-        //Split input string into information for particle and function to call value
-        std::vector<std::string> splittedString = splitString(xParameter);
+    std::vector<std::string> splittedString;
+    std::string string;
+    std::istringstream splittedStream(input);
+    while (std::getline(splittedStream, string,  '_')){
+        splittedString.push_back(string);
+    }
   
-        //Translate strings into enumeration
-        Function func = strToFunc[splittedString[0]];
-        std::vector<Particle> parts;
-        std::vector<int> indeces;
+    //Translate strings into enumeration
+    Function func = strToFunc[splittedString[0]];
+    Operator op; float cutValue;
+    std::vector<Particle> parts;
+    std::vector<int> indeces;
+
+    //If no particle is involved, like HT_>_100
+    if(splittedString.size() == 3 and isCutString){
+        op = strToOp[splittedString[1]];
+        cutValue = std::stof(splittedString[2]);
+    }
     
-        for(std::string part: std::vector<std::string>(splittedString.begin()+1, splittedString.end())){ 
+    else{
+        for(std::string part: std::vector<std::string>(splittedString.begin()+1, splittedString.end() - isCutString)){ 
             try{
                 indeces.push_back(std::stoi(std::string(part.end()-1 ,part.end())));
                 parts.push_back(strToPart[std::string(part.begin(),part.end()-1)]);
@@ -265,72 +294,57 @@ void TreeReader::SetHistograms(){
             }
         }
 
+        if(isCutString){
+            op = strToOp[std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[0]];
+            cutValue = std::stof(std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[1]);
+        }
+    }
+
+    return {NULL, parts, indeces, func, {op, cutValue}};
+}
+
+void TreeReader::SetHistograms(){
+    //Define final histogram for each parameter
+    for(std::string xParameter: xParameters){
+        //Split input string into information for particle and function to call value
+        Hist conf = ConvertStringToEnums(xParameter);
+  
         //Create final histogram
-        TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), binning[func][0], binning[func][1], binning[func][2]);
+        TH1F* hist = new TH1F(xParameter.c_str(), xParameter.c_str(), binning[conf.func][0], binning[conf.func][1], binning[conf.func][2]);
         hist->Sumw2();
 
-        std::string fLabel = funcLabel[func];
+        std::string fLabel = funcLabel[conf.func];
 
         //Set axis label
-        if(parts.size() == 1){
-            std::string pLabel = partLabel[parts[0]];
-            if(indeces[0] != -1) pLabel.insert(pLabel.find("{") + 1, std::to_string(indeces[0]));
+        if(conf.parts.size() == 1){
+            std::string pLabel = partLabel[conf.parts[0]];
+            if(conf.indeces[0] != -1) pLabel.insert(pLabel.find("{") + 1, std::to_string(conf.indeces[0]));
 
             hist->GetXaxis()->SetTitle(fLabel.insert(fLabel.find("(") + 1, pLabel).c_str());
         }
 
-        else if(parts.size() == 2){
-            std::string pLabel1 = partLabel[parts[0]];
-            if(indeces[0] != -1) pLabel1.insert(pLabel1.find("{") + 1, std::to_string(indeces[0]));
-            std::string pLabel2 = partLabel[parts[1]];
-            if(indeces[1] != -1) pLabel2.insert(pLabel2.find("{") + 1, std::to_string(indeces[1]));
+        else if(conf.parts.size() == 2){
+            std::string pLabel1 = partLabel[conf.parts[0]];
+            if(conf.indeces[0] != -1) pLabel1.insert(pLabel1.find("{") + 1, std::to_string(conf.indeces[0]));
+            std::string pLabel2 = partLabel[conf.parts[1]];
+            if(conf.indeces[1] != -1) pLabel2.insert(pLabel2.find("{") + 1, std::to_string(conf.indeces[1]));
 
             hist->GetXaxis()->SetTitle(fLabel.insert(fLabel.find("(") + 1, pLabel1).insert(fLabel.find(",") + 1, pLabel2).c_str());
         }
 
+        conf.hist = hist;
+
         //Add hist to collection
-        merged1DHistograms.push_back({hist, parts, indeces, func});
+        merged1DHistograms.push_back(conf);
     }
 
     //Cut configuration
     for(std::string cut: cutStrings){
-        //Split input string into information for particle and function to call value
-        std::vector<std::string> splittedString = splitString(cut);
-        
-        //Translate strings into enumeration
-        Function func = strToFunc[splittedString[0]];
-        Operator op; float cutValue;
-        std::vector<Particle> parts;
-        std::vector<int> indeces;
-
-        //If no particle is involved, like HT_>_100
-        if(splittedString.size() == 3){
-            op = strToOp[splittedString[1]];
-            cutValue = std::stof(splittedString[2]);
-        }
-    
-        else{
-            for(std::string part: std::vector<std::string>(splittedString.begin()+1, splittedString.end()-1)){ 
-                try{
-                    indeces.push_back(std::stoi(std::string(part.end()-1 ,part.end())));
-                    parts.push_back(strToPart[std::string(part.begin(),part.end()-1)]);
-                }
-
-                catch(...){
-                    indeces.push_back(-1);
-                    parts.push_back(strToPart[part]);
-                }
-            }
-
-            op = strToOp[std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[0]];
-            cutValue = std::stof(std::vector<std::string>(splittedString.begin() + parts.size(), splittedString.end())[1]);
-        }
-
-        this->cuts.push_back({NULL, parts, indeces, func, {op, cutValue}});
+        this->cuts.push_back(ConvertStringToEnums(cut, true));
     }
 }
 
-void TreeReader::EventLoop(std::vector<std::string> &filenames, std::string &channel){
+void TreeReader::EventLoop(std::vector<std::string> &filenames){
     //Configure threads
     nCores = (int)std::thread::hardware_concurrency();   
     int threadsPerFile = nCores/filenames.size();   
