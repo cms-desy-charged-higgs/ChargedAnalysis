@@ -15,8 +15,8 @@ export X509_USER_PROXY=$CMSSW_BASE/src/x509
 
 scram b
 
-xrdcp $1 $(echo $1 | tr '/' '_')
+xrdcp $1 $2
 
-python ChargedHiggs/nano_skimming/scripts/nanoskimmer.py --filename $(echo $1 | tr '/' '_') --out-name $2 --channel $3 $4
-rm $(echo $1 | tr '/' '_')
+python ChargedHiggs/nano_skimming/scripts/nanoskimmer.py --filename $2 --out-name $3 --channel ${@:4}
+rm $2
 mv *.root ../../
