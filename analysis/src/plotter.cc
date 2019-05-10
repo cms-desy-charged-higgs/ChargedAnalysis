@@ -31,8 +31,12 @@ Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, st
             {"L4B_600_100", SIGNAL},
     }),
     channelHeader({
-            {"ele+4j", "e + 4 jets"},
-            {"mu+4j", "#mu + 4 jets"},
+            {"e4j", "e + 4j"},
+            {"mu4j", "#mu + 4j"},
+            {"e2j1f", "e + 2j + 1fj"},
+            {"mu2j1f", "#mu + 2j"},
+            {"e2f", "e + 2fj + "},
+            {"mu2f", "#mu + 2fj"},
     })
 {}
 
@@ -64,8 +68,12 @@ Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, st
             {"L4B_600_100", SIGNAL},
     }),
     channelHeader({
-            {"ele+4j", "e + 4 jets"},
-            {"mu+4j", "#mu + 4 jets"},
+            {"e4j", "e + 4j"},
+            {"mu4j", "#mu + 4j"},
+            {"e2j1f", "e + 2j + 1fj"},
+            {"mu2j1f", "#mu + 2j"},
+            {"e2f", "e + 2fj + "},
+            {"mu2f", "#mu + 2fj"},
     })
 {}
 
