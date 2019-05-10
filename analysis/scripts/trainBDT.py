@@ -7,7 +7,7 @@ import os
 import yaml
 import argparse
 import copy
-import pandas
+import pandas as pd
 from random import randint, uniform
 
 def parser():
@@ -27,6 +27,7 @@ def parser():
     parser.add_argument("--channel", type = str, help = "Final state which is of interest")
     parser.add_argument("--x-parameters", nargs="+", default = [], help = "Name of parameters to be plotted")
     parser.add_argument("--cuts", nargs="+", default=[], help = "Name of cut implemented in TreeReader class")
+    parser.add_argument("--optimize", action = "store_true", default = False, help = "Optimize hyperparameter space")
 
     return parser.parse_args()
 
@@ -39,13 +40,35 @@ def createTrees(treedir, process, xParameters, cuts, filenames, channel):
     reader.Write()
 
 def optimize(xParameters, background, signal, treeDir, resultDir, evType):
-    params = [randint(100, 2000), uniform(0.5, 10.), uniform(0.1, 1.), randint(5, 50), randint(2, 10), ["GiniIndex", "CrossEntropy", "SDivSqrtSPlusB", "MisClassificationError"][randint(0, 3)]]
+    paramSet = {}
 
+    for i in xrange(300):
+        params = [
+                    ("NTrees", randint(100, 1400)), 
+                    ("MindNodeSize", uniform(0.5, 10.)), 
+                    ("AdaBoostBeta", uniform(0.1, 1.)),
+                    ("nCuts", randint(5, 40)), 
+                    ("MaxDepth", randint(2, 3)), 
+                    ("Dropout", randint(2, len(xParameters) -1)),
+                    ("SeparationType", ["GiniIndex", "CrossEntropy", "SDivSqrtSPlusB", "MisClassificationError"][randint(0, 3)]),
+        ]
+
+        for key, value in params:
+            paramSet.setdefault(key, []).append(value)
+
+        trainer = ROOT.BDT(params[0][1], params[1][1], params[2][1], params[3][1], params[4][1], params[5][1], params[6][1])
+        ROC = trainer.Train(xParameters, ROOT.std.string(treeDir), ROOT.std.string(resultDir), signal, background, ROOT.std.string(evType)) 
     
-    
+        paramSet.setdefault("ROC", []).append(ROC)
+
+
+        if(i%5==0):
+            df = pd.DataFrame(paramSet)
+            df = df.sort_values(by="ROC", ascending=False)
+            df.to_csv("{}/hyperparameter_200_2.csv".format(resultDir), sep='\t', index=False)
 
 def trainBDT(xParameters, background, signal, treeDir, resultDir, evType):
-    trainer = ROOT.BDT()
+    trainer = ROOT.BDT(1271, 1.1504595857486688, 0.26042540109105, 35, 3, 14, "MisClassificationError")
     trainer.Train(xParameters, ROOT.std.string(treeDir), ROOT.std.string(resultDir), signal, background, ROOT.std.string(evType)) 
 
 def main():
@@ -96,9 +119,13 @@ def main():
                     extCuts.push_back(cut)
                     createTrees("{}/{}".format(args.tree_dir, dirext), process, xParameters, extCuts, filenames, args.channel)
 
-    #Train the BDT
-    for dirext in ["Even", "Odd"]:
-        trainBDT(xParameters, background, signal, args.tree_dir, args.result_dir, dirext)
+    if args.optimize:
+        optimize(xParameters, background, signal, args.tree_dir, args.result_dir, "Even")
+
+    else:
+        #Train the BDT
+        for dirext in ["Even", "Odd"]:
+            trainBDT(xParameters, background, signal, args.tree_dir, args.result_dir, dirext)
 
 if __name__ == "__main__":
     main()
