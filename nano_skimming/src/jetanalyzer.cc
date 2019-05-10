@@ -356,7 +356,7 @@ bool JetAnalyzer::Analyze(){
     //Check if one combination of jet and fatjet number is fullfilled
 
     for(std::pair<unsigned int, unsigned int> minN: minNJet){
-        if(validJets.size() >= minN.first && fatJets.size() >= minN.second){
+        if(validJets.size() >= minN.first && fatJets.size() == minN.second){
             return true;
         }
     }
