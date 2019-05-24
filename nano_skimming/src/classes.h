@@ -7,11 +7,13 @@
 namespace{
     namespace{
         Jet jet;
+        FatJet fatjet;
         Electron electron;
         Muon muon;
         GenPart genPart;
 
         std::vector<Jet> jets;
+        std::vector<FatJet> fatjets;
         std::vector<Electron> electrons;
         std::vector<Muon> muons;
 
