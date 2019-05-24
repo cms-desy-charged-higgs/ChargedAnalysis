@@ -18,7 +18,7 @@ void TriggerAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
     }
 }
 
-bool TriggerAnalyzer::Analyze(){
+bool TriggerAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     //Clear result vector
     triggerResults.clear();
 
@@ -26,7 +26,14 @@ bool TriggerAnalyzer::Analyze(){
         triggerResults.push_back(*triggerValue->Get());
     }
 
-    return std::find(triggerResults.begin(), triggerResults.end(), 1) != triggerResults.end();
+    if(std::find(triggerResults.begin(), triggerResults.end(), 1) != triggerResults.end()){
+        std::string cutName = triggerPaths[0];
+ 
+        cutflow.first->Fill(cutName.c_str(), cutflow.second);        
+        return true;
+    }
+
+    return false;
 }
 
 void TriggerAnalyzer::EndJob(TFile* file){}

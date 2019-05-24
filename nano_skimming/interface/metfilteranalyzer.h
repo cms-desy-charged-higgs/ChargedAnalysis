@@ -19,7 +19,7 @@ class MetFilterAnalyzer : public BaseAnalyzer {
     public:
         MetFilterAnalyzer(const int &era);
         void BeginJob(TTreeReader &reader, TTree *tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

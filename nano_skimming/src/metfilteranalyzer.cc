@@ -25,14 +25,19 @@ void MetFilterAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData)
 
 }
 
-bool MetFilterAnalyzer::Analyze(){
+bool MetFilterAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     bool passedFilter = true;
 
     for(std::unique_ptr<TTreeReaderValue<bool>> &filter: filterValues){
         passedFilter *= *filter->Get();
     }
 
-    return passedFilter;
+    if(passedFilter){
+        cutflow.first->Fill("Met filter", cutflow.second);
+       return true;
+    }
+
+    return false;
 }
 
 void MetFilterAnalyzer::EndJob(TFile* file){}

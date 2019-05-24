@@ -17,7 +17,7 @@ class TriggerAnalyzer : public BaseAnalyzer {
     public:
         TriggerAnalyzer(const std::vector<std::string> &triggerPaths);
         void BeginJob(TTreeReader &reader, TTree *tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

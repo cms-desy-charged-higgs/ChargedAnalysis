@@ -22,15 +22,24 @@ ElectronAnalyzer::ElectronAnalyzer(const int &era, const float &ptCut, const flo
 
 void ElectronAnalyzer::SetGenParticles(Electron &validElectron, const int &i){
     //Check if gen matched particle exist
-
     if(eleGenIdx->At(i) != -1){
+        validElectron.isgenMatched = true;
+        int idxMotherEle = genMotherIdx->At(eleGenIdx->At(i));
+
+        while(abs(genID->At(idxMotherEle)) == 11){
+            idxMotherEle = genMotherIdx->At(idxMotherEle);
+        }
+
         validElectron.genVec.SetPtEtaPhiM(genPt->At(eleGenIdx->At(i)), genEta->At(eleGenIdx->At(i)), genPhi->At(eleGenIdx->At(i)), genMass->At(eleGenIdx->At(i)));
 
-        //Check if gen ele is from W Boson from Charged Higgs
-        if(abs(genID->At(genMotherIdx->At(eleGenIdx->At(i)))) == 24){
-            float indexW = genMotherIdx->At(eleGenIdx->At(i));
+        if(abs(genID->At(idxMotherEle)) == 24){
+            float idxMotherW = genMotherIdx->At(idxMotherEle);
 
-            if(abs(genID->At(genMotherIdx->At(indexW))) == 37){
+            while(abs(genID->At(idxMotherW)) == 24){
+                idxMotherW = genMotherIdx->At(idxMotherW);
+            }
+
+            if(abs(genID->At(idxMotherW)) == 37){
                 validElectron.isFromHc = true;
             }
         }
@@ -82,7 +91,7 @@ void ElectronAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     tree->Branch("electron", &validElectrons);
 }
 
-bool ElectronAnalyzer::Analyze(){
+bool ElectronAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     //Clear electron vector
     validElectrons.clear();
 
@@ -119,6 +128,11 @@ bool ElectronAnalyzer::Analyze(){
     //Check if event has enough electrons
     if(validElectrons.size() < minNEle){
         return false;
+    }
+
+    if(minNEle != 0){
+        std::string cutName("N_{e} >= " + std::to_string(minNEle) + " (no iso/ID req)");
+        cutflow.first->Fill(cutName.c_str(), cutflow.second);
     }
 
     return true;

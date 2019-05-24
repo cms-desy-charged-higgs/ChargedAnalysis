@@ -17,7 +17,6 @@ class WeightAnalyzer : public BaseAnalyzer {
         float genWeight = 1.;
         float puWeight = 1.;
         float eventNumber = 1.;
-        TH1F* nGen;
 
         //Lumi information
         std::map<int, float> lumis;
@@ -25,6 +24,8 @@ class WeightAnalyzer : public BaseAnalyzer {
         //Information for pile Up reweighting
         std::map<int, std::string> pileUpFiles;
         TH1F* pileUpWeights; 
+
+        TH1F* nGenHist;
 
         //TTreeReader Values
         std::unique_ptr<TTreeReaderValue<float>> nPU;
@@ -35,7 +36,7 @@ class WeightAnalyzer : public BaseAnalyzer {
     public:
         WeightAnalyzer(const float era, const float xSec);
         void BeginJob(TTreeReader &reader, TTree *tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

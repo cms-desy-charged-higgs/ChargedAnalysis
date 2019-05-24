@@ -10,6 +10,7 @@ void BaseAnalyzer::SetCollection(TTreeReader &reader, bool &isData){
         genMass = std::make_unique<TTreeReaderArray<float>>(reader, "GenPart_mass");
         genID = std::make_unique<TTreeReaderArray<int>>(reader, "GenPart_pdgId");
         genMotherIdx = std::make_unique<TTreeReaderArray<int>>(reader, "GenPart_genPartIdxMother");
+        genStatus = std::make_unique<TTreeReaderArray<int>>(reader, "GenPart_statusFlags");
     }
 
     trigObjEta = std::make_unique<TTreeReaderArray<float>>(reader, "TrigObj_eta");

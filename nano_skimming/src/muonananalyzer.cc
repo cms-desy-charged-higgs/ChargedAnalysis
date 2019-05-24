@@ -24,13 +24,24 @@ MuonAnalyzer::MuonAnalyzer(const int &era, const float &ptCut, const float &etaC
 
 void MuonAnalyzer::SetGenParticles(Muon &validMuon, const int &i){
     //Check if gen matched particle exist
-
     if(muonGenIdx->At(i) != -1){
+        validMuon.isgenMatched = true;        
+        int idxMotherMu = genMotherIdx->At(muonGenIdx->At(i));
+
+        while(abs(genID->At(idxMotherMu)) == 13){
+            idxMotherMu = genMotherIdx->At(idxMotherMu);
+        }
+
         validMuon.genVec.SetPtEtaPhiM(genPt->At(muonGenIdx->At(i)), genEta->At(muonGenIdx->At(i)), genPhi->At(muonGenIdx->At(i)), genMass->At(muonGenIdx->At(i)));
 
-        //Check if gen ele is from W Boson from Charged Higgs
-        if(abs(genID->At(muonGenIdx->At(i))) == 24){
-            if(abs(genID->At(genMotherIdx->At(genID->At(muonGenIdx->At(i))))) == 37){
+        if(abs(genID->At(idxMotherMu)) == 24){
+            float idxMotherW = genMotherIdx->At(idxMotherMu);
+
+            while(abs(genID->At(idxMotherW)) == 24){
+                idxMotherW = genMotherIdx->At(idxMotherW);
+            }
+
+            if(abs(genID->At(idxMotherW)) == 37){
                 validMuon.isFromHc = true;
             }
         }
@@ -60,7 +71,7 @@ void MuonAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     muonEta = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_eta");
     muonPhi = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_phi");
     muonCharge = std::make_unique<TTreeReaderArray<int>>(reader, "Muon_charge");
-    muonIso = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_pfRelIso04_all");
+    muonIso = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_miniPFRelIso_all");
     muonMediumID = std::make_unique<TTreeReaderArray<bool>>(reader, "Muon_mediumId");
     muonTightID = std::make_unique<TTreeReaderArray<bool>>(reader, "Muon_tightId");
 
@@ -76,8 +87,8 @@ void MuonAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     tree->Branch("muon", &validMuons);
 }
 
-bool MuonAnalyzer::Analyze(){
-    //Clear electron vector
+bool MuonAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
+    //Clear electron vector3
     validMuons.clear();
 
     //Loop over all electrons
@@ -118,6 +129,10 @@ bool MuonAnalyzer::Analyze(){
         return false;
     }
 
+    if(minNMuon != 0){
+        std::string cutName("N_{#mu} >= " + std::to_string(minNMuon) + " (no iso/ID req.)");
+        cutflow.first->Fill(cutName.c_str(), cutflow.second);
+    }
     return true;
 }
 

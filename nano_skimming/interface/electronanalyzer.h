@@ -19,6 +19,7 @@ struct Electron {
     Float_t isolation; 
 
     TLorentzVector genVec;
+    Bool_t isgenMatched = false;
     Bool_t isFromHc = false;
 };
 
@@ -63,7 +64,7 @@ class ElectronAnalyzer: public BaseAnalyzer{
     public:
         ElectronAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNEle);
         void BeginJob(TTreeReader &reader, TTree* tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

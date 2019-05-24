@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <cmath>
+#include <bitset>
 
 #include <TFile.h>
 #include <TH2F.h>
@@ -13,7 +14,6 @@
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 #include <TTreeReaderArray.h>
-
 
 //Struct for saving gen particle lorentz vectors
 struct GenParticles{
@@ -40,6 +40,7 @@ class BaseAnalyzer{
         std::unique_ptr<TTreeReaderArray<float>> genMass;
         std::unique_ptr<TTreeReaderArray<int>> genID;
         std::unique_ptr<TTreeReaderArray<int>> genMotherIdx;
+        std::unique_ptr<TTreeReaderArray<int>> genStatus;
 
         //Set trihObj and Gen particle collection
         void SetCollection(TTreeReader &reader, bool &isData);
@@ -51,7 +52,7 @@ class BaseAnalyzer{
         virtual ~BaseAnalyzer(){};
         BaseAnalyzer();
         virtual void BeginJob(TTreeReader &reader, TTree *tree, bool &isData) = 0;
-        virtual bool Analyze() = 0;
+        virtual bool Analyze(std::pair<TH1F*, float> &cutflow) = 0;
         virtual void EndJob(TFile* file) = 0;
 };
 

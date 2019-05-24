@@ -22,7 +22,8 @@ struct Muon {
     Bool_t isTriggerMatched;
 
     TLorentzVector genVec;
-    Bool_t isFromHc;
+    Bool_t isgenMatched = false;
+    Bool_t isFromHc = false;
 
     Float_t charge;
 };
@@ -73,7 +74,7 @@ class MuonAnalyzer: public BaseAnalyzer{
     public:
         MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon);
         void BeginJob(TTreeReader &reader, TTree* tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

@@ -34,10 +34,12 @@ void WeightAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
         //Initiliaze TTreeReaderValues
         genWeightValue = std::make_unique<TTreeReaderValue<float>>(reader, "Generator_weight");
         nPU = std::make_unique<TTreeReaderValue<float>>(reader, "Pileup_nTrueInt");
-        evtNumber = std::make_unique<TTreeReaderValue<ULong64_t>>(reader, "event");
-
-        nGen = new TH1F("nGen", "nGen", 100, 0, 2);
+        
+        nGenHist = new TH1F("nGen", "nGen", 100, 0, 2);
     }
+
+    evtNumber = std::make_unique<TTreeReaderValue<ULong64_t>>(reader, "event");
+
 
     //Branches for output tree
     tree->Branch("lumi", &lumi);
@@ -47,24 +49,28 @@ void WeightAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
     tree->Branch("eventNumber", &eventNumber);
 }
 
-bool WeightAnalyzer::Analyze(){
+bool WeightAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     //Set values if not data
     if(!this->isData){
         lumi = lumis[era];
         puWeight = pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) != 0 ? pileUpWeights->GetBinContent(pileUpWeights->FindBin(*nPU->Get())) : 1.;
         genWeight = *genWeightValue->Get();
-        eventNumber = *evtNumber->Get();
 
-        nGen->Fill(1);
+        nGenHist->Fill(1);
     }
 
+    eventNumber = *evtNumber->Get();
+
+    cutflow.second = xSec*lumi*puWeight;
+
+    cutflow.first->Fill("No cuts", cutflow.second);
     return true;
 }
 
 void WeightAnalyzer::EndJob(TFile* file){
     if(!this->isData){
         if(!file->GetListOfKeys()->Contains("nGen")){
-            nGen->Write();   
-        }  
+            nGenHist->Write();
+        }
     }
 }
