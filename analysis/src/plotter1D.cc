@@ -9,12 +9,12 @@ Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters
     data({}),
     colors({
         {"DY+j", kRed + -7}, 
-        {"TT+X", kYellow -6},             
-        {"T+X", kGreen  + 2},             
+        {"TT+j", kYellow -6}, 
+        {"TT+V", kOrange +2},            
+        {"T", kGreen  + 2},             
         {"W+j", kCyan + 2},             
         {"QCD", kBlue -3},             
         {"VV+VVV", kViolet -3},
-        {"TT", kOrange +2},
     })
  {}
 
