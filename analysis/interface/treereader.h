@@ -36,10 +36,10 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, BJET, FATJET, BFATJET, MET, W, HC, h};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BJET, FATJET, BFATJET, MET, W, HC, h};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, LOOSENPART, MEDIUMNPART, TIGHTNPART, HT, EVENTNUMBER, BDTSCORE};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
@@ -50,7 +50,8 @@ class TreeReader {
             std::vector<Electron> electrons;
             std::vector<Muon> muons;
             std::vector<Jet> jets;
-            std::vector<Jet> fatjets;
+            std::vector<Jet> subjets;
+            std::vector<FatJet> fatjets;
             TLorentzVector MET;  
             float weight; 
             float HT;
@@ -67,16 +68,19 @@ class TreeReader {
 
         //Struct for saving Particle/Function and wished histogram
         struct Hist{
-            TH1F* hist;
+            TH1* hist1D;
+            TH2* hist2D;
             std::vector<Particle> parts;
             std::vector<int> indeces;
             Function func;
+            float funcValue;
             std::pair<Operator, float> cutValues;
         };
 
         //Maps for parameter strings/enumeration
         std::map<std::string, Particle> strToPart;
         std::map<Particle, std::string> partLabel;
+        std::map<Particle, std::string> nPartLabel;
         
         //Maps for function strings/enumeration
         std::map<std::string, Function> strToFunc;
@@ -108,10 +112,13 @@ class TreeReader {
 
         //Final histograms
         std::vector<Hist> merged1DHistograms;
+        std::vector<std::vector<Hist>> merged2DHistograms;
         TFile* outputFile;
 
         //Vector with cut information
         std::vector<Hist> cuts;
+        std::vector<std::string> cutNames;
+        TH1F* cutflow;
 
         //Save tree if wished
         bool saveTree;
@@ -120,7 +127,7 @@ class TreeReader {
         void ProgressBar(const int &progress);
 
         //Loop for each thread
-        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float& nGen);
+        void ParallelisedLoop(const std::vector<TChain*> &v, const int &entryStart, const int &entryEnd, const float &nGen);
 
         //Function for converting string into wished enumerations
         Hist ConvertStringToEnums(std::string &input, const bool &isCutString = false);
@@ -138,6 +145,7 @@ class TreeReader {
 
         float HadronicEnergy(Event &event, Hist &hist);
         float EventNumber(Event &event, Hist &hist);
+        float ConstantNumber(Event &event, Hist &hist);
 
         float BDTScore(Event &event, Hist &hist);
         //Function to get values for input parameter for BDT evaluation
@@ -145,16 +153,19 @@ class TreeReader {
         std::map<std::thread::id, BDT> evenClassifier;
         std::map<std::thread::id, BDT> oddClassifier;
 
+        bool isBDT = false;
+
+        float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
         //Mapping for IDS/sf
-        std::map<Function, std::pair<Bool_t Electron::*, float>> eleID;
-        std::map<Function, Float_t Electron::*> eleSF;
+        std::map<float, std::pair<Bool_t Electron::*, float>> eleID;
+        std::map<float, Float_t Electron::*> eleSF;
 
-        std::map<Function, std::pair<Bool_t Muon::*, Bool_t Muon::*>> muonID;
-        std::map<Function, std::pair<Float_t Muon::*, Float_t Muon::*>> muonSF;
+        std::map<float, std::pair<Bool_t Muon::*, Bool_t Muon::*>> muonID;
+        std::map<float, std::pair<Float_t Muon::*, Float_t Muon::*>> muonSF;
 
-        std::map<Function, Bool_t Jet::*> bJetID;
-        std::map<Function, Float_t Jet::*> bJetSF;
+        std::map<float, Bool_t Jet::*> bJetID;
+        std::map<float, Float_t Jet::*> bJetSF;
 
         //Function for reconstruct objects
         void WBoson(Event &event);
@@ -168,7 +179,7 @@ class TreeReader {
         TreeReader();
         TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false);
         void SetHistograms();
-        void EventLoop(std::vector<std::string> &filenames);
+        void EventLoop(std::vector<std::string> &filenames, const float &frac = 1.0);
         void Write();
 };
 
