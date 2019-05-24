@@ -20,12 +20,17 @@ struct Jet {
     Float_t mediumbTagSF = 1.;
     Float_t tightbTagSF = 1.;
 
-    Float_t twoSubJettiness;
-    Float_t threeSubJettiness;
+    Int_t fatJetIdx = -1.;
 
     TLorentzVector genVec;
     Bool_t isFromh1 = false;
     Bool_t isFromh2 = false;
+};
+
+struct FatJet : public Jet {
+    Float_t oneSubJettiness = 1.;
+    Float_t twoSubJettiness = 1.;
+    Float_t threeSubJettiness = 1.;
 };
 
 class JetAnalyzer: public BaseAnalyzer{
@@ -66,6 +71,7 @@ class JetAnalyzer: public BaseAnalyzer{
         std::unique_ptr<TTreeReaderArray<float>> fatJetPhi;
         std::unique_ptr<TTreeReaderArray<float>> fatJetMass;
         std::unique_ptr<TTreeReaderArray<float>> fatJetCSV;
+        std::unique_ptr<TTreeReaderArray<float>> fatJetTau1;
         std::unique_ptr<TTreeReaderArray<float>> fatJetTau2;
         std::unique_ptr<TTreeReaderArray<float>> fatJetTau3;
 
@@ -103,7 +109,8 @@ class JetAnalyzer: public BaseAnalyzer{
 
         //Valid jet collection
         std::vector<Jet> validJets;
-        std::vector<Jet> fatJets;
+        std::vector<Jet> subJets;
+        std::vector<FatJet> fatJets;
 
         //met Lorentzvector
         TLorentzVector met;
@@ -112,12 +119,13 @@ class JetAnalyzer: public BaseAnalyzer{
         float SmearEnergy(float &jetPt, float &jetPhi, float &jetEta, float &rho, const float &coneSize, const JetType &type);
 
         //Set Gen particle information
+        std::vector<int> alreadyMatchedJet; 
         void SetGenParticles(Jet &validJet, const int &i);
 
     public:
         JetAnalyzer(const int &era, const float &ptCut, const float &etaCut, const std::vector<std::pair<unsigned int, unsigned int>> minNJet);
         void BeginJob(TTreeReader &reader, TTree* tree, bool &isData);
-        bool Analyze();
+        bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };
 

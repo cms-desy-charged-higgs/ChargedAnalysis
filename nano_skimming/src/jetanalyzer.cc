@@ -118,29 +118,41 @@ void JetAnalyzer::SetGenParticles(Jet &validJet, const int &i){
         
         //Find Gen particle to gen Jet
         for(unsigned int index=0; index < genPt->GetSize(); index++){
+            std::bitset<32> isFirstCopy(genStatus->At(index));
+
+            if(!isFirstCopy[12]){
+                continue;
+            }
+
             dR = std::sqrt(std::pow(genPhi->At(index) -genJetPhi->At(jetGenIdx->At(i)), 2) + std::pow(genEta->At(index)-genJetEta->At(jetGenIdx->At(i)), 2));
 
-            if(dR < 0.05 and abs(genPt->At(index) - genJetPt->At(jetGenIdx->At(i)))/genPt->At(index) < 0.1 and abs(genID->At(index)) < 22){
-                genPartIdx = index;
+            if(dR < 0.4 and abs(genID->At(index)) == 5){
+                bool alreadyMatched = std::find(alreadyMatchedJet.begin(), alreadyMatchedJet.end(), genPartIdx) != alreadyMatchedJet.end();
+
+                if(!alreadyMatched){
+                    genPartIdx = index;
+                    alreadyMatchedJet.push_back(index);
+                    break;
+                }
             }
         }
 
         if(genPartIdx != -1){
-            validJet.genVec.SetPtEtaPhiM(genPt->At(genPartIdx), genEta->At(genPartIdx), genPhi->At(genPartIdx), genMass->At(genPartIdx));
+            int idxMotherB = genMotherIdx->At(genPartIdx);
 
-            while(genID->At(genMotherIdx->At(genPartIdx)) == genID->At(genPartIdx)){
-                genPartIdx = genMotherIdx->At(genPartIdx);
+            while(abs(genID->At(idxMotherB)) == 5){
+                idxMotherB = genMotherIdx->At(idxMotherB);
             }
 
             //Check if gen jet from small higgs
-            if(abs(genID->At(genMotherIdx->At(genPartIdx))) == 25){
-                int indexh = genMotherIdx->At(genPartIdx);
+            if(abs(genID->At(idxMotherB)) == 25){
+                int idxMotherh = genMotherIdx->At(idxMotherB);
 
-                while(genID->At(genMotherIdx->At(indexh)) == genID->At(indexh)){
-                    indexh = genMotherIdx->At(indexh);
+                while(abs(genID->At(idxMotherh)) == 25){
+                    idxMotherh = genMotherIdx->At(idxMotherh);
                 }
 
-                if(abs(genID->At(genMotherIdx->At(indexh))) == 37){
+                if(abs(genID->At(idxMotherh)) == 37){
                     validJet.isFromh1 = true;
                     validJet.isFromh2 = false;
                 }
@@ -164,6 +176,7 @@ void JetAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     fatJetPhi = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_phi");
     fatJetMass = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_mass");
     fatJetCSV = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_btagDeepB");
+    fatJetTau1 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau1");
     fatJetTau2 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau2");
     fatJetTau3 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau3");
 
@@ -224,16 +237,19 @@ void JetAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
 
     //Set Branches of output tree
     tree->Branch("jet", &validJets);
+    tree->Branch("subjet", &subJets);
     tree->Branch("fatjet", &fatJets);
     tree->Branch("met", &met);
     tree->Branch("HT", &HT);
 }
 
 
-bool JetAnalyzer::Analyze(){
+bool JetAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     //Clear jet vector
     validJets.clear();
+    subJets.clear();
     fatJets.clear();
+    alreadyMatchedJet.clear();
 
     //JER smearing
     float smearFac = 1.;
@@ -245,7 +261,7 @@ bool JetAnalyzer::Analyze(){
     //Loop over all fat jets
     for(unsigned int i = 0; i < fatJetPt->GetSize(); i++){
         //Define fat jet
-        Jet fatJet;
+        FatJet fatJet;
         fatJet.fourVec.SetPtEtaPhiM(fatJetPt->At(i), fatJetEta->At(i), fatJetPhi->At(i), fatJetMass->At(i));
     
         //Smear pt if not data
@@ -264,6 +280,7 @@ bool JetAnalyzer::Analyze(){
             fatJet.isMediumB = bTagCuts[AK8][era][1] < fatJetCSV->At(i);
 
             //Nsubjettiness
+            fatJet.oneSubJettiness = fatJetTau1->At(i);
             fatJet.twoSubJettiness = fatJetTau2->At(i);
             fatJet.threeSubJettiness = fatJetTau3->At(i);
 
@@ -279,19 +296,6 @@ bool JetAnalyzer::Analyze(){
 
     //Loop over all jets
     for(unsigned int i = 0; i < jetPt->GetSize(); i++){
-        //Clean jets from electron and muon
-        if(eleIdx->At(i) != -1){
-            if(elePt->At(eleIdx->At(i)) > 20. and abs(eleEta->At(eleIdx->At(i))) < 2.4){
-                continue;
-            }
-        }
-
-        if(muonIdx->At(i) != -1){
-            if(muonPt->At(muonIdx->At(i)) > 20. and abs(muonEta->At(muonIdx->At(i))) < 2.4){
-                continue;
-            }
-        }
-
         //Define here already jet, because of smearing of 4-vec
         Jet jetCand;
         jetCand.fourVec.SetPtEtaPhiM(jetPt->At(i), jetEta->At(i), jetPhi->At(i), jetMass->At(i));
@@ -305,25 +309,6 @@ bool JetAnalyzer::Analyze(){
         if(jetCand.fourVec.Pt() > ptCut and abs(jetCand.fourVec.Eta()) < etaCut){
             //bool for cleaning fatjets from AK4 jets
             bool isCleaned = true;
-
-            //Check overlap with AK4 valid jets
-            for(Jet fatJet: fatJets){
-                if(fatJet.fourVec.DeltaR(jetCand.fourVec) < 0.6){
-                    isCleaned = false;
-                    break;
-                }
-            }        
-
-            if(!isData){
-                //Correct met
-                metPx+= std::cos(jetPhi->At(i))*jetPt->At(i) - std::cos(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
-                metPy+= std::sin(jetPhi->At(i))*jetPt->At(i) - std::sin(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
-            }
-
-            //If not cleaned dont use this fatjet
-            if(!isCleaned){
-                continue;
-            }
 
 
             //Check for btag
@@ -342,6 +327,26 @@ bool JetAnalyzer::Analyze(){
                 SetGenParticles(jetCand, i);
             }
 
+            //Check overlap with AK4 valid jets
+            for(unsigned int j = 0; j < fatJets.size(); j++){
+                if(fatJets[j].fourVec.DeltaR(jetCand.fourVec) < 1.2){
+                    isCleaned = false;
+                    jetCand.fatJetIdx = j;
+                    subJets.push_back(jetCand);
+                }
+            }
+
+            //If not cleaned dont use this fatjet
+            if(!isCleaned){
+                continue;
+            }
+
+            if(!isData){
+                //Correct met
+                metPx+= std::cos(jetPhi->At(i))*jetPt->At(i) - std::cos(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
+                metPy+= std::sin(jetPhi->At(i))*jetPt->At(i) - std::sin(jetCand.fourVec.Phi())*jetCand.fourVec.Pt();
+            }
+
             validJets.push_back(jetCand);
         } 
     }
@@ -357,6 +362,9 @@ bool JetAnalyzer::Analyze(){
 
     for(std::pair<unsigned int, unsigned int> minN: minNJet){
         if(validJets.size() >= minN.first && fatJets.size() == minN.second){
+            std::string cutName("N^{AK4}_{jet} >= " + std::to_string(minN.first) + " && N^{AK8}_{jet} == " + std::to_string(minN.second));
+
+            cutflow.first->Fill(cutName.c_str(), cutflow.second);
             return true;
         }
     }
