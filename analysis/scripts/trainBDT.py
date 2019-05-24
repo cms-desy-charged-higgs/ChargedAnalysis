@@ -10,6 +10,8 @@ import copy
 import pandas as pd
 from random import randint, uniform
 
+from multiprocessing import Pool
+
 def parser():
     parser = argparse.ArgumentParser()
     
@@ -34,9 +36,9 @@ def parser():
 def createTrees(treedir, process, xParameters, cuts, filenames, channel):
     outname = ROOT.std.string("{}/{}.root".format(treedir, process))
 
-    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, ROOT.std.vector("string")(), cuts, outname, ROOT.kTRUE)
+    reader = ROOT.TreeReader(ROOT.std.string(process), xParameters, ROOT.std.vector("string")(), cuts, outname, ROOT.std.string(channel), ROOT.kTRUE)
     reader.SetHistograms();
-    reader.EventLoop(filenames, ROOT.std.string(channel))
+    reader.EventLoop(filenames, 0.04 if process == "TT+j" else 0.1 if process == "T" else 1.)
     reader.Write()
 
 def optimize(xParameters, background, signal, treeDir, resultDir, evType):
@@ -44,13 +46,13 @@ def optimize(xParameters, background, signal, treeDir, resultDir, evType):
 
     for i in xrange(300):
         params = [
-                    ("NTrees", randint(100, 1400)), 
+                    ("NTrees", randint(100, 2500)), 
                     ("MindNodeSize", uniform(0.5, 10.)), 
                     ("AdaBoostBeta", uniform(0.1, 1.)),
                     ("nCuts", randint(5, 40)), 
-                    ("MaxDepth", randint(2, 3)), 
+                    ("MaxDepth", randint(2, 5)), 
                     ("Dropout", randint(2, len(xParameters) -1)),
-                    ("SeparationType", ["GiniIndex", "CrossEntropy", "SDivSqrtSPlusB", "MisClassificationError"][randint(0, 3)]),
+                    ("SeparationType", ["GiniIndex", "CrossEntropy", "MisClassificationError"][randint(0, 2)]),
         ]
 
         for key, value in params:
@@ -65,10 +67,13 @@ def optimize(xParameters, background, signal, treeDir, resultDir, evType):
         if(i%5==0):
             df = pd.DataFrame(paramSet)
             df = df.sort_values(by="ROC", ascending=False)
-            df.to_csv("{}/hyperparameter_200_2.csv".format(resultDir), sep='\t', index=False)
+            df.to_csv("{}/hyperparameter.csv".format(resultDir), sep='\t', index=False)
 
 def trainBDT(xParameters, background, signal, treeDir, resultDir, evType):
-    trainer = ROOT.BDT(1271, 1.1504595857486688, 0.26042540109105, 35, 3, 14, "MisClassificationError")
+    #trainer = ROOT.BDT(2433, 0.7508742013852185, 0.41251969587839055, 32, 5, 4, "MisClassificationError")
+
+    trainer = ROOT.BDT(1560, 1.1005293101958564, 0.49858931820896, 34, 5, 11, "CrossEntropy")
+
     trainer.Train(xParameters, ROOT.std.string(treeDir), ROOT.std.string(resultDir), signal, background, ROOT.std.string(evType)) 
 
 def main():
@@ -84,30 +89,48 @@ def main():
     ##Load filenmes of processes
     process_dic = yaml.load(file(args.process_yaml, "r"))
 
-    for dirext in ["Even", "Odd"]:
-        if not os.path.exists("{}/{}".format(args.tree_dir, dirext)):
-            print "Created output path: {}/{}".format(args.tree_dir, dirext)
-            os.system("mkdir -p {}/{}".format(args.tree_dir, dirext))
-
-        if not os.path.exists("{}/{}".format(args.result_dir, dirext)):
-            print "Created output path: {}/{}".format(args.result_dir, dirext)
-            os.system("mkdir -p {}/{}".format(args.result_dir, dirext))
-
     ##Create std::vector for parameters
     xParameters = ROOT.std.vector("string")()
     [xParameters.push_back(param) for param in args.x_parameters]
 
-    signal = ROOT.std.vector("string")()
-    [signal.push_back(proc) for proc in args.signal]
-
     background = ROOT.std.vector("string")()
     [background.push_back(proc) for proc in args.background]
+
+    signal = ROOT.std.vector("string")()
+
+    ##Save for each signal mass point signal + all background
+    massPoints = []
+    overSampledProcesses = []
+
+    for sig in args.signal:
+        massPoints.append(int(sig[4:7]))
+        signal.push_back(sig)
+
+        processes = ROOT.std.vector("string")()
+
+        processes.push_back(sig)
+        [processes.push_back(proc) for proc in args.background]
+        
+        overSampledProcesses.append(processes)
+
+    for dirext in ["Even", "Odd"]:
+        for mass in massPoints:
+            if not os.path.exists("{}/{}/{}".format(args.tree_dir, dirext, mass)):
+                print "Created output path: {}/{}/{}".format(args.tree_dir, dirext, mass)
+                os.system("mkdir -p {}/{}/{}".format(args.tree_dir, dirext, mass))
+
+            if not os.path.exists("{}/{}/{}".format(args.result_dir, dirext, mass)):
+                print "Created output path: {}/{}/{}".format(args.result_dir, dirext, mass)
+                os.system("mkdir -p {}/{}/{}".format(args.result_dir, dirext, mass))
 
     cuts = ROOT.std.vector("string")()
     [cuts.push_back(cut) for cut in args.cuts]
 
     ##Create Trees for training
-    for processes in [background, signal]:
+    for index, processes in enumerate(overSampledProcesses):
+        parameter = copy.deepcopy(xParameters)
+        parameter.push_back("const_{}".format(massPoints[index]))
+
         for process in processes:
             filenames = ROOT.std.vector("string")()
             
@@ -117,7 +140,7 @@ def main():
                 for (dirext, cut) in [("Even", "evNr_%_2"), ("Odd", "evNr_%!_2")]:
                     extCuts = copy.deepcopy(cuts)
                     extCuts.push_back(cut)
-                    createTrees("{}/{}".format(args.tree_dir, dirext), process, xParameters, extCuts, filenames, args.channel)
+                    createTrees("{}/{}/{}".format(args.tree_dir, dirext, massPoints[index]), process, parameter, extCuts, filenames, args.channel)
 
     if args.optimize:
         optimize(xParameters, background, signal, args.tree_dir, args.result_dir, "Even")
@@ -126,6 +149,7 @@ def main():
         #Train the BDT
         for dirext in ["Even", "Odd"]:
             trainBDT(xParameters, background, signal, args.tree_dir, args.result_dir, dirext)
+            pass
 
 if __name__ == "__main__":
     main()
