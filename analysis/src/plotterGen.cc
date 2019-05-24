@@ -13,14 +13,21 @@ void PlotterGen::ConfigureHists(std::vector<std::string> &processes){
     
     //Define histograms
     std::vector<histConfig> histValues = {
+        {"nMuon", 5, 0, 5, "Number of muons", [&](genEvent event){return event.nMuons;}},
+        {"nEle", 5, 0, 5, "Number of electrons", [&](genEvent event){return event.nEle;}},
         {"h1Pt", 30, 0, 300, "p_{T}^{gen}(h_{1}) [GeV]", [&](genEvent event){return event.h1.Pt();}},
         {"h2Pt", 30, 0, 300, "p_{T}^{gen}(h_{2}) [GeV]", [&](genEvent event){return event.h2.Pt();}},
         {"WPt", 30, 0, 300, "p_{T}^{gen}(W^{#pm}) [GeV]", [&](genEvent event){return event.W.Pt();}},
         {"HcPt", 30, 0, 300, "p_{T}^{gen}(H^{#pm}) [GeV]", [&](genEvent event){return event.Hc.Pt();}},
-        {"h1Eta", 30, -3, 3, "#eta^{gen}(h_{1}) [GeV]", [&](genEvent event){return event.h1.Eta();}},
-        {"h2Eta", 30, -3, 3, "#eta^{gen}(h_{2}) [GeV]", [&](genEvent event){return event.h2.Eta();}},
-        {"WPEta", 30, -3, 3, "#eta^{gen}(W^{#pm}) [GeV]", [&](genEvent event){return event.W.Eta();}},
-        {"HcEta", 30, -3, 3, "#eta^{gen}(H^{#pm}) [GeV]", [&](genEvent event){return event.Hc.Eta();}},
+        {"lEta", 30, -5, 5, "#eta^{gen}(l) [rad]", [&](genEvent event){return event.l.Eta();}},
+        {"b1Eta", 30, -5, 5, "#eta^{gen}(b_{1}) [rad]", [&](genEvent event){return event.b1.Eta();}},
+        {"b2Eta", 30, -5, 5, "#eta^{gen}(b_{2}) [rad]", [&](genEvent event){return event.b2.Eta();}},
+        {"b3Eta", 30, -5, 5, "#eta^{gen}(b_{3}) [rad]", [&](genEvent event){return event.b3.Eta();}},
+        {"b4Eta", 30, -5, 5, "#eta^{gen}(b_{4}) [rad]", [&](genEvent event){return event.b4.Eta();}},
+        {"h1Eta", 30, -3, 3, "#eta^{gen}(h_{1}) [rad]", [&](genEvent event){return event.h1.Eta();}},
+        {"h2Eta", 30, -3, 3, "#eta^{gen}(h_{2}) [rad]", [&](genEvent event){return event.h2.Eta();}},
+        {"WPEta", 30, -3, 3, "#eta^{gen}(W^{#pm}) [rad]", [&](genEvent event){return event.W.Eta();}},
+        {"HcEta", 30, -3, 3, "#eta^{gen}(H^{#pm}) [rad]", [&](genEvent event){return event.Hc.Eta();}},
         {"vlPt", 30, 0, 200, "p_{T}^{gen}(#nu_{l}) [GeV]", [&](genEvent event){return event.vl.Pt();}},
         {"lPt", 30, 0, 200, "p_{T}^{gen}(l) [GeV]", [&](genEvent event){return event.l.Pt();}},
         {"b1Pt", 30, 0, 300, "p_{T}^{gen}(b_{1}) [GeV]", [&](genEvent event){return event.b1.Pt();}},
@@ -29,6 +36,12 @@ void PlotterGen::ConfigureHists(std::vector<std::string> &processes){
         {"b4Pt", 30, 0, 250, "p_{T}^{gen}(b_{4}) [GeV]", [&](genEvent event){return event.b4.Pt();}},
         {"dPhib1b2", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{1}, b_{2}) [rad]", [&](genEvent event){return event.b1.DeltaPhi(event.b2);}},
         {"dPhib3b4", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(b_{3}, b_{4}) [rad]", [&](genEvent event){return event.b3.DeltaPhi(event.b4);}},
+        {"dRlb1", 30, 0, 6, "#DeltaR^{gen}(l, b_{1}) [rad]", [&](genEvent event){return event.l.DeltaR(event.b1);}},
+        {"dRlb2", 30, 0, 6, "#DeltaR^{gen}(l, b_{2}) [rad]", [&](genEvent event){return event.l.DeltaR(event.b2);}},
+        {"dRlb3", 30, 0, 6, "#DeltaR^{gen}(l, b_{3}) [rad]", [&](genEvent event){return event.l.DeltaR(event.b3);}},
+        {"dRlb4", 30, 0, 6, "#DeltaR^{gen}(l, b_{4}) [rad]", [&](genEvent event){return event.l.DeltaR(event.b4);}},
+        {"dRb1b2", 30, 0, 6, "#DeltaR^{gen}(b_{1}, b_{2}) [rad]", [&](genEvent event){return event.b1.DeltaR(event.b2);}},
+        {"dRb3b4", 30, 0, 6, "#DeltaR^{gen}(b_{3}, b_{4}) [rad]", [&](genEvent event){return event.b3.DeltaR(event.b4);}},
         {"dPhih1W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaPhi(event.W);}},
         {"dPhih2W", 30, 0, TMath::Pi(), "#Delta#phi^{gen}(h_{2}, W^{#pm}) [rad]", [&](genEvent event){return event.h2.DeltaPhi(event.W);}},
         {"dRh1W", 30, 0, 4, "#DeltaR^{gen}(h_{1}, W^{#pm}) [rad]", [&](genEvent event){return event.h1.DeltaR(event.W);}},
@@ -119,6 +132,14 @@ void PlotterGen::FillHists(){
             }
 
             if(abs(GenID[index]) == 11 or abs(GenID[index]) == 13){
+                if(abs(GenID[index]) == 11 and GenPt[index] > 20){
+                    event.nEle++;
+                }
+
+                if(abs(GenID[index]) == 13 and GenPt[index] > 20){
+                    event.nMuons++;
+                }
+
                 if(GenID[GenPartIdxMother[index]] == GenID[indexW]){
                     event.l.SetPtEtaPhiM(GenPt[index], GenEta[index], GenPhi[index], GenM[index]);
                 }
@@ -173,7 +194,6 @@ void PlotterGen::FillHists(){
             }
 
         }
-
 
         //Fill hists
         for(unsigned int index = 0; index < hists.size(); index++){

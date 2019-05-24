@@ -28,6 +28,9 @@ class PlotterGen : public Plotter{
         TLorentzVector b2;
         TLorentzVector b3; //From h2
         TLorentzVector b4;
+
+        int nMuons;
+        int nEle;
     };
 
     struct histConfig{
