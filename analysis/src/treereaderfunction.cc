@@ -15,7 +15,6 @@ float TreeReader::Phi(Event &event, Hist &hist){
 
 float TreeReader::Eta(Event &event, Hist &hist){
     return GetParticle(event, hist.parts[0], hist.indeces[0]).Eta();
-
 }
 
 float TreeReader::DeltaPhi(Event &event, Hist &hist){
@@ -34,6 +33,10 @@ float TreeReader::EventNumber(Event &event, Hist &hist){
     return event.eventNumber;
 }
 
+float TreeReader::ConstantNumber(Event &event, Hist &hist){
+    return hist.funcValue;
+}
+
 float TreeReader::BDTScore(Event &event, Hist &hist){
     std::thread::id index = std::this_thread::get_id();
     std::vector<float> paramValues;
@@ -42,20 +45,60 @@ float TreeReader::BDTScore(Event &event, Hist &hist){
         paramValues.push_back((this->*funcDir[funcs.func])(event, funcs));
     }
 
+    paramValues.push_back(hist.funcValue);
+
     float score = (int)EventNumber(event, hist) % 2 == 0 ? oddClassifier[index].Evaluate(paramValues) : evenClassifier[index].Evaluate(paramValues);
+
     return score;
+}
+
+float TreeReader::NSigParticle(Event &event, Hist &hist){
+    int nSigPart = 0;
+
+    switch(hist.parts[0]){
+        case ELECTRON:
+            for(Electron electron: event.electrons){
+                if(electron.isFromHc) nSigPart++;
+            }
+
+            return nSigPart;
+
+        case MUON:
+            for(Muon muon: event.muons){
+                nSigPart+= muon.isFromHc;
+            }
+
+            return nSigPart;
+
+        case JET:
+            for(Jet jet: event.jets){
+                if(jet.isFromh1 or jet.isFromh2) nSigPart++;
+            }
+
+            return nSigPart;
+
+        default: return -999.;
+    }
 }
 
 float TreeReader::NParticle(Event &event, Hist &hist){
     int nPart = 0;
+    int WP = hist.funcValue == -999. ? 1 : hist.funcValue;
 
     switch(hist.parts[0]){
         case ELECTRON:
             for(const Electron &ele: event.electrons){
-                if(ele.*eleID[hist.func].first && ele.isolation < eleID[hist.func].second && ele.isTriggerMatched){
+                for(unsigned int i = 0; i < event.jets.size(); i++){
+                    if(event.jets[i].fourVec.DeltaR(ele.fourVec) < 0.4){
+                        event.jets.erase(event.jets.begin()+i);
+                        break;
+                    }
+                }
+
+                if(ele.*eleID[WP].first && ele.isolation < eleID[WP].second && ele.isTriggerMatched && ele.fourVec.Pt() > 35.){
                     nPart++;
 
-                    event.weight *= ele.*eleSF[hist.func] * ele.recoSF;
+                    event.weight *= ele.*eleSF[WP] * ele.recoSF;
                 }
             } 
         
@@ -63,10 +106,17 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
         case MUON:
             for(const Muon &muon: event.muons){
-                if(muon.*muonID[hist.func].first && muon.*muonID[hist.func].first && muon.isTriggerMatched){
+                for(unsigned int i = 0; i < event.jets.size(); i++){
+                    if(event.jets[i].fourVec.DeltaR(muon.fourVec) < 0.4){
+                        event.jets.erase(event.jets.begin()+i);
+                        break;
+                    }
+                }
+
+                if(muon.*muonID[WP].first && muon.*muonID[WP].second && muon.isTriggerMatched){
                     nPart++;
 
-                    event.weight *= muon.*muonSF[hist.func].first * muon.*muonSF[hist.func].second;
+                    event.weight *= muon.*muonSF[WP].first * muon.*muonSF[WP].second;
                 }
             } 
         
@@ -75,19 +125,32 @@ float TreeReader::NParticle(Event &event, Hist &hist){
         case JET:
             return event.jets.size();
 
+        case SUBJET:
+            return event.subjets.size();
+
         case FATJET:
             return event.fatjets.size();
 
-        case BJET: case BFATJET:
-            for(const Jet &jet: hist.parts[0] == BJET ? event.jets: event.fatjets){
-                if(jet.*bJetID[hist.func]){
+        case BJET:
+            for(const Jet &jet: event.jets){
+                if(jet.*bJetID[WP]){
                     nPart++;
-
-                    event.weight *= jet.*bJetSF[hist.func];
+                    event.weight *= jet.*bJetSF[WP];
                 }    
             }
     
             return nPart;
+
+        case BFATJET:
+            for(const Jet &jet: event.fatjets){
+                if(jet.*bJetID[WP]){
+                    nPart++;
+                    event.weight *= jet.*bJetSF[WP];
+                }    
+            }
+    
+            return nPart;
+
         default: return -999.;
     }
 }
@@ -112,6 +175,7 @@ const TLorentzVector& TreeReader::GetParticle(Event &event, Particle &part, cons
         case ELECTRON: return (unsigned int)index <= event.electrons.size() ? event.electrons[index-1].fourVec : event.dummy;
         case MUON: return (unsigned int)index <= event.muons.size() ? event.muons[index-1].fourVec : event.dummy;
         case JET: return (unsigned int)index <= event.jets.size() ? event.jets[index-1].fourVec : event.dummy;
+        case SUBJET: return (unsigned int)index <= event.subjets.size() ? event.subjets[index-1].fourVec : event.dummy;
         case FATJET: return (unsigned int)index <= event.fatjets.size() ? event.fatjets[index-1].fourVec : event.dummy;
         case MET: return event.MET;
         case W: 
@@ -219,7 +283,7 @@ void TreeReader::Higgs(Event &event){
     std::sort(candPairs.begin(), candPairs.end(), sortFunc);
 
     //Check if W Boson alread reconstructed
-    if(event.W == TLorentzVector()) WBoson(event);
+    if(event.W.Pt() == 0) WBoson(event);
 
     //Reconstruct charge Higgs with smallest dR between h and W
     TLorentzVector Hc1 = event.W + candPairs[0].first;
