@@ -7,6 +7,7 @@
 #include <TFile.h>
 #include <TTree.h>
 #include <TBranch.h>
+#include <TROOT.h>
 
 #include <TMVA/Factory.h>
 #include <TMVA/DataLoader.h>

@@ -33,25 +33,36 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
         loader->AddVariable(xParameter);
     }
 
+    loader->AddVariable("mass");
+
     //Add bkg/sig training and test trees
     std::string train = evType == "Even" ? "Odd": "Even";
     int nSig = 0., nBkg = 0.;
 
     for(std::string &signal: signals){
-        TFile* sigFile = TFile::Open((treeDir + "/" + train + "/" + signal + ".root").c_str());
-        loader->AddSignalTree((TTree*)sigFile->Get(signal.c_str()));
+        std::string massPoint = std::string(signal.begin()+4, signal.begin()+7);
+
+        TFile* sigFile = TFile::Open((treeDir + "/" + train + "/" + massPoint + "/" + signal + ".root").c_str());
+        TTree* sigTree = (TTree*)sigFile->Get(signal.c_str());
+        sigTree->GetBranch(("const_" + massPoint).c_str())->SetTitle("mass");
+        sigTree->GetBranch(("const_" + massPoint).c_str())->SetName("mass");
+
+        loader->AddSignalTree(sigTree);
 
         nSig+= ((TTree*)sigFile->Get(signal.c_str()))->GetEntries();
+   
+        for(std::string &background: backgrounds){
+            TFile* bkgFile = TFile::Open((treeDir + "/" + train + "/" + massPoint + "/" + background + ".root").c_str());
+
+            TTree* bkgTree = (TTree*)bkgFile->Get(background.c_str());
+            bkgTree->GetBranch(("const_" + massPoint).c_str())->SetTitle("mass");
+            bkgTree->GetBranch(("const_" + massPoint).c_str())->SetName("mass");
+
+            loader->AddBackgroundTree(bkgTree);
+
+            nBkg+= ((TTree*)bkgFile->Get(background.c_str()))->GetEntries();
+        }
     }
-
-    for(std::string &background: backgrounds){
-        TFile* bkgFile = TFile::Open((treeDir + "/" + train + "/" + background + ".root").c_str());
-        loader->AddBackgroundTree((TTree*)bkgFile->Get(background.c_str()));
-
-        nBkg+= ((TTree*)bkgFile->Get(background.c_str()))->GetEntries();
-    }
-
-    nBkg = 20000.;
 
     //Configure BDT training
     loader->PrepareTrainingAndTestTree("", 0.8*nSig, 0.8*nBkg, 0.2*nSig, 0.2*nBkg);
@@ -65,6 +76,13 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
     //Move output to wished directory
     std::system(std::string("rsync -a --delete-after TempBDTdir/weights " + resultDir + "/" + evType).c_str());
     std::system(std::string("command rm -r TempBDTdir").c_str());
+
+    //Remove files from gROOT
+    TSeqCollection* fileList = gROOT->GetListOfFiles();
+    
+    for(int i = 0; i < fileList->GetSize(); i++){
+        delete fileList->At(i);
+    }
 
     return factory->GetROCIntegral(loader, "BDT");
 }
