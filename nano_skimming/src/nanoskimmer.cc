@@ -125,6 +125,13 @@ void NanoSkimmer::EventLoop(const std::vector<std::string> &channels){
         tree->SetName(channel.c_str());
         trees.push_back(tree);
 
+        //Create cutflow histograms
+        TH1F* cutflow = new TH1F();
+        cutflow->SetName(("cutflow_" + channel).c_str());
+        cutflow->SetName(("cutflow_" + channel).c_str());
+        cutflow->GetYaxis()->SetName("Events");
+        cutflows.push_back(std::make_pair(cutflow, 1.)); 
+
         //Push back analyzers for each final state 
         analyzers.push_back(analyzerMap[channel]);
     }
@@ -145,7 +152,7 @@ void NanoSkimmer::EventLoop(const std::vector<std::string> &channels){
         for(unsigned int i = 0; i < analyzers.size(); i++){
             //Call each analyzer and break if one analyzer reject the event
             for(std::shared_ptr<BaseAnalyzer> analyzer: analyzers[i]){
-                if(!analyzer->Analyze()){
+                if(!analyzer->Analyze(cutflows[i])){
                     eventPassed = false;
                     break;
                 }
@@ -189,6 +196,8 @@ void NanoSkimmer::WriteOutput(const std::string &outFile){
         for(std::shared_ptr<BaseAnalyzer> analyzer: analyzers[i]){
             analyzer->EndJob(file);
         }
+
+        cutflows[i].first->Write();
     }
 
     file->Write();

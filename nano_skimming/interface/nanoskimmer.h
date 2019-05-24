@@ -28,6 +28,9 @@ class NanoSkimmer{
         //Vector of trees for each analysis
         std::vector<TTree*> trees;
 
+        //Vector of cutflow histograms for each analysis
+        std::vector<std::pair<TH1F*, float>> cutflows; 
+
         //Progress bar function
         void ProgressBar(const int &progress);
         
