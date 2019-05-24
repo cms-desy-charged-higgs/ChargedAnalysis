@@ -118,7 +118,8 @@ class TreeReader {
         //Vector with cut information
         std::vector<Hist> cuts;
         std::vector<std::string> cutNames;
-        TH1F* cutflow;
+        TH1F* cutflow = NULL;
+        bool writeCutFlow = false;
 
         //Save tree if wished
         bool saveTree;
