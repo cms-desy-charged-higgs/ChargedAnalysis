@@ -7,12 +7,17 @@
 #include <iostream>
 #include <utility>
 #include <algorithm>
+#include <cmath>
+#include <functional>
 
 #include <TLatex.h>
 #include <TGaxis.h>
 #include <TError.h>
 #include <TROOT.h>
 #include <TStyle.h>
+#include <TH1.h>
+#include <TPad.h>
+#include <TMath.h>
 
 class Plotter{
     protected:
@@ -27,6 +32,9 @@ class Plotter{
         std::map<std::string, std::string> channelHeader;
 
         void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
+        void SetStyle();
+        void SetPad(TPad* pad);
+        void SetHist(TH1* frameHist);
 
     public:
         virtual ~Plotter();
@@ -35,7 +43,6 @@ class Plotter{
         Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel);
 
         virtual void ConfigureHists(std::vector<std::string> &processes) = 0;
-        void SetStyle();
         virtual void Draw(std::vector<std::string> &outdirs) = 0;
         
 };
