@@ -19,9 +19,9 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
 
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
-    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"h", h}};
-    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {h, "h_{@}"}};
-    nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}};
+    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"h", h}, {"t", TOP}};
+    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {h, "h_{@}"}, {TOP, "t_{@}"}};
+    nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}};
 
     strToFunc = {
                     {"m", MASS}, 
@@ -36,6 +36,8 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {"bdt", BDTSCORE},
                     {"const", CONSTNUM},
                     {"Nsig", NSIGPART},
+                    {"tau", SUBTINESS},
+                    {"phistar", PHISTAR},
     };
     
     funcLabel = {
@@ -50,11 +52,13 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {NPART, "N_{@}"},
                     {CONSTNUM, "Bin number"},
                     {NSIGPART, "N^{gen matched}_{@}"},
+                    {SUBTINESS, "#tau(@)"},
+                    {PHISTAR, "#phi^{*}"},
     };
 
     //Maps of all binning, functions and SF
     binning = {
-                {MASS, {20., 100., 700.}},
+                {MASS, {20., 50., 300.}},
                 {PT, {30., 0., 200.}},
                 {ETA, {30., -2.4, 2.4}},
                 {PHI, {30., -TMath::Pi(), TMath::Pi()}},
@@ -62,9 +66,11 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {DR, {30., 0., 6.}},
                 {HT, {30., 0., 500.}},
                 {NPART, {6., 0., 6.}},
-                {BDTSCORE, {30., -0.5, 0.5}},
+                {BDTSCORE, {30., -0.5, 0.3}},
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
+                {SUBTINESS, {30., 0., 0.4}},
+                {PHISTAR, {50., 0, TMath::Pi()}},
     };
 
     funcDir = {
@@ -80,6 +86,8 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {BDTSCORE, &TreeReader::BDTScore},
                 {CONSTNUM, &TreeReader::ConstantNumber},
                 {NSIGPART, &TreeReader::NSigParticle},
+                {SUBTINESS, &TreeReader::Subtiness},
+                {PHISTAR, &TreeReader::PhiStar},
     };
 
     eleID = {{1, {&Electron::isMedium, 0.2}}, {1, {&Electron::isTight, 0.1}}};
@@ -235,7 +243,9 @@ void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, cons
 
             //Fill Cutflow if event passes selection
             if(passedCut){
-                localCutFlow->Fill(cutNames[k].c_str(), event.weight);
+                if(!saveTree){
+                    localCutFlow->Fill(cutNames[k].c_str(), event.weight);
+                }
             }
 
             else{break;}

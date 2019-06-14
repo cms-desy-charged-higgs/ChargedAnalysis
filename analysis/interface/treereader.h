@@ -17,6 +17,7 @@
 
 #include <TROOT.h>
 #include <TLorentzVector.h>
+#include <TVector3.h>
 #include <TFile.h>
 #include <TH1F.h>
 #include <TH2F.h>
@@ -36,10 +37,10 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BJET, FATJET, BFATJET, MET, W, HC, h};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, TOP};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, PHISTAR};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
@@ -58,9 +59,14 @@ class TreeReader {
             float eventNumber;
 
             //Reconstructed during processing of the event
+            std::vector<Jet> h1Jets;
+            std::vector<Jet> h2Jets;
+            std::vector<TLorentzVector> W;
+
             std::vector<TLorentzVector> h;
-            TLorentzVector W;
             TLorentzVector Hc;
+
+            std::vector<TLorentzVector> top;
 
             //Dummy variable
             TLorentzVector dummy;
@@ -144,9 +150,11 @@ class TreeReader {
         float DeltaPhi(Event &event, Hist &hist);
         float DeltaR(Event &event, Hist &hist);
 
+        float Subtiness(Event &event, Hist &hist);
         float HadronicEnergy(Event &event, Hist &hist);
         float EventNumber(Event &event, Hist &hist);
         float ConstantNumber(Event &event, Hist &hist);
+        float PhiStar(Event &event, Hist &hist);
 
         float BDTScore(Event &event, Hist &hist);
         //Function to get values for input parameter for BDT evaluation
@@ -171,6 +179,7 @@ class TreeReader {
         //Function for reconstruct objects
         void WBoson(Event &event);
         void Higgs(Event &event);
+        void Top(Event &event);
     
         //Function for cuts
         bool Cut(Event &event, Hist &hist);
