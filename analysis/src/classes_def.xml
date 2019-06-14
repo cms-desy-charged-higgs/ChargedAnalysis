@@ -3,6 +3,7 @@
     <class name="PlotterTriggEff"/>
     <class name="Plotter1D"/>
     <class name="Plotter2D"/>
+    <class name="PlotterCut"/>
     <class name="PlotterGen"/>
     <class name="BDT"/>
 </lcgdict>
