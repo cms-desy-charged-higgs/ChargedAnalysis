@@ -24,6 +24,7 @@ def parser():
     parser.add_argument("--x-parameters", nargs="+", default = [], help = "Name of parameters to be plotted")
     parser.add_argument("--y-parameters", nargs="+", default = [], help = "Y parameters for 2D plots")
     parser.add_argument("--cuts", nargs="+", default=[], help = "Name of cut implemented in TreeReader class")
+    parser.add_argument("--only-plot", action = "store_true", default = False, help = "Only do plots")
 
     parser.add_argument("--hist-dir", type = str, default = "{}/src/Histograms".format(os.environ["CMSSW_BASE"]), help = "Dir with histograms read out of skimmed trees")
     parser.add_argument("--www", type=str, help = "Dir to web plot dir")
@@ -42,14 +43,12 @@ def makePlots1D(histDir, xParameters, processes, plotDir, channel):
 
     plotter = ROOT.Plotter1D(histDir, xParameters, ROOT.std.string(channel))
     plotter.ConfigureHists(processes)
-    plotter.SetStyle()
     plotter.Draw(plotDir)
 
 def makePlots2D(histDir, xParameters, yParameters, processes, plotDir, channel):
 
     plotter = ROOT.Plotter2D(histDir, xParameters, yParameters, ROOT.std.string(channel))
     plotter.ConfigureHists(processes)
-    plotter.SetStyle()
     plotter.Draw(plotDir)
     
 def main():
@@ -99,15 +98,10 @@ def main():
         
         [filenames.push_back(fname) for fname in ["{skim}{file}/{file}.root".format(skim = args.skim_dir, file = process_file) for process_file in process_dic[process]["filenames"]]]       
 
-        if args.x_parameters:
+        if args.x_parameters and not args.only_plot:
             createHistograms(process, filenames, xParameters, yParameters, cuts, histDir, args.channel)
-                   
-        else:
-            print "No parameter input, no histograms can be produced"
-            return 0
     
     if args.x_parameters:
-        pass
         makePlots1D(histDir, xParameters, processes, outDir, args.channel)
 
     if args.y_parameters:
