@@ -63,7 +63,10 @@ void Plotter2D::ConfigureHists(std::vector<std::string> &processes){
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
+    this->SetStyle();
+
     TCanvas *canvas = new TCanvas("canvas2D", "canvas2D", 1000, 800); 
+    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
 
     //Save pairs of XY parameters to avoid redundant plots
     std::vector<std::string> parameterPairs;
@@ -71,7 +74,6 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
     for(unsigned int i = 0; i < xParameters.size(); i++){
         for(unsigned int j = 0; j < yParameters.size(); j++){
             canvas->cd();
-            canvas->Clear();
 
             bool isNotRedundant = true;
 
@@ -90,6 +92,11 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 }
                 
                 canvas->Clear();
+
+                //Draw main pad
+                mainpad->Draw();
+                mainpad->cd();
+
                 bkgSum->DrawNormalized("COLZ");
                 this->DrawHeader(false, channelHeader[channel], "Work in progress");
 
@@ -100,6 +107,11 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
 
                 canvas->cd();
                 canvas->Clear();
+
+                //Draw main pad
+                mainpad->Draw();
+                mainpad->cd();
+
                 signal[i][j][0]->DrawNormalized("COLZ");
                 this->DrawHeader(false, channelHeader[channel], "Work in progress");
 

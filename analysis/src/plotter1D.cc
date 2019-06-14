@@ -9,7 +9,8 @@ Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters
     data({}),
     colors({
         {"DY+j", kRed + -7}, 
-        {"TT+j", kYellow -6}, 
+        {"TT+j-1L", kYellow -7}, 
+        {"TT+j-2L", kYellow +4}, 
         {"TT+V", kOrange +2},            
         {"T", kGreen  + 2},             
         {"W+j", kCyan + 2},             
@@ -83,6 +84,9 @@ void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
 }
 
 void Plotter1D::Draw(std::vector<std::string> &outdirs){
+    //Set Style
+    this->SetStyle();
+
     //Define canvas and pads
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 800);
     TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
@@ -107,19 +111,16 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         //TLegend
         TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
 
-        //Draw main pad
-        mainpad->SetLeftMargin(0.15);
-        mainpad->SetRightMargin(0.1);
-        mainpad->SetBottomMargin(0.12);
-        mainpad->Draw();
-        mainpad->cd();
-    
         //Stack and sum of backgrounds hist
         THStack* stack = new THStack();
         TH1F* sumbkg = (TH1F*)background[i][0]->Clone();
         sumbkg->Reset();
-       
 
+        //Draw main pad
+        this->SetPad(mainpad);
+        mainpad->Draw();
+        mainpad->cd();
+    
         for(TH1F* hist: background[i]){            
             std::string lentry = std::string(hist->GetName());
             legend->AddEntry(hist, lentry.c_str(), "F");
@@ -131,14 +132,9 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                
         //Configure and draw THStack
         stack->Draw("HIST");
-        stack->GetXaxis()->SetTitleSize(0.05);
-        stack->GetYaxis()->SetTitleSize(0.05);
-        stack->GetXaxis()->SetTitleOffset(1.1);
+        this->SetHist(stack->GetHistogram());
         stack->GetXaxis()->SetTitle(sumbkg->GetXaxis()->GetTitle());
         stack->GetYaxis()->SetTitle("Events");
-
-        stack->GetXaxis()->SetLabelSize(0.05);
-        stack->GetYaxis()->SetLabelSize(0.05);
 
         //Draw errorband
         sumbkg->SetFillStyle(3354);
@@ -307,6 +303,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 }
             }
         }
+
         std::cout << "Plot created for: " << xParameters[i] << std::endl;
 
         //Clear pads

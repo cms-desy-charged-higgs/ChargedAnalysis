@@ -17,7 +17,8 @@ Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, st
             {"MET", DATA},
             {"VV+VVV", BKG},
             {"QCD", BKG},
-            {"TT+j", BKG},
+            {"TT+j-1L", BKG},
+            {"TT+j-2L", BKG},
             {"TT+V", BKG},
             {"T", BKG},
             {"L4B_150_75", SIGNAL},
@@ -55,7 +56,8 @@ Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, st
             {"MET", DATA},
             {"VV+VVV", BKG},
             {"QCD", BKG},
-            {"TT+j", BKG},
+            {"TT+j-1L", BKG},
+            {"TT+j-2L", BKG},
             {"TT+V", BKG},
             {"T", BKG},
             {"L4B_150_75", SIGNAL},
@@ -91,6 +93,21 @@ void Plotter::SetStyle(){
     gErrorIgnoreLevel = kWarning;
 }
 
+void Plotter::SetPad(TPad* pad){
+    //Pad options
+    pad->SetLeftMargin(0.15);
+    pad->SetRightMargin(0.1);
+    pad->SetBottomMargin(0.12); 
+}
+
+void Plotter::SetHist(TH1* frameHist){
+    //Hist options
+    frameHist->GetXaxis()->SetTitleSize(0.05);
+    frameHist->GetYaxis()->SetTitleSize(0.05);
+    frameHist->GetXaxis()->SetTitleOffset(1.1);
+    frameHist->GetXaxis()->SetLabelSize(0.05);
+    frameHist->GetYaxis()->SetLabelSize(0.05);
+}
 
 void Plotter::DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText){
     //CMS Work in Progres and Lumi information
