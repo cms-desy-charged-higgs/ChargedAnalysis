@@ -9,12 +9,15 @@ QCD:
         - QCD_HT1500to2000_TuneCP5_13TeV-madgraph-pythia8
         - QCD_HT2000toInf_TuneCP5_13TeV-madgraph-pythia8
 
-TT+j: 
+TT+j-1L: 
     filenames:
         - TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8
         - TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8
-        - TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8
 
+TT+j-2L:
+    filenames:
+        - TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8
+        
 TT+V:
     filenames:
         - TTZToLL_M-1to10_TuneCP5_13TeV-amcatnlo-pythia8
