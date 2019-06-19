@@ -15,7 +15,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
 
     //Start measure execution time
     start = std::chrono::steady_clock::now();
-    outputFile = TFile::Open(outname.c_str(), "RECREATE");
 
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
@@ -58,7 +57,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
 
     //Maps of all binning, functions and SF
     binning = {
-                {MASS, {20., 50., 300.}},
+                {MASS, {20., 100., 600.}},
                 {PT, {30., 0., 200.}},
                 {ETA, {30., -2.4, 2.4}},
                 {PHI, {30., -TMath::Pi(), TMath::Pi()}},
@@ -70,7 +69,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
-                {PHISTAR, {50., 0, TMath::Pi()}},
+                {PHISTAR, {50., 0., TMath::Pi()}},
     };
 
     funcDir = {
@@ -99,6 +98,11 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     bJetID = {{0, &Jet::isLooseB}, {1, &Jet::isMediumB}, {2, &Jet::isTightB}};
     bJetSF = {{0, &Jet::loosebTagSF}, {1, &Jet::mediumbTagSF}, {2, &Jet::tightbTagSF}};
 
+    //Cut configuration
+    for(std::string &cut: cutStrings){
+        cuts.push_back(ConvertStringToEnums(cut, true));
+    }
+
     //Check if cutflow should be written out
     std::vector<std::string>::iterator it = std::find(this->xParameters.begin(), this->xParameters.end(), "cutflow");
 
@@ -124,177 +128,6 @@ void TreeReader::ProgressBar(const int &progress){
 
     if(progress == 100) std::cout << std::endl;
 
-}
-
-void TreeReader::ParallelisedLoop(const std::vector<TChain*> &chainWrapper, const int &entryStart, const int &entryEnd, const float &nGen)
-{
-    //Dont start immediately to avoid crashes of ROOT
-    std::this_thread::sleep_for (std::chrono::seconds(1));
-
-    //Define containers for histograms
-    std::vector<Hist> histograms1D(merged1DHistograms.size(), Hist());
-    std::vector<std::vector<Hist>> histograms2D;
-
-    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
-        histograms2D.push_back(std::vector<Hist>(merged2DHistograms[i].size(), Hist()));
-    }
-
-    //Lock thread unsafe operation
-    mutex.lock();
-
-    //vector with values
-    std::vector<float> valuesX(merged1DHistograms.size(), 1.);
-
-    //Tree that could be safed if wished
-    TFile* file(NULL); TTree* tree(NULL);
-
-    if(saveTree){
-        file = TFile::Open(std::string(process + "_" + std::to_string(nHist) + ".root").c_str(), "RECREATE");
-        tree = new TTree(process.c_str(), process.c_str());
-    }
-
-    //Create thread local histograms/branches
-    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
-        TH1F* hist1D = new TH1F(std::string("h" + std::to_string(nHist)).c_str(), std::string("h" + std::to_string(nHist)).c_str(), binning[merged1DHistograms[i].func][0], binning[merged1DHistograms[i].func][1], binning[merged1DHistograms[i].func][2]);
-        nHist++;
-
-        hist1D->Sumw2();
-        histograms1D[i] = {hist1D, NULL, merged1DHistograms[i].parts, merged1DHistograms[i].indeces, merged1DHistograms[i].func, merged1DHistograms[i].funcValue};
-
-        if(saveTree) tree->Branch(xParameters[i].c_str(), &valuesX[i]);
-
-        for(unsigned int j = 0; j < merged2DHistograms[i].size(); j++){
-            TH2F* hist2D = new TH2F(std::string("h" + std::to_string(nHist)).c_str(), std::string("h" + std::to_string(nHist)).c_str(), binning[merged1DHistograms[i].func][0], binning[merged1DHistograms[i].func][1], binning[merged1DHistograms[i].func][2], binning[merged2DHistograms[i][j].func][0], binning[merged2DHistograms[i][j].func][1], binning[merged2DHistograms[i][j].func][2]);
-            nHist++;
-
-            hist2D->Sumw2();
-            histograms2D[i][j] = {NULL, hist2D, merged2DHistograms[i][j].parts, merged2DHistograms[i][j].indeces, merged2DHistograms[i][j].func, merged2DHistograms[i][j].funcValue};       
-        }
-    }
-
-    //Local cutflow histogram
-    TH1F* localCutFlow = (TH1F*)cutflow->Clone();
-    localCutFlow->Reset();
-
-    //Define TTreeReader 
-    TTreeReader reader(chainWrapper[0]);
-
-    TTreeReaderValue<std::vector<Electron>> electrons(reader, "electron");
-    TTreeReaderValue<std::vector<Muon>> muons(reader, "muon");
-    TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
-    TTreeReaderValue<std::vector<Jet>> subjets(reader, "subjet");
-    TTreeReaderValue<std::vector<FatJet>> fatjets(reader, "fatjet");
-    TTreeReaderValue<TLorentzVector> MET(reader, "met");
-    TTreeReaderValue<float> HT(reader, "HT");
-    TTreeReaderValue<float> evtNum(reader, "eventNumber");
-
-    TTreeReaderValue<float> lumi(reader, "lumi");
-    TTreeReaderValue<float> xSec(reader, "xsec");
-    TTreeReaderValue<float> puWeight(reader, "puWeight");
-    TTreeReaderValue<float> genWeight(reader, "genWeight");
-
-    //BDT intialization
-    if(isBDT){
-        std::map<std::string, std::string> chanPaths = {
-                    {"e4j", "Electron4J"},
-                    {"mu4j", "Muon4J"},
-                    {"e2j1f", "Electron2J1F"},
-                    {"mu2j1f", "Muon2J1F"},
-                    {"e2f", "Electron2F"},
-                    {"mu2f", "Muon2F"},
-        };
-
-        std::thread::id index = std::this_thread::get_id();
-
-        std::string bdtPath = std::string(std::getenv("CMSSW_BASE")) + "/src/BDT/" + chanPaths[channel]; 
-
-        std::vector<std::string> bdtVar = evenClassifier[index].SetEvaluation(bdtPath + "/Even/");
-        oddClassifier[index].SetEvaluation(bdtPath + "/Odd/");
-
-        bdtVar.pop_back();
-
-        for(std::string param: bdtVar){
-            bdtFunctions[index].push_back(ConvertStringToEnums(param));
-        }
-    }
-
-    mutex.unlock();
-
-    Event event;
-
-    for (int i = entryStart; i < entryEnd; i++){
-        //Load event and fill event class
-        reader.SetEntry(i); 
-
-        event = {*electrons, *muons, *jets, *subjets, *fatjets, *MET, 1., *HT, *evtNum}; 
-
-        //Fill additional weights
-        std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec, 1.f/(nGen)};
-
-        for(const float &weight: weightVec){
-            event.weight *= weight;
-        }
-
-        //Check if event passes cut
-        bool passedCut = true;
- 
-        for(unsigned int k = 0; k < cuts.size(); k++){
-            passedCut = Cut(event, cuts[k]);
-
-            //Fill Cutflow if event passes selection
-            if(passedCut){
-                if(!saveTree){
-                    localCutFlow->Fill(cutNames[k].c_str(), event.weight);
-                }
-            }
-
-            else{break;}
-        }   
-
-        if(passedCut){
-            valuesX.clear();
-
-            for(unsigned int l = 0; l < histograms1D.size(); l++){
-                valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
-                histograms1D[l].hist1D->Fill(valuesX[l], event.weight);
-
-               for(unsigned int m = 0; m < histograms2D[l].size(); m++){
-                    histograms2D[l][m].hist2D->Fill(valuesX[l], (this->*funcDir[histograms2D[l][m].func])(event, histograms2D[l][m]), event.weight);
-                }
-            }
-
-            //Fill tree if wished
-            if(saveTree) tree->Fill();
-        }
-    }
-
-    //Lock again and merge local histograms into final histograms
-    mutex.lock();
-
-    for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
-        merged1DHistograms[i].hist1D->Add(histograms1D[i].hist1D);
-        
-        for(unsigned int j = 0; j < merged2DHistograms[i].size(); j++){
-            merged2DHistograms[i][j].hist2D->Add(histograms2D[i][j].hist2D);
-        }
-    }
-
-    TList* list = new TList;
-    list->Add(localCutFlow);
-    cutflow->Merge(list);
-
-    //Write tree if wished
-    if(saveTree){
-        file->cd();
-        tree->Write();
-        file->Close();
-    }
-
-    //Progress bar
-    progress += 100*(1.f/nCores);
-
-    ProgressBar(progress);
-    mutex.unlock();
 }
 
 TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool &isCutString){
@@ -376,7 +209,11 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool
     return {NULL, NULL, parts, indeces, func, funcValue, {op, cutValue}};
 }
 
-void TreeReader::SetHistograms(){
+std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hist>>> TreeReader::SetHistograms(TFile* outputFile){
+    //Histograms
+    std::vector<Hist> histograms1D;
+    std::vector<std::vector<Hist>> histograms2D;
+
     //Save pairs of XY parameters to avoid redundant plots
     std::vector<std::string> parameterPairs;
 
@@ -391,6 +228,7 @@ void TreeReader::SetHistograms(){
         //Create final histogram
         TH1F* hist1D = new TH1F(xParameters[i].c_str(), xParameters[i].c_str(), binning[confX.func][0], binning[confX.func][1], binning[confX.func][2]);
         hist1D->Sumw2();
+        hist1D->SetDirectory(outputFile);
 
         std::string fLabelX = funcLabel[confX.func];
         
@@ -410,7 +248,7 @@ void TreeReader::SetHistograms(){
         confX.hist1D = hist1D;
 
         //Add hist to collection
-        merged1DHistograms.push_back(confX);
+        histograms1D.push_back(confX);
 
         for(unsigned int j = 0; j < yParameters.size(); j++){
             //Split input string into information for particle and function to call value
@@ -427,6 +265,7 @@ void TreeReader::SetHistograms(){
             
                 TH2F* hist2D = new TH2F((xParameters[i] + "_VS_" + yParameters[j]).c_str() , (xParameters[i] + "_VS_" + yParameters[j]).c_str(), binning[confX.func][0], binning[confX.func][1], binning[confX.func][2], binning[confY.func][0], binning[confY.func][1], binning[confY.func][2]);
                 hist2D->Sumw2();
+                hist2D->SetDirectory(outputFile);
 
                 std::string fLabelY = funcLabel[confY.func];
 
@@ -448,86 +287,237 @@ void TreeReader::SetHistograms(){
             }
         }
 
-        merged2DHistograms.push_back(temp2DHist);
+        histograms2D.push_back(temp2DHist);
     }
 
-    //Cut configuration
-    for(std::string &cut: cutStrings){
-        this->cuts.push_back(ConvertStringToEnums(cut, true));
-    }
+    return {histograms1D, histograms2D};
 }
 
-void TreeReader::EventLoop(std::vector<std::string> &filenames, const float &frac){
-    //Configure threads
-    nCores = (int)std::thread::hardware_concurrency();   
-    std::vector<int> threadsPerFile(filenames.size(), 0);   
+void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
+    std::thread::id index = std::this_thread::get_id();
+    std::stringstream threadString;  threadString << index;
 
-    int entryStart;
-    int entryEnd;
+    TH1::AddDirectory(kFALSE);
+
+    //Lock thread unsafe operation
+    mutex.lock();
+
+    //ROOT files
+    TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
+    TFile* outputFile = TFile::Open(std::string(process + "_" + threadString.str() + ".root").c_str(), "RECREATE");
+
+    //Define containers for histograms
+    std::vector<Hist> histograms1D;
+    std::vector<std::vector<Hist>> histograms2D;
+    TTree* outputTree = new TTree(process.c_str(), process.c_str());
+    outputTree->SetDirectory(outputFile);
+
+    //Set up histograms
+    std::tie(histograms1D, histograms2D) = SetHistograms(outputFile);
+
+    //vector with values
+    std::vector<float> valuesX(histograms1D.size(), 1.);
+
+    //Create thread local histograms/branches
+    for(unsigned int i = 0; i < histograms1D.size(); i++){
+        if(saveTree) outputTree->Branch(xParameters[i].c_str(), &valuesX[i]);
+    }
+
+    //Define TTreeReader 
+    TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
+    TTreeReader reader(inputTree);
+
+    TTreeReaderValue<std::vector<Electron>> electrons(reader, "electron");
+    TTreeReaderValue<std::vector<Muon>> muons(reader, "muon");
+    TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
+    TTreeReaderValue<std::vector<Jet>> subjets(reader, "subjet");
+    TTreeReaderValue<std::vector<FatJet>> fatjets(reader, "fatjet");
+    TTreeReaderValue<TLorentzVector> MET(reader, "met");
+    TTreeReaderValue<float> HT(reader, "HT");
+    TTreeReaderValue<float> evtNum(reader, "eventNumber");
+
+    TTreeReaderValue<float> lumi(reader, "lumi");
+    TTreeReaderValue<float> xSec(reader, "xsec");
+    TTreeReaderValue<float> puWeight(reader, "puWeight");
+    TTreeReaderValue<float> genWeight(reader, "genWeight");
+
+    //Number of generated events
     float nGen = 1.;
 
-    for(unsigned int i = 0; i < threadsPerFile.size(); i++){
-        for(int j = 0; j < std::floor(nCores/threadsPerFile.size()); j++){
-            threadsPerFile[i]++;
+    if(inputFile->GetListOfKeys()->Contains("nGen")){
+        TH1F* genHist = (TH1F*)inputFile->Get("nGen");
+        nGen = genHist->Integral();
+        delete genHist;
+    }
+
+    //Cutflow
+    TH1F* cutflow = (TH1F*)inputFile->Get(("cutflow_" + channel).c_str())->Clone();
+    cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
+    cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
+
+    //BDT intialization
+    if(isBDT){
+        std::map<std::string, std::string> chanPaths = {
+                    {"e4j", "Electron4J"},
+                    {"mu4j", "Muon4J"},
+                    {"e2j1f", "Electron2J1F"},
+                    {"mu2j1f", "Muon2J1F"},
+                    {"e2f", "Electron2F"},
+                    {"mu2f", "Muon2F"},
+        };
+
+        std::string bdtPath = std::string(std::getenv("CMSSW_BASE")) + "/src/BDT/" + chanPaths[channel]; 
+
+        std::vector<std::string> bdtVar = evenClassifier[index].SetEvaluation(bdtPath + "/Even/");
+        oddClassifier[index].SetEvaluation(bdtPath + "/Odd/");
+
+        bdtVar.pop_back();
+
+        for(std::string param: bdtVar){
+            bdtFunctions[index].push_back(ConvertStringToEnums(param));
         }
     }
 
-    for(int j = 0; j < nCores % (int)threadsPerFile.size(); j++){
-        threadsPerFile[j]++;
+    mutex.unlock();
+
+    Event event;
+
+    for (int i = entryStart; i < entryEnd; i++){
+        //Load event and fill event class
+        reader.SetEntry(i); 
+
+        event = {*electrons, *muons, *jets, *subjets, *fatjets, *MET, 1., *HT, *evtNum}; 
+
+        //Fill additional weights
+        std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec, 1.f/nGen};
+
+        for(const float &weight: weightVec){
+            event.weight *= weight;
+        }
+
+        //Check if event passes cut
+        bool passedCut = true;
+ 
+        for(unsigned int k = 0; k < cuts.size(); k++){
+            passedCut = Cut(event, cuts[k]);
+
+            //Fill Cutflow if event passes selection
+            if(passedCut){
+                cutflow->Fill(cutNames[k].c_str(), event.weight);
+            }
+
+            else{break;}
+        }   
+
+        if(passedCut){
+            valuesX.clear();
+
+            for(unsigned int l = 0; l < histograms1D.size(); l++){
+                valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
+                histograms1D[l].hist1D->Fill(valuesX[l], event.weight);
+
+               for(unsigned int m = 0; m < histograms2D[l].size(); m++){
+                    histograms2D[l][m].hist2D->Fill(valuesX[l], (this->*funcDir[histograms2D[l][m].func])(event, histograms2D[l][m]), event.weight);
+                }
+            }
+
+            //Fill tree if wished
+            if(saveTree) outputTree->Fill();
+        }
     }
 
-    std::vector<std::thread> threads;
+    //Lock again and merge local histograms into final histograms
+    mutex.lock();
 
-    int assignedCores = 0;
+    //Write histograms
+    outputFile->cd();
+        
+    if(writeCutFlow) cutflow->Write();
+    if(saveTree) outputTree->Write();
+    
+    else{
+        for(unsigned int l = 0; l < histograms1D.size(); l++){
+            histograms1D[l].hist1D->Write();
+            delete histograms1D[l].hist1D;
+
+            for(unsigned int m = 0; m < histograms2D[l].size(); m++){
+                histograms2D[l][m].hist2D->Write();
+                delete histograms2D[l][m].hist2D;
+            }
+        }
+    }
+
+    delete inputTree;
+    delete outputTree;
+    delete outputFile;
+    delete inputFile;
+    delete cutflow;
+
+    //Progress bar
+    if(nJobs != 0){
+        progress += 100*(1.f/nJobs);
+        ProgressBar(progress);
+    }
+
+    mutex.unlock();
+}
+
+std::vector<std::vector<std::pair<int, int>>> TreeReader::EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac){
+    std::vector<int> jobsPerFile(filenames.size(), 0); 
+
+    //Calculate number of jobs per file
+    for(unsigned int i = 0; i < jobsPerFile.size(); i++){
+        for(int j = 0; j < std::floor(nJobs/jobsPerFile.size()); j++){
+             jobsPerFile[i]++;
+        }
+    }
+
+    std::vector<std::vector<std::pair<int, int>>> entryRange(filenames.size(), std::vector<std::pair<int, int>>());
 
     for(unsigned int i = 0; i < filenames.size(); i++){
         //Get nGen for each file
         TFile* file = TFile::Open(filenames[i].c_str());
+        TTree* tree = NULL;
 
         if(!file->GetListOfKeys()->Contains(channel.c_str())){
             std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
-            continue;
         }
 
-        if(file->GetListOfKeys()->Contains("nGen")){
-            TH1F* genHist = (TH1F*)file->Get("nGen");
-            nGen = genHist->Integral();
-        }
+        else tree = (TTree*)file->Get(channel.c_str());
 
-        //Get cutflow of all files
-        if(cutflow == NULL){
-            cutflow = (TH1F*)file->Get(("cutflow_" + channel).c_str())->Clone();
-            cutflow->SetName("cutflow");
-            cutflow->SetTitle("cutflow");
-            cutflow->Scale(1./nGen);
-        }
+        for(int j = 0; j < jobsPerFile[i]; j++){
+            if(j != jobsPerFile[i] - 1 and tree != NULL){
+                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], (j+1)*tree->GetEntries()*frac/jobsPerFile[i]});
+            }
 
-        else{
-            TH1F* copy = (TH1F*)file->Get(("cutflow_" + channel).c_str())->Clone();
-            copy->Scale(1./nGen);
-            cutflow->Add(copy);
-        }
-
-        for(int j = 0; j < threadsPerFile[i]; j++){
-            //Make TChain for each file and wrap it with a vector, a TTree or bar TChain is not working
-            std::vector<TChain*> v;
-            TChain* chain = new TChain(channel.c_str());
-            chain->Add(filenames[i].c_str());
-
-            v.push_back(chain);
-
-            //Define entry range for each thread
-            if(j != threadsPerFile[i] - 1){
-                entryStart = j*chain->GetEntries()*frac/threadsPerFile[i];
-                entryEnd = (j+1)*chain->GetEntries()*frac/threadsPerFile[i];
+            else if(tree != NULL){
+                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], tree->GetEntries()*frac});
             }
 
             else{
-                entryStart = j*chain->GetEntries()*frac/threadsPerFile[i];
-                entryEnd = chain->GetEntries()*frac;
+                entryRange[i].push_back({-1., -1.});
             }
+        }
+    }
 
-            threads.push_back(std::thread(&TreeReader::ParallelisedLoop, this, v, entryStart, entryEnd, nGen));
+    return entryRange;
+}
+
+void TreeReader::Run(std::vector<std::string> &filenames, const float &frac){
+    //Configure threads
+    nJobs = (int)std::thread::hardware_concurrency();   
+
+    std::vector<std::thread> threads;
+    int assignedCores = 0;
+
+    //Get entry ranges
+    std::vector<std::vector<std::pair<int, int>>> entries = EntryRanges(filenames, nJobs, channel, frac);
+
+    for(unsigned int i = 0; i < filenames.size(); i++){
+        for(std::pair<int, int> range: entries[i]){
+            if(range.first == -1.) continue;
+
+            threads.push_back(std::thread(&TreeReader::ParallelisedLoop, this, filenames[i], range.first, range.second));
 
             //Set for each thread one core
             cpu_set_t cpuset;
@@ -540,8 +530,6 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, const float &fra
         }
     }
 
-    std::cout << assignedCores << std::endl;
-
     //Progress bar at 0 %
     ProgressBar(progress);
 
@@ -552,44 +540,19 @@ void TreeReader::EventLoop(std::vector<std::string> &filenames, const float &fra
 
     //Progress bar at 100%
     ProgressBar(100);
-}
-
-//Write File
-
-void TreeReader::Write(){
-    if(saveTree){
-        outputFile->Close();
-        std::system(std::string("hadd -f " + outname + " " + process + "_*").c_str());
-        std::system(std::string("command rm "  + process + "_*").c_str());
-    }
-
-    else{
-        outputFile->cd();
-
-        if(writeCutFlow){
-            cutflow->Write();
-        }
-
-        for(unsigned int i = 0; i < merged1DHistograms.size(); i++){
-            merged1DHistograms[i].hist1D->Write();
-            delete merged1DHistograms[i].hist1D;
-
-            for(unsigned int j = 0; j < merged2DHistograms[i].size(); j++){
-                merged2DHistograms[i][j].hist2D->Write();
-                delete merged2DHistograms[i][j].hist2D;
-            }
-        }
-        
-        outputFile->Close(); 
-    }
-
-    //Remove files from gROOT
-    TSeqCollection* fileList = gROOT->GetListOfFiles();
-    
-    for(int i = 0; i < fileList->GetSize(); i++){
-        delete fileList->At(i);
-    }
 
     end = std::chrono::steady_clock::now();
-    std::cout << "Created histograms for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
+    std::cout << "Created output for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
+}
+
+void TreeReader::Run(std::string &fileName, int &entryStart, int &entryEnd){
+    ParallelisedLoop(fileName, entryStart, entryEnd);
+
+    end = std::chrono::steady_clock::now();
+    std::cout << "Created output for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
+}
+
+void TreeReader::Merge(){
+    std::system(std::string("hadd -f " + outname + " " + process + "_*").c_str());
+    std::system(std::string("command rm " + process + "_*").c_str());
 }
