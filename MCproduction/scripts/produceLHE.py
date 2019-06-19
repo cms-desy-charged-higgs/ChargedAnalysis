@@ -31,7 +31,7 @@ def setMadgraph():
     for command in commands:
         os.system(command)
 
-    print "!!!! Change in MG5_aMC_v2_6_4/models/2HDMC/makefile f77 to gfortran !!!!"
+    print("!!!! Change in MG5_aMC_v2_6_4/models/2HDMC/makefile f77 to gfortran !!!!")
 
 
 def writeCommand(MHc, Mh, nEvents):
@@ -92,7 +92,7 @@ def submit(MHc, Mh):
     while(True):
         try: 
             submit(schedd, job)
-            print "Submit job for LHE file production"
+            print("Submit job for LHE file production")
             break    
 
         except:
