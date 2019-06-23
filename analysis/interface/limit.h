@@ -14,17 +14,21 @@ class Limit {
         ch::CombineHarvester cb;
         ch::Categories bins;
 
-        std::vector<std::string> masses;
+        std::string mass;
         std::vector<std::string> channels;
         std::vector<std::string> bkgProc;
+        std::string outDir;
         std::vector<std::string> sigProc;
+
+        std::map<std::string, std::string> chanToDir;
 
         void SetSyst();
 
     public:
         Limit();
-        Limit(std::vector<std::string> &masses, std::vector<std::string> &channels, std::vector<std::string> &bkgProc);
-        void WriteDatacard();
+        Limit(std::string &mass, std::vector<std::string> &channels, std::vector<std::string> &bkgProc, std::string &outDir);
+        void WriteDatacard(std::string &histDir);
+        void CalcLimit();
 };
 
 #endif
