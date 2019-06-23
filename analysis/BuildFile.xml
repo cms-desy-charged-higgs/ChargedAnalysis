@@ -5,6 +5,7 @@
 <use name="rootgraphics"/>
 <use name="roottmva"/>
 
+<use name="CombineHarvester/CombineTools"/>
 <use name="CondFormats/BTauObjects"/>
 <use name="CondTools/BTau"/>
 <use name="JetMETCorrections/Modules"/>
