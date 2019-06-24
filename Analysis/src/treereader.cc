@@ -358,11 +358,11 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
     //BDT intialization
     if(isBDT){
         std::map<std::string, std::string> chanPaths = {
-                    {"e4j", "Electron4J"},
+                    {"e4j", "Ele4J"},
                     {"mu4j", "Muon4J"},
-                    {"e2j1f", "Electron2J1F"},
+                    {"e2j1f", "Ele2J1F"},
                     {"mu2j1f", "Muon2J1F"},
-                    {"e2f", "Electron2F"},
+                    {"e2f", "Ele2F"},
                     {"mu2f", "Muon2F"},
         };
 
