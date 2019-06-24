@@ -150,7 +150,7 @@ class TaskManager(object):
                 ##Translate task config into yaml like string
                 yamlInfo = yaml.dump(dicToNiceHtml(task), default_flow_style=False, width=float("inf"), indent=4).replace("\n", "<br>").replace("\'", "").replace("    ", "&emsp;&emsp;")
 
-                divPos[task["name"]] = (task["dependencies"], yamlInfo, task["status"], task["display_name"], layerIndex*400, index*40)
+                divPos[task["name"]] = (task["dependencies"], yamlInfo, task["status"], task["display-name"], layerIndex*400, index*40)
 
                 if index*40 + 40 > maxheight:
                     maxheight = index*40 + 40

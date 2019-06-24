@@ -15,8 +15,8 @@ class Task(dict):
         ##Update with input config
         self.update(config)
 
-        if "display_name" not in self:
-            self["display_name"] = self["name"]
+        if "display-name" not in self:
+            self["display-name"] = self["name"]
 
         self._allowParallel = True
 
