@@ -20,13 +20,20 @@ BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate,
 }
 
 float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::vector<std::string> &signals, std::vector<std::string> &backgrounds, std::string &evType){
+
     //Open output file
-    TFile* outputFile = TFile::Open((resultDir + "/" + evType + "/BDT.root").c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open((resultDir + "/BDT.root").c_str(), "RECREATE");
 
     //Relevant TMVA instances
     TMVA::Tools::Instance();
     TMVA::Factory* factory = new TMVA::Factory("BDT", outputFile);
-    TMVA::DataLoader* loader = new TMVA::DataLoader("TempBDTdir");
+
+    std::ostringstream thisString;
+    thisString << (void*)this;
+    std::string tempDir = "BDT_" + thisString.str();
+    TMVA::DataLoader* loader = new TMVA::DataLoader(tempDir);
+
+    (TMVA::gConfig().GetVariablePlotting()).fMaxNumOfAllowedVariablesForScatterPlots = 0.;
 
     //Add trainings variables
     for(std::string &xParameter: xParameters){
@@ -39,11 +46,14 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
     std::string train = evType == "Even" ? "Odd": "Even";
     int nSig = 0., nBkg = 0.;
 
+
     for(std::string &signal: signals){
         std::string massPoint = std::string(signal.begin()+4, signal.begin()+7);
 
         TFile* sigFile = TFile::Open((treeDir + "/" + train + "/" + massPoint + "/" + signal + ".root").c_str());
+
         TTree* sigTree = (TTree*)sigFile->Get(signal.c_str());
+
         sigTree->GetBranch(("const_" + massPoint).c_str())->SetTitle("mass");
         sigTree->GetBranch(("const_" + massPoint).c_str())->SetName("mass");
 
@@ -73,18 +83,17 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
     factory->TestAllMethods();
     factory->EvaluateAllMethods();
 
-    //Move output to wished directory
-    std::system(std::string("rsync -a --delete-after TempBDTdir/weights " + resultDir + "/" + evType).c_str());
-    std::system(std::string("command rm -r TempBDTdir").c_str());
+    float ROCCurve = factory->GetROCIntegral(loader, "BDT");
 
-    //Remove files from gROOT
-    TSeqCollection* fileList = gROOT->GetListOfFiles();
-    
-    for(int i = 0; i < fileList->GetSize(); i++){
-        delete fileList->At(i);
-    }
+    outputFile->Close();
+    delete factory;
+    delete loader;
 
-    return factory->GetROCIntegral(loader, "BDT");
+    std::system(std::string("rsync -a --delete-after " + tempDir + "/weights " + resultDir).c_str());
+    std::system(std::string("command rm -r " + tempDir).c_str());
+
+   
+    return ROCCurve;
 }
 
 std::vector<std::string> BDT::SetEvaluation(const std::string &bdtPath){
@@ -92,7 +101,10 @@ std::vector<std::string> BDT::SetEvaluation(const std::string &bdtPath){
 
     //Get input variables from TestTree branch names
     TFile* bdtFile = TFile::Open((bdtPath + "/BDT.root").c_str());
-    TTree* tree = (TTree*)bdtFile->Get("TempBDTdir/TestTree");
+
+    std::string dir = bdtFile->GetListOfKeys()->At(0)->GetName();
+
+    TTree* tree = (TTree*)bdtFile->Get((dir + "/TestTree").c_str());
     TObjArray* branches = tree->GetListOfBranches();
 
     for(int i = 2; i < branches->GetEntries() - 2; i++){

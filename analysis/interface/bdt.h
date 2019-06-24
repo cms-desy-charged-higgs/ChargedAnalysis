@@ -13,6 +13,7 @@
 #include <TMVA/DataLoader.h>
 #include <TMVA/Reader.h>
 #include <TMVA/Tools.h>
+#include <TMVA/Config.h>
 
 class BDT{
     private:
