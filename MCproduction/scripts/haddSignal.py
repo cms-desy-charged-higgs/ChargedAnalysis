@@ -21,39 +21,55 @@ def main():
 
     ##Get all files of NANO AOD
     nanoFiles = ["{}/{}".format(args.signal_dir, nano) for nano in os.listdir(args.signal_dir) if "NANO" in nano]
+    miniFiles = ["{}/{}".format(args.signal_dir, mini) for mini in os.listdir(args.signal_dir) if "MINI" in mini]
     
     ##Split hadd process because if too many files it fails
+    splittedMiniFiles = [miniFiles[i:i + 100] for i in xrange(0, len(miniFiles), 100)]
     splittedNanoFiles = [nanoFiles[i:i + 100] for i in xrange(0, len(nanoFiles), 100)]
+
+    files = {"MINI": splittedMiniFiles, "NANO": splittedNanoFiles}
     
-    ##List if intermediate hadded files
-    splittedHaddFiles = []
-    
-    ##Template names of files for hadd command
-    splittedTarget = "{}/Hc+hTol4b_MHc{}_Mh{}_{}_NANOAOD.root"
-    endTarget= "{}/Hc+hTol4b_MHc{}_Mh{}_NANOAOD.root".format(args.signal_dir, args.MHc, args.Mh)
-
-    for index, splitted in enumerate(splittedNanoFiles):
-        ##Hadd intermediate targets in list
-        target = splittedTarget.format(args.signal_dir, args.MHc, args.Mh, index)
-        splittedHaddFiles.append(target)
-
-        os.system("haddnano.py {} {}".format(target, " ".join(splitted)))
-
-    ##Do the final hadd command
-    os.system("haddnano.py {} {}".format(endTarget, " ".join(splittedHaddFiles)))
-
-    for splitted in splittedHaddFiles:
-        os.system("command rm {}".format(splitted))
-
-    ##Copy to dCache
-    os.system("gfal-mkdir -p 'srm://dcache-se-cms.desy.de:8443/srm/managerv2?SFN=/pnfs/desy.de/cms/tier2/store/user/{}/signalMC/Hc+hTol4b_MHc{}_Mh{}/NANOAOD'".format(os.environ["CERN_USER"], args.MHc, args.Mh))
+    for typ in ["MINI"]:
+        ##List if intermediate hadded files
+        splittedHaddFiles = []
         
-    localfile = "{}".format(endTarget)
+        ##Template names of files for hadd command
+        splittedTarget = "{}/Hc+hTol4b_MHc{}_Mh{}_{}_{}AOD.root"
+        endTarget= "{}/Hc+hTol4b_MHc{}_Mh{}_{}AOD.root".format(args.signal_dir, args.MHc, args.Mh, typ)
 
-    dCache = "srm://dcache-se-cms.desy.de:8443//pnfs/desy.de/cms/tier2/store/user/{}/signalMC/Hc+hTol4b_MHc{}_Mh{}/NANOAOD/{}".format(os.environ["CERN_USER"], args.MHc, args.Mh, endTarget.split("/")[-1])
+        command = {"MINI": "edmCopyPickMerge inputFiles={} outputFile={}", "NANO": "haddnano.py {} {}"}
+        delimiter = {"MINI": ",", "NANO": " "}
 
-    print "gfal-copy -n 1 -f -r '{}' '{}'".format(localfile, dCache)
-    os.system("gfal-copy -n 1 -f -r '{}' '{}'".format(localfile, dCache))
+        for index, splitted in enumerate(files[typ]):
+            ##Hadd intermediate targets in list
+            target = splittedTarget.format(args.signal_dir, args.MHc, args.Mh, index, typ)
+            splittedHaddFiles.append(target)
+
+            if "MINI":
+                os.system(command[typ].format(delimiter[typ].join(["file:{}".format(f) for f in splitted]), target))
+
+            else: 
+                os.system(command[typ].format(target, delimiter[typ].join(splitted)))
+
+        ##Do the final hadd command
+        if "MINI":
+            os.system(command[typ].format(delimiter[typ].join(["file:{}".format(f) for f in splittedHaddFiles]), endTarget))
+
+        else:
+            os.system(command[typ].format(endTarget, delimiter[typ].join(splittedHaddFiles)))
+
+        for splitted in splittedHaddFiles:
+            os.system("command rm {}".format(splitted))
+
+        ##Copy to dCache
+        os.system("gfal-mkdir -p 'srm://dcache-se-cms.desy.de:8443/srm/managerv2?SFN=/pnfs/desy.de/cms/tier2/store/user/{}/signal/Hc+hTol4b_MHc{}_Mh{}/{}AOD'".format(os.environ["CERN_USER"], args.MHc, args.Mh), typ)
+            
+        localfile = "{}".format(endTarget)
+
+        dCache = "srm://dcache-se-cms.desy.de:8443//pnfs/desy.de/cms/tier2/store/user/{}/signal/Hc+hTol4b_MHc{}_Mh{}/{}AOD/{}".format(os.environ["CERN_USER"], args.MHc, args.Mh, typ, endTarget.split("/")[-1])
+
+        print "gfal-copy -n 1 -f -r '{}' '{}'".format(localfile, dCache)
+        os.system("gfal-copy -n 1 -f -r '{}' '{}'".format(localfile, dCache))
 
 if __name__ == "__main__":
     main()
