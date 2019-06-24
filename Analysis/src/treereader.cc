@@ -1,4 +1,4 @@
-#include <ChargedHiggs/analysis/interface/treereader.h>
+#include <ChargedHiggs/Analysis/interface/treereader.h>
 
 //Constructor
 

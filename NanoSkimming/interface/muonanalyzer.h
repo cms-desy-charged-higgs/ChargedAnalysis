@@ -1,7 +1,7 @@
 #ifndef MUONANALYZER_H
 #define MUONANALYZER_H
 
-#include <ChargedHiggs/nano_skimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
 
 //Muon class to be safed in tree
 struct Muon {

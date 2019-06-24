@@ -1,4 +1,4 @@
-#include <ChargedHiggs/nano_skimming/interface/weightanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/weightanalyzer.h>
 
 WeightAnalyzer::WeightAnalyzer(const float era, const float xSec):
     BaseAnalyzer(),

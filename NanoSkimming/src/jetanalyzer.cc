@@ -1,4 +1,4 @@
-#include <ChargedHiggs/nano_skimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/jetanalyzer.h>
 
 JetAnalyzer::JetAnalyzer(const int &era, const float &ptCut, const float &etaCut, const std::vector<std::pair<unsigned int, unsigned int>> minNJet):
     BaseAnalyzer(),    

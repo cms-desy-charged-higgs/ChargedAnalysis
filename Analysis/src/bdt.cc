@@ -1,4 +1,4 @@
-#include <ChargedHiggs/analysis/interface/bdt.h>
+#include <ChargedHiggs/Analysis/interface/bdt.h>
 
 BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate, const int &nCuts, const int &treeDepth, const int &dropOut, const std::string &sepType){
     //Write string which configures the hyperparameter space

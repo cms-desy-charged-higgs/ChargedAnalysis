@@ -1,4 +1,4 @@
-#include <ChargedHiggs/nano_skimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/electronanalyzer.h>
 
 ElectronAnalyzer::ElectronAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNEle):
     BaseAnalyzer(),    

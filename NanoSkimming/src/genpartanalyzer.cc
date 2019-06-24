@@ -1,4 +1,4 @@
-#include <ChargedHiggs/nano_skimming/interface/genpartanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/genpartanalyzer.h>
 
 GenPartAnalyzer::GenPartAnalyzer():
     BaseAnalyzer(){}

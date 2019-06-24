@@ -1,7 +1,7 @@
 #ifndef JETANALYZER_H
 #define JETANALYZER_H
 
-#include <ChargedHiggs/nano_skimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
 
 #include <random>
 

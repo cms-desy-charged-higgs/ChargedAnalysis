@@ -1,7 +1,7 @@
 #ifndef PLOTTER2D_H
 #define PLOTTER2D_H
 
-#include <ChargedHiggs/analysis/interface/plotter.h>
+#include <ChargedHiggs/Analysis/interface/plotter.h>
 
 #include <TCanvas.h>
 #include <TFile.h>

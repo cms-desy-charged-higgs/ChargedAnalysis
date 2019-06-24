@@ -1,4 +1,4 @@
-#include <ChargedHiggs/nano_skimming/interface/triggeranalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/triggeranalyzer.h>
 
 TriggerAnalyzer::TriggerAnalyzer(const std::vector<std::string> &triggerPaths):
     BaseAnalyzer(),

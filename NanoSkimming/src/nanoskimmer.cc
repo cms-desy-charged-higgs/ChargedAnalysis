@@ -1,12 +1,12 @@
-#include <ChargedHiggs/nano_skimming/interface/nanoskimmer.h>
+#include <ChargedHiggs/NanoSkimming/interface/nanoskimmer.h>
 
-#include <ChargedHiggs/nano_skimming/interface/triggeranalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/metfilteranalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/electronanalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/muonanalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/jetanalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/genpartanalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/weightanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/triggeranalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/metfilteranalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/muonanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/genpartanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/weightanalyzer.h>
 
 NanoSkimmer::NanoSkimmer(){}
 

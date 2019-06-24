@@ -27,11 +27,11 @@
 #include <TTreeReaderValue.h>
 #include <TMath.h>
 
-#include <ChargedHiggs/nano_skimming/interface/electronanalyzer.h>
-#include <ChargedHiggs/nano_skimming/interface/muonanalyzer.h> 
-#include <ChargedHiggs/nano_skimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/muonanalyzer.h> 
+#include <ChargedHiggs/NanoSkimming/interface/jetanalyzer.h>
 
-#include <ChargedHiggs/analysis/interface/bdt.h>
+#include <ChargedHiggs/Analysis/interface/bdt.h>
 
 
 class TreeReader {

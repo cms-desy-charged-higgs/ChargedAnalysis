@@ -1,4 +1,4 @@
-#include <ChargedHiggs/analysis/interface/plotterCut.h>
+#include <ChargedHiggs/Analysis/interface/plotterCut.h>
 
 PlotterCut::PlotterCut() : Plotter(){}
 

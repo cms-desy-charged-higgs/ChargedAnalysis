@@ -1,7 +1,7 @@
 #ifndef METFILTERANALYZER_H
 #define METFILTERANALYZER_H
 
-#include <ChargedHiggs/nano_skimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
 
 #include <numeric>
 
