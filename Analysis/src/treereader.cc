@@ -555,4 +555,10 @@ void TreeReader::Run(std::string &fileName, int &entryStart, int &entryEnd){
 void TreeReader::Merge(){
     std::system(std::string("hadd -f " + outname + " " + process + "_*").c_str());
     std::system(std::string("command rm " + process + "_*").c_str());
+
+    TSeqCollection* fileList = gROOT->GetListOfFiles();
+
+    for(int i=0; i < fileList->GetSize(); i++){
+        delete fileList->At(i);
+    }
 }
