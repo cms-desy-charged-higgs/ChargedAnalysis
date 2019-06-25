@@ -37,26 +37,18 @@ def main():
         splittedTarget = "{}/Hc+hTol4b_MHc{}_Mh{}_{}_{}AOD.root"
         endTarget= "{}/Hc+hTol4b_MHc{}_Mh{}_{}AOD.root".format(args.signal_dir, args.MHc, args.Mh, typ)
 
-        command = {"MINI": "edmCopyPickMerge inputFiles={} outputFile={}", "NANO": "haddnano.py {} {}"}
-        delimiter = {"MINI": ",", "NANO": " "}
+        command = {"MINI": "hadd {} {}", "NANO": "haddnano.py {} {}"}
+        delimiter = {"MINI": " ", "NANO": " "}
 
         for index, splitted in enumerate(files[typ]):
             ##Hadd intermediate targets in list
             target = splittedTarget.format(args.signal_dir, args.MHc, args.Mh, index, typ)
             splittedHaddFiles.append(target)
 
-            if "MINI":
-                os.system(command[typ].format(delimiter[typ].join(["file:{}".format(f) for f in splitted]), target))
-
-            else: 
-                os.system(command[typ].format(target, delimiter[typ].join(splitted)))
+            os.system(command[typ].format(target, delimiter[typ].join(splitted)))
 
         ##Do the final hadd command
-        if "MINI":
-            os.system(command[typ].format(delimiter[typ].join(["file:{}".format(f) for f in splittedHaddFiles]), endTarget))
-
-        else:
-            os.system(command[typ].format(endTarget, delimiter[typ].join(splittedHaddFiles)))
+        os.system(command[typ].format(endTarget, delimiter[typ].join(splittedHaddFiles)))
 
         for splitted in splittedHaddFiles:
             os.system("command rm {}".format(splitted))
