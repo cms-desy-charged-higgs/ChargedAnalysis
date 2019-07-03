@@ -27,7 +27,7 @@ class Limit {
     public:
         Limit();
         Limit(std::string &mass, std::vector<std::string> &channels, std::vector<std::string> &bkgProc, std::string &outDir);
-        void WriteDatacard(std::string &histDir);
+        void WriteDatacard(std::string &histDir, std::string &parameter);
         void CalcLimit();
 };
 

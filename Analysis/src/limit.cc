@@ -29,7 +29,7 @@ void Limit::SetSyst(){
       cb.cp().signals().AddSyst(cb, "conversativeSys", "lnN", ch::syst::SystMap<ch::syst::era>::init({"2017"}, 1.3));
 }
 
-void Limit::WriteDatacard(std::string &histDir){
+void Limit::WriteDatacard(std::string &histDir, std::string &parameter){
     cb.AddObservations({"*"}, {"HPlusWh"}, {"2017"}, {"*"},  bins);
     cb.AddProcesses({"*"}, {"HPlusWh"}, {"2017"}, {"*"}, bkgProc,  bins, false);  
     cb.AddProcesses({mass}, {"HPlusWh"}, {"2017"}, {"*"}, sigProc,  bins, true); 
@@ -40,10 +40,10 @@ void Limit::WriteDatacard(std::string &histDir){
 
     for(std::string channel: channels){
         for(std::string proc: bkgProc){
-            cb.cp().backgrounds().process({proc}).bin({channel}).ExtractShapes(histDir + "/" + chanToDir[channel] + "/" + mass + "/" + proc + ".root", "m_Hc", "");
+            cb.cp().backgrounds().process({proc}).bin({channel}).ExtractShapes(histDir + "/" + chanToDir[channel] + "/" + mass + "/" + proc + ".root", parameter, "");
         }
 
-        cb.cp().signals().process({"HPlus"}).bin({channel}).ExtractShapes(histDir + "/" + chanToDir[channel] + "/" + mass + "/L4B_" + mass + "_100.root", "m_Hc", "");
+        cb.cp().signals().process({"HPlus"}).bin({channel}).ExtractShapes(histDir + "/" + chanToDir[channel] + "/" + mass + "/L4B_" + mass + "_100.root", parameter, "");
     }
 
     cb.cp().mass({mass, "*"}).WriteDatacard(outDir + "/datacard.txt", output);
@@ -53,6 +53,12 @@ void Limit::WriteDatacard(std::string &histDir){
 void Limit::CalcLimit(){
     std::system(("combine -d " + outDir + "/datacard.txt -M AsymptoticLimits --mass " + mass).c_str());
     std::system(("mv higgsCombineTest.AsymptoticLimits.mH" + mass + ".root " + outDir + "/limit.root").c_str());
+
+    std::system(("text2workspace.py " + outDir + "/datacard.txt --mass " + mass).c_str());
+    std::system(("combine -M FitDiagnostics " + outDir + "/datacard.txt --saveShapes --saveNormalizations --saveWithUncertainties --expectSignal 0 --mass " + mass + " -n " + mass).c_str());
+    std::system("command rm -f higgs*.FitDiagnostics.mH* combine_logger.out");
+    std::system(("mv fitDiagnostics" + mass + ".root " + outDir + "/fitDiagnostics.root").c_str());
+    std::system(("PostFitShapesFromWorkspace -d " + outDir + "/datacard.txt -o "+ outDir + "/fitshapes.root -f " + outDir + "/fitDiagnostics.root:fit_b --sampling --postfit -w " + outDir + "/datacard.root --mass " + mass).c_str());
 }
 
 
