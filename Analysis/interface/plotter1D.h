@@ -23,7 +23,6 @@ class Plotter1D : public Plotter{
         std::vector<std::vector<TH1F*>> background;
         std::vector<std::vector<TH1F*>> signal;
         std::vector<TH1F*> data;
-        std::map<std::string, int> colors;
 
     public:
         Plotter1D();
