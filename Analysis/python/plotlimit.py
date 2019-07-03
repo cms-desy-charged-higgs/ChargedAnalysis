@@ -39,7 +39,7 @@ class LimitPlot(Task):
     def run(self):
         self.__toStd()
 
-        plotter = PlotterLimit(self._stdDir["dir"], self._stdDir["masses"])
+        plotter = PlotterLimit(self._stdDir["limit-dir"], self._stdDir["masses"])
         plotter.ConfigureHists(vector("string")())
         plotter.Draw(vector("string")(1, self._stdDir["dir"]))
 

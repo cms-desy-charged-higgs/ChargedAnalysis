@@ -29,7 +29,7 @@ class LimitTask(Task):
         self.__toStd()
 
         limit = Limit(self._stdDir["mass"], self._stdDir["channel"], self._stdDir["background"], self._stdDir["dir"])
-        limit.WriteDatacard(self._stdDir["hist-dir"])
+        limit.WriteDatacard(self._stdDir["hist-dir"], self._stdDir["x-parameter"])
         limit.CalcLimit()
 
     def output(self):
