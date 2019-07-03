@@ -4,6 +4,7 @@
     <class name="Plotter1D"/>
     <class name="Plotter2D"/>
     <class name="PlotterLimit"/>
+    <class name="PlotterPostfit"/>
     <class name="PlotterCut"/>
     <class name="PlotterGen"/>
     <class name="BDT"/>

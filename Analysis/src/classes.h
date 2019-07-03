@@ -3,6 +3,7 @@
 #include <ChargedHiggs/Analysis/interface/plotter1D.h>
 #include <ChargedHiggs/Analysis/interface/plotter2D.h>
 #include <ChargedHiggs/Analysis/interface/plotterLimit.h>
+#include <ChargedHiggs/Analysis/interface/plotterPostfit.h>
 #include <ChargedHiggs/Analysis/interface/plotterCut.h>
 #include <ChargedHiggs/Analysis/interface/plotterGen.h>
 #include <ChargedHiggs/Analysis/interface/bdt.h>
@@ -15,6 +16,7 @@ namespace{
         Plotter1D plotter1D;
         Plotter2D plotter2D;
         PlotterLimit plotterLimit;
+        PlotterPostfit plotterPostfit;
         PlotterCut plotterCut;
         PlotterGen plotterGen;
         BDT bdt;
