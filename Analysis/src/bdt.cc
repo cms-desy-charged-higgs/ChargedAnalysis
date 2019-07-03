@@ -19,6 +19,10 @@ BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate,
     }
 }
 
+BDT::~BDT(){
+    delete reader;
+}
+
 float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::vector<std::string> &signals, std::vector<std::string> &backgrounds, std::string &evType){
 
     //Open output file
@@ -117,6 +121,8 @@ std::vector<std::string> BDT::SetEvaluation(const std::string &bdtPath){
    //Initialize reader;
     reader = new TMVA::Reader(paramNames, "Silent");
     reader->BookMVA("BDT", bdtPath + "/weights/BDT_BDT.weights.xml");
+
+    delete bdtFile;
 
     return paramNames;
 }
