@@ -1,53 +1,18 @@
 #include <ChargedHiggs/Analysis/interface/plotter.h>
 
-Plotter::Plotter(){}
-
 Plotter::~Plotter(){}
 
+Plotter::Plotter() :
+    Plotter("", {}, {}, ""){}
+
 Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel):
+    Plotter(histdir, xParameters, {}, channel){}
+
+Plotter::Plotter(const std::string &histdir, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::string &channel):
     histdir(histdir),
-    xParameters(xParameters),
-    yParameters({}),
     channel(channel),
-    procDic({
-            {"DY+j", BKG},
-            {"W+j", BKG},
-            {"SingleE", DATA},
-            {"SingleMu", DATA},
-            {"MET", DATA},
-            {"VV+VVV", BKG},
-            {"QCD", BKG},
-            {"TT+j-1L", BKG},
-            {"TT+j-2L", BKG},
-            {"TT+V", BKG},
-            {"T", BKG},
-            {"L4B_150_75", SIGNAL},
-            {"L4B_200_100", SIGNAL},
-            {"L4B_250_100", SIGNAL},
-            {"L4B_300_100", SIGNAL},
-            {"L4B_350_100", SIGNAL},
-            {"L4B_400_100", SIGNAL},
-            {"L4B_450_100", SIGNAL},
-            {"L4B_500_100", SIGNAL},
-            {"L4B_550_100", SIGNAL},
-            {"L4B_600_100", SIGNAL},
-    }),
-    channelHeader({
-            {"e4j", "e + 4j"},
-            {"mu4j", "#mu + 4j"},
-            {"e2j1f", "e + 2j + 1fj"},
-            {"mu2j1f", "#mu + 2j + 1fj"},
-            {"e2f", "e + 2fj + "},
-            {"mu2f", "#mu + 2fj"},
-    })
-{}
-
-
-Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel):
-    histdir(histdir),
     xParameters(xParameters),
     yParameters(yParameters),
-    channel(channel),
     procDic({
             {"DY+j", BKG},
             {"W+j", BKG},
@@ -78,8 +43,18 @@ Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, st
             {"mu2j1f", "#mu + 2j + 1fj"},
             {"e2f", "e + 2fj"},
             {"mu2f", "#mu + 2fj"},
+    }),
+    colors({
+        {"DY+j", kRed + -7}, 
+        {"TT+j-1L", kYellow -7}, 
+        {"TT+j-2L", kYellow +4}, 
+        {"TT+V", kOrange +2},            
+        {"T", kGreen  + 2},             
+        {"W+j", kCyan + 2},             
+        {"QCD", kBlue -3},             
+        {"VV+VVV", kViolet -3},
     })
-{}
+    {}
 
 void Plotter::SetStyle(){
     //Style options
