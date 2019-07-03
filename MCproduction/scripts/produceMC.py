@@ -40,7 +40,7 @@ def condor_submit(MHc, Mh, fragment, lhefile):
     job["error"]                    = "{}/log/job_$(Cluster).err".format(outdir)
 
     job["when_to_transfer_output"] = "ON_EXIT"
-    job["transfer_output_remaps"] = '"' + '{filename}_NANOAOD.root = {outdir}/{filename}_NANOAOD.root;{filename}_MINIAOD.root = {outdir}/{filename}_MINIAOD.root'.format(filename=name, outdir=outdir) + '"'
+    job["transfer_output_remaps"] = '"' + '{filename}_NANOAOD.root = {outdir}/{filename}_NANOAOD.root;{filename}_MINIAOD.root = {outdir}/{filename}_MINIAOD.root;{filename}_AOD.root = {outdir}/{filename}_AOD.root'.format(filename=name, outdir=outdir) + '"'
 
     job["on_exit_hold"] = "(ExitBySignal == True) || (ExitCode != 0)"  
     job["periodic_release"] =  "(NumJobStarts < 100) && ((CurrentTime - EnteredCurrentStatus) > 60)"
