@@ -6,17 +6,7 @@ Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters
     Plotter(histdir, xParameters, channel),
     background({}),
     signal({}),
-    data({}),
-    colors({
-        {"DY+j", kRed + -7}, 
-        {"TT+j-1L", kYellow -7}, 
-        {"TT+j-2L", kYellow +4}, 
-        {"TT+V", kOrange +2},            
-        {"T", kGreen  + 2},             
-        {"W+j", kCyan + 2},             
-        {"QCD", kBlue -3},             
-        {"VV+VVV", kViolet -3},
-    })
+    data({})
  {}
 
 void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
