@@ -1,15 +1,14 @@
-#include <ChargedHiggs/NanoSkimming/interface/genpartanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/genpartanalyzer.h>
 
-GenPartAnalyzer::GenPartAnalyzer():
-    BaseAnalyzer(){}
+GenPartAnalyzer::GenPartAnalyzer(TTreeReader& reader):
+    BaseAnalyzer(&reader){}
 
-
-void GenPartAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
+void GenPartAnalyzer::BeginJob(TTree* tree, bool &isData){
     //Set data bool
     this->isData = isData;
     
     //Set TTreeReader for genpart and trigger obj from baseanalyzer
-    SetCollection(reader, this->isData);
+    SetCollection(this->isData);
 
     //Set Branches of output tree
     tree->Branch("genPart", &genParts);

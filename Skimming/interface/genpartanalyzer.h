@@ -1,7 +1,7 @@
 #ifndef GENPARTANALYZER_H
 #define GENPARTANALYZER_H
 
-#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/baseanalyzer.h>
 
 //Jet class to be safed in tree
 struct GenPart {
@@ -21,8 +21,8 @@ class GenPartAnalyzer: public BaseAnalyzer{
         GenPart genParts;
 
     public:
-        GenPartAnalyzer();
-        void BeginJob(TTreeReader &reader, TTree* tree, bool &isData);
+        GenPartAnalyzer(TTreeReader &reader);
+        void BeginJob(TTree* tree, bool &isData);
         bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };

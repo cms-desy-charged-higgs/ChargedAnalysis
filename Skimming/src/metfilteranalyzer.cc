@@ -1,10 +1,10 @@
-#include <ChargedHiggs/NanoSkimming/interface/metfilteranalyzer.h>
+#include <ChargedHiggs/Skimming/interface/metfilteranalyzer.h>
 
-MetFilterAnalyzer::MetFilterAnalyzer(const int &era):
-    BaseAnalyzer(),
+MetFilterAnalyzer::MetFilterAnalyzer(const int &era, TTreeReader &reader):
+    BaseAnalyzer(&reader),
     era(era){}
 
-void MetFilterAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
+void MetFilterAnalyzer::BeginJob(TTree *tree, bool &isData){
     //Set Filter names for each era
     filterNames = {
                 {2017, {"Flag_goodVertices",
@@ -20,7 +20,7 @@ void MetFilterAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData)
 
     //Set TTreeReaderValues
     for(std::string filterName: filterNames[era]){
-        filterValues.push_back(std::make_unique<TTreeReaderValue<bool>>(reader, filterName.c_str()));
+        filterValues.push_back(std::make_unique<TTreeReaderValue<bool>>(*reader, filterName.c_str()));
     }
 
 }

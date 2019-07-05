@@ -1,7 +1,7 @@
 #ifndef WEIGHTANALYZER_H
 #define WEIGHTANALYZER_H
 
-#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/baseanalyzer.h>
 
 class WeightAnalyzer : public BaseAnalyzer {
     private:
@@ -34,8 +34,8 @@ class WeightAnalyzer : public BaseAnalyzer {
 
 
     public:
-        WeightAnalyzer(const float era, const float xSec);
-        void BeginJob(TTreeReader &reader, TTree *tree, bool &isData);
+        WeightAnalyzer(const float era, const float xSec, TTreeReader &reader);
+        void BeginJob(TTree *tree, bool &isData);
         bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };

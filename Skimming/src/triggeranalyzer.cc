@@ -1,13 +1,13 @@
-#include <ChargedHiggs/NanoSkimming/interface/triggeranalyzer.h>
+#include <ChargedHiggs/Skimming/interface/triggeranalyzer.h>
 
-TriggerAnalyzer::TriggerAnalyzer(const std::vector<std::string> &triggerPaths):
-    BaseAnalyzer(),
+TriggerAnalyzer::TriggerAnalyzer(const std::vector<std::string> &triggerPaths, TTreeReader& reader):
+    BaseAnalyzer(&reader),
     triggerPaths(triggerPaths){}
 
-void TriggerAnalyzer::BeginJob(TTreeReader &reader, TTree *tree, bool &isData){
+void TriggerAnalyzer::BeginJob(TTree *tree, bool &isData){
     //TTreeReader Values
     for(std::string triggerPath: triggerPaths){
-        triggerValues.push_back(std::make_unique<TTreeReaderValue<bool>>(reader, triggerPath.c_str()));
+        triggerValues.push_back(std::make_unique<TTreeReaderValue<bool>>(*reader, triggerPath.c_str()));
     }
 
     triggerResults = std::vector<int>(triggerPaths.size(), 0);

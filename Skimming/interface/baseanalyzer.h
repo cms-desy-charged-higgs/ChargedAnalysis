@@ -26,9 +26,11 @@ struct GenParticles{
 class BaseAnalyzer{
     protected:
         //File path for SF etc.
-        std::string filePath = std::string(std::getenv("CMSSW_BASE")) + "/src/ChargedHiggs/nano_skimming/data/";
+        std::string filePath = std::string(std::getenv("CMSSW_BASE")) + "/src/ChargedHiggs/Skimming/data/";
 
-        //Collection which are used in several analyzers
+        //Collection which are used in several analyzers if NANO AOD is analyzed
+        TTreeReader* reader;
+
         std::unique_ptr<TTreeReaderArray<float>> trigObjPhi;
         std::unique_ptr<TTreeReaderArray<float>> trigObjEta;
         std::unique_ptr<TTreeReaderArray<int>> trigObjID;
@@ -43,7 +45,7 @@ class BaseAnalyzer{
         std::unique_ptr<TTreeReaderArray<int>> genStatus;
 
         //Set trihObj and Gen particle collection
-        void SetCollection(TTreeReader &reader, bool &isData);
+        void SetCollection(bool &isData);
         
         //Trigger matching
         bool triggerMatching(const TLorentzVector &particle, const int &particleID);
@@ -51,7 +53,8 @@ class BaseAnalyzer{
     public:
         virtual ~BaseAnalyzer(){};
         BaseAnalyzer();
-        virtual void BeginJob(TTreeReader &reader, TTree *tree, bool &isData) = 0;
+        BaseAnalyzer(TTreeReader* reader);
+        virtual void BeginJob(TTree *tree, bool &isData) = 0;
         virtual bool Analyze(std::pair<TH1F*, float> &cutflow) = 0;
         virtual void EndJob(TFile* file) = 0;
 };

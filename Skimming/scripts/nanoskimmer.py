@@ -21,7 +21,7 @@ def parser():
 def main():
     args = parser()
 
-    xSecFile = yaml.load(file("{}/src/ChargedHiggs/nano_skimming/data/xsec.yaml".format(os.environ["CMSSW_BASE"]), "r"))
+    xSecFile = yaml.load(file("{}/src/ChargedHiggs/Skimming/data/xsec.yaml".format(os.environ["CMSSW_BASE"]), "r"))
 
     xSec = 1.
 
@@ -35,8 +35,7 @@ def main():
     [channels.push_back(channel) for channel in args.channel]
 
     skimmer = NanoSkimmer(args.filename, isData)
-    skimmer.Configure(xSec)
-    skimmer.EventLoop(channels)
+    skimmer.EventLoop(channels, xSec)
     skimmer.WriteOutput(args.out_name)
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
 #ifndef MUONANALYZER_H
 #define MUONANALYZER_H
 
-#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/baseanalyzer.h>
+#include <DataFormats/PatCandidates/interface/Muon.h>
 
 //Muon class to be safed in tree
 struct Muon {
@@ -55,7 +56,10 @@ class MuonAnalyzer: public BaseAnalyzer{
         float etaCut;
         unsigned int minNMuon;
 
-        //TTreeReader Values
+        //Pat vector for Mini AOD analysis
+        edm::Handle<std::vector<pat::Muon>> muons;
+
+        //TTreeReader Values for NANO AOD analysis
         std::unique_ptr<TTreeReaderArray<float>> muonPt;
         std::unique_ptr<TTreeReaderArray<float>> muonEta;
         std::unique_ptr<TTreeReaderArray<float>> muonPhi;
@@ -72,8 +76,10 @@ class MuonAnalyzer: public BaseAnalyzer{
         void SetGenParticles(Muon &validMuon, const int &i);
 
     public:
-        MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon);
-        void BeginJob(TTreeReader &reader, TTree* tree, bool &isData);
+        MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon, TTreeReader& reader);
+        MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon, edm::Handle<std::vector<pat::Muon>> muons);
+
+        void BeginJob(TTree* tree, bool &isData);
         bool Analyze(std::pair<TH1F*, float> &cutflow);
         void EndJob(TFile* file);
 };

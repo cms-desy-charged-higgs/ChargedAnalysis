@@ -1,61 +1,25 @@
-#include <ChargedHiggs/NanoSkimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/jetanalyzer.h>
 
-JetAnalyzer::JetAnalyzer(const int &era, const float &ptCut, const float &etaCut, const std::vector<std::pair<unsigned int, unsigned int>> minNJet):
-    BaseAnalyzer(),    
+JetAnalyzer::JetAnalyzer(const int &era, const float &ptCut, const float &etaCut, const std::vector<std::pair<unsigned int, unsigned int>> minNJet, TTreeReader &reader):
+    BaseAnalyzer(&reader),    
     era(era),
     ptCut(ptCut),
     etaCut(etaCut),
     minNJet(minNJet)
-    {
-        bTagSF = {
-                {AK4, {
-                        {2017, filePath + "/btagSF/DeepFlavour_94XSF_V1_B_F.csv"},
-                    }
-                },
+    {}
 
-                {AK8, {
-                        {2017, filePath + "/btagSF/subjet_DeepCSV_94XSF_V4_B_F.csv"},
-                    }
-                },
-        };
-
-        JMESF = {
-                {AK4, {
-                        {2017, filePath + "/JME/Fall17_V3_MC_SF_AK4PFchs.txt"},
-                    }
-                },       
-
-                {AK8, {
-                        {2017, filePath + "/JME/Fall17_V3_MC_SF_AK8PFchs.txt"},
-                    }
-                },             
-        };
-
-        JMEPtReso = {
-                {AK4, {
-                        {2017, filePath + "/JME/Fall17_V3_MC_PtResolution_AK4PFchs.txt"},
-                    }
-                },       
-
-                {AK8, {
-                        {2017, filePath + "/JME/Fall17_V3_MC_PtResolution_AK8PFchs.txt"},
-                    }
-                },
-        };
-
-        //https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation94
-        bTagCuts = {
-                {AK4, {
-                        {2017, {0.051, 0.3033, 0.7489}}, //Loose, Medium, Tight
-                    }
-                },
-
-                {AK8, {
-                        {2017, {0.1522, 0.4941}}, //Loose, Medium, Tight
-                    }
-                },
-        };
-    }
+JetAnalyzer::JetAnalyzer(const int &era, const float &ptCut, const float &etaCut, const std::vector<std::pair<unsigned int, unsigned int>> minNJet, edm::Handle<std::vector<pat::Jet>> jets, edm::Handle<std::vector<pat::Jet>> fatjets, edm::Handle<std::vector<pat::Jet>> genjets, edm::Handle<std::vector<pat::Jet>> genfatjets, edm::Handle<std::vector<pat::MET>> mets):
+    BaseAnalyzer(),    
+    era(era),
+    ptCut(ptCut),
+    etaCut(etaCut),
+    minNJet(minNJet),
+    jets(jets),
+    fatjets(fatjets),
+    genjets(genjets),
+    genfatjets(genfatjets),
+    mets(mets)
+    {}
 
 //https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution#Smearing_procedures
 //https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_25/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h#L203-L263
@@ -166,50 +130,92 @@ void JetAnalyzer::SetGenParticles(Jet &validJet, const int &i){
     }
 }
 
-void JetAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
+void JetAnalyzer::BeginJob(TTree* tree, bool &isData){
+    bTagSF = {
+            {AK4, {
+                {2017, filePath + "/btagSF/DeepFlavour_94XSF_V1_B_F.csv"},
+                }
+            },
+
+            {AK8, {
+                 {2017, filePath + "/btagSF/subjet_DeepCSV_94XSF_V4_B_F.csv"},
+                }
+            },
+    };
+
+    JMESF = {
+            {AK4, {
+                {2017, filePath + "/JME/Fall17_V3_MC_SF_AK4PFchs.txt"},
+                }
+            },       
+
+            {AK8, {
+                {2017, filePath + "/JME/Fall17_V3_MC_SF_AK8PFchs.txt"},
+                }
+            },             
+    };
+
+    JMEPtReso = {
+            {AK4, {
+                {2017, filePath + "/JME/Fall17_V3_MC_PtResolution_AK4PFchs.txt"},
+                }
+            },       
+
+            {AK8, {
+                {2017, filePath + "/JME/Fall17_V3_MC_PtResolution_AK8PFchs.txt"},
+                }
+            },
+    };
+
+    //https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation94
+    bTagCuts = {
+            {AK4, {
+                {2017, {0.051, 0.3033, 0.7489}}, //Loose, Medium, Tight
+                }
+            },
+
+            {AK8, {
+                {2017, {0.1522, 0.4941}}, //Loose, Medium, Tight
+                }
+            },
+    };
+
     //Set data bool
     this->isData = isData;
 
     //Initiliaze TTreeReaderValues
-    fatJetPt = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_pt");
-    fatJetEta = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_eta");
-    fatJetPhi = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_phi");
-    fatJetMass = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_mass");
-    fatJetCSV = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_btagDeepB");
-    fatJetTau1 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau1");
-    fatJetTau2 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau2");
-    fatJetTau3 = std::make_unique<TTreeReaderArray<float>>(reader, "FatJet_tau3");
+    fatJetPt = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_pt");
+    fatJetEta = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_eta");
+    fatJetPhi = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_phi");
+    fatJetMass = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_mass");
+    fatJetCSV = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_btagDeepB");
+    fatJetTau1 = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_tau1");
+    fatJetTau2 = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_tau2");
+    fatJetTau3 = std::make_unique<TTreeReaderArray<float>>(*reader, "FatJet_tau3");
 
-    jetPt = std::make_unique<TTreeReaderArray<float>>(reader, "Jet_pt");
-    jetEta = std::make_unique<TTreeReaderArray<float>>(reader, "Jet_eta");
-    jetPhi = std::make_unique<TTreeReaderArray<float>>(reader, "Jet_phi");
-    jetMass = std::make_unique<TTreeReaderArray<float>>(reader, "Jet_mass");
-    jetRho = std::make_unique<TTreeReaderValue<float>>(reader, "fixedGridRhoFastjetAll");
-    jetDeepBValue = std::make_unique<TTreeReaderArray<float>>(reader, "Jet_btagDeepFlavB");
-    valueHT = std::make_unique<TTreeReaderValue<float>>(reader, "SoftActivityJetHT");
-
-    eleIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Jet_electronIdx1");
-    elePt = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_pt");
-    eleEta = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_eta");
-    muonIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Jet_muonIdx1");
-    muonPt = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_pt");
-    muonEta = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_eta");
+    jetPt = std::make_unique<TTreeReaderArray<float>>(*reader, "Jet_pt");
+    jetEta = std::make_unique<TTreeReaderArray<float>>(*reader, "Jet_eta");
+    jetPhi = std::make_unique<TTreeReaderArray<float>>(*reader, "Jet_phi");
+    jetMass = std::make_unique<TTreeReaderArray<float>>(*reader, "Jet_mass");
+    jetRho = std::make_unique<TTreeReaderValue<float>>(*reader, "fixedGridRhoFastjetAll");
+    jetDeepBValue = std::make_unique<TTreeReaderArray<float>>(*reader, "Jet_btagDeepFlavB");
+    valueHT = std::make_unique<TTreeReaderValue<float>>(*reader, "SoftActivityJetHT");
     
-    metPhi = std::make_unique<TTreeReaderValue<float>>(reader, "MET_phi");
-    metPt = std::make_unique<TTreeReaderValue<float>>(reader, "MET_pt");
+    metPhi = std::make_unique<TTreeReaderValue<float>>(*reader, "MET_phi");
+    metPt = std::make_unique<TTreeReaderValue<float>>(*reader, "MET_pt");
 
     if(!this->isData){
-        genJetPt = std::make_unique<TTreeReaderArray<float>>(reader, "GenJet_pt");
-        genJetEta = std::make_unique<TTreeReaderArray<float>>(reader, "GenJet_eta");
-        genJetPhi = std::make_unique<TTreeReaderArray<float>>(reader, "GenJet_phi");
-        genJetMass = std::make_unique<TTreeReaderArray<float>>(reader, "GenJet_mass");
+        genJetPt = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJet_pt");
+        genJetEta = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJet_eta");
+        genJetPhi = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJet_phi");
+        genJetMass = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJet_mass");
 
-        genFatJetPt = std::make_unique<TTreeReaderArray<float>>(reader, "GenJetAK8_pt");
-        genFatJetEta = std::make_unique<TTreeReaderArray<float>>(reader, "GenJetAK8_eta");
-        genFatJetPhi = std::make_unique<TTreeReaderArray<float>>(reader, "GenJetAK8_phi");
-        genFatJetMass = std::make_unique<TTreeReaderArray<float>>(reader, "GenJetAK8_mass");
+        genFatJetPt = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJetAK8_pt");
+        genFatJetEta = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJetAK8_eta");
+        genFatJetPhi = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJetAK8_phi");
+        genFatJetMass = std::make_unique<TTreeReaderArray<float>>(*reader, "GenJetAK8_mass");
         
-        jetGenIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Jet_genJetIdx");
+        jetGenIdx = std::make_unique<TTreeReaderArray<int>>(*reader, "Jet_genJetIdx");
     }
 
     for(JetType type: {AK4, AK8}){
@@ -233,7 +239,7 @@ void JetAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     }
 
     //Set TTreeReader for genpart and trigger obj from baseanalyzer
-    SetCollection(reader, this->isData);
+    SetCollection(this->isData);
 
     //Set Branches of output tree
     tree->Branch("jet", &validJets);

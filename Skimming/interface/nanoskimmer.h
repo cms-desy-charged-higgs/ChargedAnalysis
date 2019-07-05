@@ -1,4 +1,4 @@
-#include <ChargedHiggs/NanoSkimming/interface/baseanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/baseanalyzer.h>
 
 #include <vector>
 #include <string>
@@ -33,12 +33,14 @@ class NanoSkimmer{
 
         //Progress bar function
         void ProgressBar(const int &progress);
+
+        //Configure analysis modules
+        void Configure(const float &xSec, TTreeReader& reader);
         
 
     public:
         NanoSkimmer();
         NanoSkimmer(const std::string &inFile, const bool &isData);
-        void Configure(const float &xSec = 1.);
-        void EventLoop(const std::vector<std::string> &channels);
+        void EventLoop(const std::vector<std::string> &channels, const float &xSec = 1.);
         void WriteOutput(const std::string &outFile); 
 };

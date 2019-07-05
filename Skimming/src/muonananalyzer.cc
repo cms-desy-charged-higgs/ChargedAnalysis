@@ -1,25 +1,21 @@
-#include <ChargedHiggs/NanoSkimming/interface/muonanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/muonanalyzer.h>
 
-MuonAnalyzer::MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon):
-    BaseAnalyzer(),    
+MuonAnalyzer::MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon, TTreeReader &reader):
+    BaseAnalyzer(&reader),    
     era(era),
     ptCut(ptCut),
     etaCut(etaCut),
     minNMuon(minNMuon)
-    {
-        isoSFfiles = {
-            {2017, filePath + "/muonSF/RunBCDEF_SF_ISO.root"},
-        };
+    {}
 
-        triggerSFfiles = {
-            {2017, filePath + "/muonSF/EfficienciesAndSF_RunBtoF_Nov17Nov2017.root"},
-        };
-
-        
-        IDSFfiles = {
-            {2017, filePath + "/muonSF/RunBCDEF_SF_ID.root"},
-        };
-}
+MuonAnalyzer::MuonAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNMuon, edm::Handle<std::vector<pat::Muon>> muons):
+    BaseAnalyzer(), 
+    era(era),
+    ptCut(ptCut),
+    etaCut(etaCut),
+    minNMuon(minNMuon),
+    muons(muons)
+    {}
 
 
 void MuonAnalyzer::SetGenParticles(Muon &validMuon, const int &i){
@@ -48,7 +44,19 @@ void MuonAnalyzer::SetGenParticles(Muon &validMuon, const int &i){
     }
 }
 
-void MuonAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
+void MuonAnalyzer::BeginJob(TTree* tree, bool &isData){
+    isoSFfiles = {
+        {2017, filePath + "/muonSF/RunBCDEF_SF_ISO.root"},
+    };
+
+    triggerSFfiles = {
+        {2017, filePath + "/muonSF/EfficienciesAndSF_RunBtoF_Nov17Nov2017.root"},
+    };
+
+    IDSFfiles = {
+        {2017, filePath + "/muonSF/RunBCDEF_SF_ID.root"},
+    };
+
     //Set data bool
     this->isData = isData;
 
@@ -67,21 +75,21 @@ void MuonAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     tightIDHist = (TH2F*)IDSFfile->Get("NUM_TightID_DEN_genTracks_pt_abseta");
 
     //Initiliaze TTreeReaderValues
-    muonPt = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_pt");
-    muonEta = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_eta");
-    muonPhi = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_phi");
-    muonCharge = std::make_unique<TTreeReaderArray<int>>(reader, "Muon_charge");
-    muonIso = std::make_unique<TTreeReaderArray<float>>(reader, "Muon_miniPFRelIso_all");
-    muonMediumID = std::make_unique<TTreeReaderArray<bool>>(reader, "Muon_mediumId");
-    muonTightID = std::make_unique<TTreeReaderArray<bool>>(reader, "Muon_tightId");
+    muonPt = std::make_unique<TTreeReaderArray<float>>(*reader, "Muon_pt");
+    muonEta = std::make_unique<TTreeReaderArray<float>>(*reader, "Muon_eta");
+    muonPhi = std::make_unique<TTreeReaderArray<float>>(*reader, "Muon_phi");
+    muonCharge = std::make_unique<TTreeReaderArray<int>>(*reader, "Muon_charge");
+    muonIso = std::make_unique<TTreeReaderArray<float>>(*reader, "Muon_miniPFRelIso_all");
+    muonMediumID = std::make_unique<TTreeReaderArray<bool>>(*reader, "Muon_mediumId");
+    muonTightID = std::make_unique<TTreeReaderArray<bool>>(*reader, "Muon_tightId");
 
     if(!this->isData){
-        muonGenIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Muon_genPartIdx");
+        muonGenIdx = std::make_unique<TTreeReaderArray<int>>(*reader, "Muon_genPartIdx");
     }
 
 
     //Set TTreeReader for genpart and trigger obj from baseanalyzer
-    SetCollection(reader, this->isData);
+    SetCollection(this->isData);
 
     //Set Branches of output tree
     tree->Branch("muon", &validMuons);
@@ -135,7 +143,6 @@ bool MuonAnalyzer::Analyze(std::pair<TH1F*, float> &cutflow){
     }
     return true;
 }
-
 
 void MuonAnalyzer::EndJob(TFile* file){
 }

@@ -1,24 +1,21 @@
-#include <ChargedHiggs/NanoSkimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/electronanalyzer.h>
 
-ElectronAnalyzer::ElectronAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNEle):
-    BaseAnalyzer(),    
+ElectronAnalyzer::ElectronAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNEle, TTreeReader& reader):
+    BaseAnalyzer(&reader),    
     era(era),
     ptCut(ptCut),
     etaCut(etaCut),
     minNEle(minNEle)
-    {
-        mediumSFfiles = {
-                    {2017, filePath + "eleSF/gammaEffi.txt_EGM2D_runBCDEF_passingMVA94Xwp80iso.root"},
-        };
+    {}
 
-        tightSFfiles = {
-                    {2017, filePath + "eleSF/gammaEffi.txt_EGM2D_runBCDEF_passingMVA94Xwp90iso.root"},
-        };
-
-        recoSFfiles = {
-                    {2017, filePath + "eleSF/egammaEffi.txt_EGM2D_runBCDEF_passingRECO.root"},
-        };
-    }
+ElectronAnalyzer::ElectronAnalyzer(const int &era, const float &ptCut, const float &etaCut, const int &minNEle, edm::Handle<std::vector<pat::Electron>>& electrons):
+    BaseAnalyzer(),    
+    era(era),
+    ptCut(ptCut),
+    etaCut(etaCut),
+    minNEle(minNEle),
+    electrons(electrons)
+    {}
 
 void ElectronAnalyzer::SetGenParticles(Electron &validElectron, const int &i){
     //Check if gen matched particle exist
@@ -46,10 +43,23 @@ void ElectronAnalyzer::SetGenParticles(Electron &validElectron, const int &i){
     }
 }
 
-void ElectronAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
+void ElectronAnalyzer::BeginJob(TTree* tree, bool &isData){
+    //SF files
+    mediumSFfiles = {
+                    {2017, filePath + "eleSF/gammaEffi.txt_EGM2D_runBCDEF_passingMVA94Xwp80iso.root"},
+    };
+
+    tightSFfiles = {
+                    {2017, filePath + "eleSF/gammaEffi.txt_EGM2D_runBCDEF_passingMVA94Xwp90iso.root"},
+    };
+
+    recoSFfiles = {
+                    {2017, filePath + "eleSF/egammaEffi.txt_EGM2D_runBCDEF_passingRECO.root"},
+    };
+
     //Set data bool
     this->isData = isData;
-    TTree* eventTree = reader.GetTree();
+    TTree* eventTree = reader->GetTree();
 
     //Hist with scale factors
     TFile* recoSFfile = TFile::Open(recoSFfiles[era].c_str());
@@ -62,30 +72,30 @@ void ElectronAnalyzer::BeginJob(TTreeReader &reader, TTree* tree, bool &isData){
     tightSFhist = (TH2F*)tightSFfile->Get("EGamma_SF2D");
 
     //Initiliaze TTreeReaderValues
-    elePt = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_pt");
-    eleEta = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_eta");
-    elePhi = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_phi");
-    eleCharge = std::make_unique<TTreeReaderArray<int>>(reader, "Electron_charge");
-    eleIso = std::make_unique<TTreeReaderArray<float>>(reader, "Electron_pfRelIso03_all");
+    elePt = std::make_unique<TTreeReaderArray<float>>(*reader, "Electron_pt");
+    eleEta = std::make_unique<TTreeReaderArray<float>>(*reader, "Electron_eta");
+    elePhi = std::make_unique<TTreeReaderArray<float>>(*reader, "Electron_phi");
+    eleCharge = std::make_unique<TTreeReaderArray<int>>(*reader, "Electron_charge");
+    eleIso = std::make_unique<TTreeReaderArray<float>>(*reader, "Electron_pfRelIso03_all");
 
     if(eventTree->GetBranchStatus("Electron_mvaFall17V1Iso_WP80")){
-        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17V1Iso_WP80");
-        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17V1Iso_WP80");
+        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(*reader, "Electron_mvaFall17V1Iso_WP80");
+        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(*reader, "Electron_mvaFall17V1Iso_WP80");
     }
 
     else{
-        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP80");
-        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(reader, "Electron_mvaFall17Iso_WP80");
+        eleMediumMVA = std::make_unique<TTreeReaderArray<bool>>(*reader, "Electron_mvaFall17Iso_WP80");
+        eleTightMVA = std::make_unique<TTreeReaderArray<bool>>(*reader, "Electron_mvaFall17Iso_WP80");
     }
 
 
     if(!this->isData){
-        eleGenIdx = std::make_unique<TTreeReaderArray<int>>(reader, "Electron_genPartIdx");
+        eleGenIdx = std::make_unique<TTreeReaderArray<int>>(*reader, "Electron_genPartIdx");
     }
 
 
     //Set TTreeReader for genpart and trigger obj from baseanalyzer
-    SetCollection(reader, this->isData);
+    SetCollection(this->isData);
 
     //Set Branches of output tree
     tree->Branch("electron", &validElectrons);
