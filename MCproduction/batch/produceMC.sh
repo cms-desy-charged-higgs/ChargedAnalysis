@@ -41,6 +41,8 @@ eval `scramv1 project CMSSW CMSSW_10_2_11`
 cd CMSSW_10_2_11/src/
 eval `scramv1 runtime -sh`
 
+scram b
+
 cp ../../*MINIAOD.root .
 
 cmsDriver.py NANOAOD --mc --eventcontent NANOAODSIM --python_filename ${NAME}_NANOAOD_cfg.py --datatier NANOAODSIM --conditions 102X_mc2017_realistic_v6 --era $ERA,run2_nanoAOD_94XMiniAODv2 --step NANO --filein file:${NAME}_MINIAOD.root --fileout file:${NAME}_NANOAOD.root -n $N --customise_commands 'process.particleLevelSequence.remove(process.genParticles2HepMCHiggsVtx);process.particleLevelSequence.remove(process.rivetProducerHTXS);process.particleLevelTables.remove(process.HTXSCategoryTable)'
