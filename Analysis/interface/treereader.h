@@ -27,9 +27,9 @@
 #include <TTreeReaderValue.h>
 #include <TMath.h>
 
-#include <ChargedHiggs/NanoSkimming/interface/electronanalyzer.h>
-#include <ChargedHiggs/NanoSkimming/interface/muonanalyzer.h> 
-#include <ChargedHiggs/NanoSkimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/electronanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/muonanalyzer.h> 
+#include <ChargedHiggs/Skimming/interface/jetanalyzer.h>
 
 #include <ChargedHiggs/Analysis/interface/bdt.h>
 
