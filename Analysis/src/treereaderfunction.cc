@@ -231,6 +231,10 @@ const TLorentzVector& TreeReader::GetParticle(Event &event, Particle &part, cons
             }
 
             return event.Hc;
+        
+        case GENHC:
+            return event.genParts.Hc;
+
         case h: 
             if(event.h1Jets.empty()){
                 Higgs(event);
@@ -238,6 +242,10 @@ const TLorentzVector& TreeReader::GetParticle(Event &event, Particle &part, cons
             }
 
             return event.h[index-1];
+
+        case GENH:
+            return index == 0 ? event.genParts.h1 : event.genParts.h2;
+
         case TOP:
             if(event.top.empty()){
                 Top(event);
