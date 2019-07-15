@@ -4,22 +4,23 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree):
+TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree, const bool& saveCsv):
     process(process),
     xParameters(xParameters),
     yParameters(yParameters),
     cutStrings(cutStrings),
     outname(outname),
     channel(channel),
-    saveTree(saveTree){
+    saveTree(saveTree),
+    saveCsv(saveCsv){
 
     //Start measure execution time
     start = std::chrono::steady_clock::now();
 
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
-    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"h", h}, {"t", TOP}};
-    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {h, "h_{@}"}, {TOP, "t_{@}"}};
+    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}, {"t", TOP}};
+    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {GENHC, "H^{#pm}_{gen}"}, {h, "h_{@}"}, {GENH, "h_{@}^{gen}"}, {TOP, "t_{@}"}};
     nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}};
 
     strToFunc = {
@@ -332,6 +333,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
     TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
     TTreeReaderValue<std::vector<Jet>> subjets(reader, "subjet");
     TTreeReaderValue<std::vector<FatJet>> fatjets(reader, "fatjet");
+    TTreeReaderValue<GenPart> genparts(reader, "genPart");
     TTreeReaderValue<TLorentzVector> MET(reader, "met");
     TTreeReaderValue<float> HT(reader, "HT");
     TTreeReaderValue<float> evtNum(reader, "eventNumber");
@@ -386,7 +388,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
         //Load event and fill event class
         reader.SetEntry(i); 
 
-        event = {*electrons, *muons, *jets, *subjets, *fatjets, *MET, 1., *HT, *evtNum}; 
+        event = {*electrons, *muons, *jets, *subjets, *fatjets, *genparts, *MET, 1., *HT, *evtNum}; 
 
         //Fill additional weights
         std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec, 1.f/nGen};
@@ -411,10 +413,16 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
 
         if(passedCut){
             valuesX.clear();
+            std::string csvString; 
 
             for(unsigned int l = 0; l < histograms1D.size(); l++){
                 valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
                 histograms1D[l].hist1D->Fill(valuesX[l], event.weight);
+
+                //Write information in string for csv
+                if(saveCsv){
+                    csvString+=std::to_string(valuesX[l]) + ",";
+                }
 
                for(unsigned int m = 0; m < histograms2D[l].size(); m++){
                     histograms2D[l][m].hist2D->Fill(valuesX[l], (this->*funcDir[histograms2D[l][m].func])(event, histograms2D[l][m]), event.weight);
@@ -423,6 +431,15 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
 
             //Fill tree if wished
             if(saveTree) outputTree->Fill();
+
+            //Fill csv vector if wished
+            if(saveCsv){
+                csvString.replace(csvString.end()-1, csvString.end(), "\n");
+
+                mutex.lock();
+                csvData.push_back(csvString);
+                mutex.unlock();
+            };
         }
     }
 
@@ -504,6 +521,17 @@ std::vector<std::vector<std::pair<int, int>>> TreeReader::EntryRanges(std::vecto
 }
 
 void TreeReader::Run(std::vector<std::string> &filenames, const float &frac){
+    if(saveCsv){
+        std::string header;
+
+        for(std::string &parameter: xParameters){
+            header += parameter + ",";
+        }
+
+        header.replace(header.end()-1, header.end(), "\n");
+        csvData.push_back(header);
+    }
+
     //Configure threads
     nJobs = (int)std::thread::hardware_concurrency();   
 
@@ -555,6 +583,19 @@ void TreeReader::Run(std::string &fileName, int &entryStart, int &entryEnd){
 void TreeReader::Merge(){
     std::system(std::string("hadd -f " + outname + " " + process + "_*").c_str());
     std::system(std::string("command rm " + process + "_*").c_str());
+
+    //Save in csv file if wished
+    if(saveCsv){
+        std::ofstream myFile;
+        outname.replace(outname.end()-4, outname.end(), "csv");
+        myFile.open(outname);
+
+        for(std::string &line: csvData){
+            myFile << line;
+        }
+
+        myFile.close();
+    }
 
     TSeqCollection* fileList = gROOT->GetListOfFiles();
 

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <set>	
 #include <tuple>
+#include <fstream>
 
 #include <thread>
 #include <mutex>
@@ -30,6 +31,7 @@
 #include <ChargedHiggs/Skimming/interface/electronanalyzer.h>
 #include <ChargedHiggs/Skimming/interface/muonanalyzer.h> 
 #include <ChargedHiggs/Skimming/interface/jetanalyzer.h>
+#include <ChargedHiggs/Skimming/interface/genpartanalyzer.h>
 
 #include <ChargedHiggs/Analysis/interface/bdt.h>
 
@@ -37,7 +39,7 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, TOP};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, TOP, GENHC, GENH};
 
         //Enumeration for functions to calculate quantities
         enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, PHISTAR};
@@ -53,6 +55,8 @@ class TreeReader {
             std::vector<Jet> jets;
             std::vector<Jet> subjets;
             std::vector<FatJet> fatjets;
+            GenPart genParts;                     
+            
             TLorentzVector MET;  
             float weight; 
             float HT;
@@ -123,6 +127,10 @@ class TreeReader {
         //Save tree if wished
         bool saveTree;
 
+        //Save csv is wished
+        bool saveCsv;
+        std::vector<std::string> csvData;
+
         //Get wished Particle during Loop
         const TLorentzVector& GetParticle(Event &event, Particle &part, const int &index = 1);
     
@@ -185,7 +193,7 @@ class TreeReader {
 
     public:
         TreeReader();
-        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false);
+        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false, const bool& saveCsv = false);
         void Run(std::vector<std::string> &filenames, const float &frac = 1.0);
         void Run(std::string &fileName, int &entryStart, int &entryEnd);
         void Merge();
