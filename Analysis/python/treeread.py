@@ -17,6 +17,9 @@ class TreeRead(Task):
         if not "write-tree" in self:
             self["write-tree"] = False
 
+        if not "write-tree" in self:
+            self["write-csv"] = False
+
         self._allowParallel = False
 
     def __toStd(self):
@@ -44,7 +47,7 @@ class TreeRead(Task):
         self.__toStd()
 
         ##Run the reader
-        reader = TreeReader(self._stdDir["process"], self._stdDir["x-parameter"], self._stdDir["y-parameter"], self._stdDir["cuts"], self._stdDir["output"],  self._stdDir["channel"], self["write-tree"])
+        reader = TreeReader(self._stdDir["process"], self._stdDir["x-parameter"], self._stdDir["y-parameter"], self._stdDir["cuts"], self._stdDir["output"],  self._stdDir["channel"], self["write-tree"], self["write-csv"])
         reader.Run(self._stdDir["filenames"], self["event-fraction"])
         reader.Merge()
 
