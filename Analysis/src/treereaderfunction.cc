@@ -95,7 +95,7 @@ float TreeReader::NSigParticle(Event &event, Hist &hist){
 
         case JET:
             for(Jet jet: event.jets){
-                if(jet.isFromh1 or jet.isFromh2) nSigPart++;
+                if(jet.isFromh1[0] or jet.isFromh2[0]) nSigPart++;
             }
 
             return nSigPart;
