@@ -3,7 +3,7 @@
 ##Create analysis dir
 mkdir -p ChargedHiggs/
 export CHDIR=$(pwd)/ChargedHiggs
-cd CHDIR
+cd $CHDIR
 
 ##Install anaconda for python2.7 (because of CMSSW)
 wget https://repo.anaconda.com/archive/Anaconda2-2019.03-Linux-x86_64.sh
