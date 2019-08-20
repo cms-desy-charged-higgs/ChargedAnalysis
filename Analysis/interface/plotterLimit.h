@@ -1,7 +1,7 @@
 #ifndef PLOTTERLIMIT_H
 #define PLOTTERLIMIT_H
 
-#include <ChargedHiggs/Analysis/interface/plotter.h>
+#include <ChargedAnalysis/Analysis/interface/plotter.h>
 
 #include <vector>
 #include <map>

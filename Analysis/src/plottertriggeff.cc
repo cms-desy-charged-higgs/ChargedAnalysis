@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/plottertriggeff.h>
+#include <ChargedAnalysis/Analysis/interface/plottertriggeff.h>
 
 PlotterTriggEff::PlotterTriggEff() : Plotter(){}
 

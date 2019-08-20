@@ -1,7 +1,7 @@
 #ifndef PLOTTERGEN_H
 #define PLOTTERGEN_H
 
-#include <ChargedHiggs/Analysis/interface/plotter.h>
+#include <ChargedAnalysis/Analysis/interface/plotter.h>
 
 #include <functional>
 

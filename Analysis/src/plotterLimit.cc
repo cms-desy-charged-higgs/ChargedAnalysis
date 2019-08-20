@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/plotterLimit.h>
+#include <ChargedAnalysis/Analysis/interface/plotterLimit.h>
 
 PlotterLimit::PlotterLimit() : Plotter(){}
 

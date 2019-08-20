@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/plotterGen.h>
+#include <ChargedAnalysis/Analysis/interface/plotterGen.h>
 
 PlotterGen::PlotterGen() : Plotter() {}
 

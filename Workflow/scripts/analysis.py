@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from ChargedHiggs.Workflow.taskmanager import TaskManager
+from ChargedAnalysis.Workflow.taskmanager import TaskManager
 
-from ChargedHiggs.Skimming.miniskim import MiniSkim
-from ChargedHiggs.Skimming.nanoskim import NanoSkim
-from ChargedHiggs.Skimming.skimhadd import SkimHadd
+from ChargedAnalysis.Skimming.miniskim import MiniSkim
+from ChargedAnalysis.Skimming.nanoskim import NanoSkim
+from ChargedAnalysis.Skimming.skimhadd import SkimHadd
 
 from pprint import pprint
 import os
@@ -31,9 +31,9 @@ def skimTask(isNANO):
 
     ##Txt with DBS dataset names
     txtFiles = [
-                "{}/src/ChargedHiggs/Skimming/data/filelists/filelist_bkg_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
-                "{}/src/ChargedHiggs/Skimming/data/filelists/filelist_data_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
-               #"{}/src/ChargedHiggs/Skimming/data/filelists/filelist_signal_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
+                "{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_bkg_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
+                "{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_data_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
+               #"{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_signal_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
     ]
 
     ##Create tasks

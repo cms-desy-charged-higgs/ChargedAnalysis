@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/treereader.h>
+#include <ChargedAnalysis/Analysis/interface/treereader.h>
 
 //Function for returning value of wished quantity
 float TreeReader::Mass(Event &event, Hist &hist){

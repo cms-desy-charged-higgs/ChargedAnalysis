@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/limit.h>
+#include <ChargedAnalysis/Analysis/interface/limit.h>
 
 Limit::Limit(){}
 

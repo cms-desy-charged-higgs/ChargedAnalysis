@@ -1,4 +1,4 @@
-#include <ChargedHiggs/Analysis/interface/plotter1D.h>
+#include <ChargedAnalysis/Analysis/interface/plotter1D.h>
 
 Plotter1D::Plotter1D() : Plotter(){}
 

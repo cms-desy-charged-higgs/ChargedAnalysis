@@ -1,7 +1,7 @@
 #ifndef PLOTTERCUT_H
 #define PLOTTERCUT_H
 
-#include <ChargedHiggs/Analysis/interface/plotter.h>
+#include <ChargedAnalysis/Analysis/interface/plotter.h>
 
 #include <TFile.h>
 #include <TH1F.h>
