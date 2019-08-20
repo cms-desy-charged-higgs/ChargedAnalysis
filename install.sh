@@ -9,12 +9,13 @@ cd $CHDIR
 wget https://repo.anaconda.com/archive/Anaconda2-2019.03-Linux-x86_64.sh
 chmod a+rx Anaconda2-2019.03-Linux-x86_64.sh
 ./Anaconda2-2019.03-Linux-x86_64.sh  ##Set anaconda in $CHDIR/anaconda
-command rm https://repo.anaconda.com/archive/Anaconda2-2019.03-Linux-x86_64.sh
+command rm Anaconda2-2019.03-Linux-x86_64.sh
 
 ##Install packages with anaconda
 source $CHDIR/anaconda/bin/activate
 conda install jupyter numpy tensorflow scipy matplotlib scikit-learn pandas
-source $CHDIR/anaconda/bin/deactivate
+pip install htcondor
+conda deactivate
 
 ##Install CMSSW 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
@@ -31,10 +32,16 @@ git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
 git clone https://github.com/cms-desy-charged-higgs/ChargedProduction.git
 git clone https://github.com/cms-desy-charged-higgs/ChargedNetwork.git
 
+git clone https://github.com/DaveBrun94/CernWebpage.git
+
 ##Other stuff neeeded
 git cms-merge-topic cms-egamma:EgammaPostRecoTool
 git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
+
+
+##Compile everthing
+scram b -j 20
 
 ##Set PYTHONPATH
 PYTHONPATH=$CHDIR/anaconda/lib/python2.7/site-packages/:$PYTHONPATH
