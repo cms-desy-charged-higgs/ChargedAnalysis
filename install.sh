@@ -13,7 +13,7 @@ command rm Anaconda2-2019.03-Linux-x86_64.sh
 
 ##Install packages with anaconda
 source $CHDIR/Anaconda/bin/activate
-conda install jupyter numpy tensorflow scipy matplotlib scikit-learn pandas
+conda install jupyter numpy tensorflow scipy scikit-learn pandas
 pip install htcondor
 conda deactivate
 
@@ -36,7 +36,7 @@ git clone https://github.com/cms-desy-charged-higgs/ChargedProduction.git
 git clone https://github.com/cms-desy-charged-higgs/ChargedNetwork.git
 
 ##Other stuff neeeded
-git cms-merge-topic cms-egamma:EgammaPostRecoTool
+git cms-merge-topic cms-egamma:EgammaPostRecoTools
 git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 
