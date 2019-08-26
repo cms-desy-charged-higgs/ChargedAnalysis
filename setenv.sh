@@ -1,10 +1,10 @@
 #!/bin/bash
 
-CMSSW_VERSION=CMSSW_9_4_13
+export CMSSW_VERSION=CMSSW_9_4_13
 
 ##Set analysis dir
 CHDIR=$(readlink -f $BASH_SOURCE)
-CHDIR=${CHDIR/"$CMSSW_VERSION/src/ChargedAnalysis/setenv.sh"}
+export CHDIR=${CHDIR/"$CMSSW_VERSION/src/ChargedAnalysis/setenv.sh"}
 
 ##CMSSW related enviroment
 export SCRAM_ARCH="slc6_amd64_gcc700"
