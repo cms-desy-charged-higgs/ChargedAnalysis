@@ -33,7 +33,7 @@ def skimTask(isNANO):
     txtFiles = [
                 "{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_bkg_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
                 "{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_data_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
-               #"{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_signal_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
+                "{}/src/ChargedAnalysis/Skimming/data/filelists/filelist_signal_2017_{}.txt".format(os.environ["CMSSW_BASE"], AOD),
     ]
 
     ##Create tasks
