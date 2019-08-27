@@ -13,7 +13,7 @@ command rm Anaconda2-2019.03-Linux-x86_64.sh
 
 ##Install packages with anaconda
 source $CHDIR/Anaconda/bin/activate
-conda install jupyter numpy tensorflow scipy scikit-learn pandas
+conda install jupyter numpy tensorflow-gpu scipy scikit-learn pandas
 pip install htcondor
 conda deactivate
 
