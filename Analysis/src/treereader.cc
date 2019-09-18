@@ -14,13 +14,15 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     saveTree(saveTree),
     saveCsv(saveCsv){
 
+    gROOT->SetBatch(kTRUE);
+
     //Start measure execution time
     start = std::chrono::steady_clock::now();
 
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
-    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}, {"t", TOP}};
-    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {MET, "#slash{E}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {GENHC, "H^{#pm}_{gen}"}, {h, "h_{@}"}, {GENH, "h_{@}^{gen}"}, {TOP, "t_{@}"}};
+    strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"h1j", H1JET}, {"h2j", H2JET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}};
+    partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {H1JET, "j^{h_{1}}_{@}"}, {H2JET, "j^{h_{2}}_{@}"}, {MET, "#vec{p}^{miss}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {GENHC, "H^{#pm}_{gen}"}, {h, "h_{@}"}, {GENH, "h_{@}^{gen}"}};
     nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}};
 
     strToFunc = {
@@ -37,7 +39,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {"const", CONSTNUM},
                     {"Nsig", NSIGPART},
                     {"tau", SUBTINESS},
-                    {"phistar", PHISTAR},
     };
     
     funcLabel = {
@@ -53,7 +54,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {CONSTNUM, "Bin number"},
                     {NSIGPART, "N^{gen matched}_{@}"},
                     {SUBTINESS, "#tau(@)"},
-                    {PHISTAR, "#phi^{*}"},
     };
 
     //Maps of all binning, functions and SF
@@ -70,7 +70,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
-                {PHISTAR, {50., 0., TMath::Pi()}},
     };
 
     funcDir = {
@@ -87,17 +86,19 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, &TreeReader::ConstantNumber},
                 {NSIGPART, &TreeReader::NSigParticle},
                 {SUBTINESS, &TreeReader::Subtiness},
-                {PHISTAR, &TreeReader::PhiStar},
     };
 
-    eleID = {{1, {&Electron::isMedium, 0.2}}, {1, {&Electron::isTight, 0.1}}};
-    eleSF = {{1, &Electron::mediumMvaSF}, {2, &Electron::mediumMvaSF}};
+    ID = [&](int WP, RecoParticle part){
+        if(WP == 0) return part.isLoose && part.looseIso;
+        else if(WP == 1) return part.isMedium && part.mediumIso;
+        else if(WP == 2) return part.isTight && part.tightIso;
 
-    muonID = {{1, {&Muon::isMedium, &Muon::isLooseIso}}, {2, {&Muon::isTight, &Muon::isTightIso}}};
-    muonSF = {{1, {&Muon::mediumSF, &Muon::looseIsoMediumSF}}, {2, {&Muon::tightSF, &Muon::tightIsoTightSF}}};
+        return false;
+    };
 
-    bJetID = {{0, &Jet::isLooseB}, {1, &Jet::isMediumB}, {2, &Jet::isTightB}};
-    bJetSF = {{0, &Jet::loosebTagSF}, {1, &Jet::mediumbTagSF}, {2, &Jet::tightbTagSF}};
+    SF = [&](int WP, RecoParticle part){
+        return part.IDSF[(int)WP]*part.otherSF;
+    };
 
     //Cut configuration
     for(std::string &cut: cutStrings){
@@ -177,7 +178,7 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool
             }
 
             catch(...){
-                indeces.push_back(-1);
+                indeces.push_back(1);
                 parts.push_back(strToPart[part]);
             }
         }
@@ -326,22 +327,89 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
 
     //Define TTreeReader 
     TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
-    TTreeReader reader(inputTree);
 
-    TTreeReaderValue<std::vector<Electron>> electrons(reader, "electron");
-    TTreeReaderValue<std::vector<Muon>> muons(reader, "muon");
-    TTreeReaderValue<std::vector<Jet>> jets(reader, "jet");
-    TTreeReaderValue<std::vector<Jet>> subjets(reader, "subjet");
-    TTreeReaderValue<std::vector<FatJet>> fatjets(reader, "fatjet");
-    TTreeReaderValue<GenPart> genparts(reader, "genPart");
-    TTreeReaderValue<TLorentzVector> MET(reader, "met");
-    TTreeReaderValue<float> HT(reader, "HT");
-    TTreeReaderValue<float> evtNum(reader, "eventNumber");
+    //Vector of particle
+    std::map<std::string, std::vector<std::string>> floatVariables = {
+        {"Muon_", {"E", "Px", "Py", "Pz", "Charge", "looseIsoMediumSF", "tightIsoMediumSF", "looseIsoTightSF", "tightIsoTightSF", "mediumSF", "tightSF", "triggerSF"}},
+        {"Electron_", {"E", "Px", "Py", "Pz", "Isolation", "Charge", "mediumSF", "tightSF", "recoSF"}},
+        {"Jet_", {"E", "Px", "Py", "Pz", "loosebTagSF", "mediumbTagSF", "tightbTagSF", "FatJetIdx", "isFromh"}},
+        {"FatJet_", {"E", "Px", "Py", "Pz", "oneSubJettiness", "twoSubJettiness", "threeSubJettiness", "loosebTagSF", "mediumbTagSF", "isFromh"}},
+    };
 
-    TTreeReaderValue<float> lumi(reader, "lumi");
-    TTreeReaderValue<float> xSec(reader, "xsec");
-    TTreeReaderValue<float> puWeight(reader, "puWeight");
-    TTreeReaderValue<float> genWeight(reader, "genWeight");
+    std::map<std::string, std::vector<std::string>> boolVariables = {
+        {"Muon_", {"isMediumIso", "isTightIso", "isMedium", "isTight", "isTriggerMatched", "isFromHc"}},
+        {"Electron_", {"isMedium", "isTight", "isTriggerMatched", "isFromHc"}},
+        {"Jet_", {"isLooseB", "isMediumB", "isTightB"}},
+        {"FatJet_", {"isMediumB", "isTightB"}},
+    };
+        
+    std::vector<std::vector<float>*> muonVecFloat(floatVariables["Muon_"].size(), NULL);
+    std::vector<std::vector<float>*> eleVecFloat(floatVariables["Electron_"].size(), NULL);
+    std::vector<std::vector<float>*> jetVecFloat(floatVariables["Jet_"].size(), NULL);
+    std::vector<std::vector<float>*> fatjetVecFloat(floatVariables["FatJet_"].size(), NULL);
+
+    std::vector<std::vector<bool>*> muonVecBool(boolVariables["Muon_"].size(), NULL);
+    std::vector<std::vector<bool>*> eleVecBool(boolVariables["Electron_"].size(), NULL);
+    std::vector<std::vector<bool>*> jetVecBool(boolVariables["Jet_"].size(), NULL);
+    std::vector<std::vector<bool>*> fatjetVecBool(boolVariables["FatJet_"].size(), NULL);
+
+    for(const std::string& partName: {"Muon_", "Electron_", "Jet_", "FatJet_"}){
+        for(unsigned int idx=0; idx < floatVariables[partName].size(); idx++){
+            if(partName == "Muon_"){
+                inputTree->SetBranchAddress((partName + floatVariables[partName][idx]).c_str(), &muonVecFloat[idx]);
+            }
+
+            if(partName == "Electron_"){
+                inputTree->SetBranchAddress((partName + floatVariables[partName][idx]).c_str(), &eleVecFloat[idx]);
+            }
+
+            if(partName == "Jet_"){
+                inputTree->SetBranchAddress((partName + floatVariables[partName][idx]).c_str(), &jetVecFloat[idx]);
+            }
+
+            if(partName == "FatJet_"){
+                inputTree->SetBranchAddress((partName + floatVariables[partName][idx]).c_str(), &fatjetVecFloat[idx]);
+            }
+        }
+
+        for(unsigned int idx=0; idx < boolVariables[partName].size(); idx++){
+            if(partName == "Muon_"){
+                inputTree->SetBranchAddress((partName + boolVariables[partName][idx]).c_str(), &muonVecBool[idx]);
+            }
+
+            if(partName == "Electron_"){
+                inputTree->SetBranchAddress((partName + boolVariables[partName][idx]).c_str(), &eleVecBool[idx]);
+            }
+
+            if(partName == "Jet_"){
+                inputTree->SetBranchAddress((partName + boolVariables[partName][idx]).c_str(), &jetVecBool[idx]);
+            }
+
+            if(partName == "FatJet_"){
+                inputTree->SetBranchAddress((partName + boolVariables[partName][idx]).c_str(), &fatjetVecBool[idx]);
+            }
+        }
+    }
+
+    //Other things to read out  
+    float MET_Px; float MET_Py; float HT; float eventNumber;
+
+    inputTree->SetBranchAddress("MET_Px", &MET_Px); 
+    inputTree->SetBranchAddress("MET_Py", &MET_Py);
+    inputTree->SetBranchAddress("HT", &HT);
+    inputTree->SetBranchAddress("Misc_eventNumber", &eventNumber);
+    
+    //Vector of  weights
+    std::vector<std::string> weightNames = {"lumi", "xsec"};
+    std::vector<float> weights(weightNames.size(), 0);
+
+    for(unsigned int idx=0; idx < weightNames.size(); idx++){;
+        inputTree->SetBranchAddress(("Weight_" + weightNames[idx]).c_str(), &weights[idx]);
+    }  
+
+    //Other stuff 
+    float nTrue=0.;
+    inputTree->SetBranchAddress("Misc_TrueInteraction", &nTrue);
 
     //Number of generated events
     float nGen = 1.;
@@ -350,6 +418,20 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
         TH1F* genHist = (TH1F*)inputFile->Get("nGen");
         nGen = genHist->Integral();
         delete genHist;
+    }
+
+
+    //Calculate pile up weight histogram
+    TH1F* puMC=NULL; TH1F* pileUpWeight=NULL;
+
+    if(inputFile->GetListOfKeys()->Contains("puMC")){
+        puMC = (TH1F*)inputFile->Get("puMC");
+        pileUpWeight = (TH1F*)puMC->Clone(); pileUpWeight->Clear();
+
+        pileUpWeight->SetName("pileUpWeight");
+        inputTree->Draw("Misc_TrueInteraction>>pileUpWeight", "Misc_TrueInteraction > 1 && Misc_TrueInteraction < 200");
+        pileUpWeight->Divide(puMC);
+        delete puMC;
     }
 
     //Cutflow
@@ -368,7 +450,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
                     {"mu2f", "Muon2F"},
         };
 
-        std::string bdtPath = std::string(std::getenv("CMSSW_BASE")) + "/src/BDT/" + chanPaths[channel]; 
+        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + chanPaths[channel]; 
 
         std::vector<std::string> bdtVar = evenClassifier[index].SetEvaluation(bdtPath + "/Even/");
         oddClassifier[index].SetEvaluation(bdtPath + "/Odd/");
@@ -386,16 +468,102 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
 
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
-        reader.SetEntry(i); 
+        inputTree->GetEntry(i); 
 
-        event = {*electrons, *muons, *jets, *subjets, *fatjets, *genparts, *MET, 1., *HT, *evtNum}; 
+        //Clear events 
+        event.Clear(); 
+
+        //Fill vectors with numbers
+        for(unsigned int idx=0; idx < muonVecFloat[0]->size(); idx++){
+            RecoParticle muon;
+
+            muon.LV = ROOT::Math::PxPyPzEVector(muonVecFloat[1]->at(idx), muonVecFloat[2]->at(idx), muonVecFloat[3]->at(idx), muonVecFloat[0]->at(idx));
+            if(muonVecFloat[6]->size() != 0){
+                muon.IDSF = {1.,  muonVecFloat[6]->at(idx)*muonVecFloat[9]->at(idx), muonVecFloat[8]->at(idx)*muonVecFloat[10]->at(idx)};
+                muon.otherSF = muonVecFloat[11]->at(idx);
+            }
+
+            muon.mediumIso = muonVecBool[0]->at(idx);
+            muon.tightIso = muonVecBool[1]->at(idx);
+            muon.isMedium = muonVecBool[2]->at(idx);
+            muon.isTight = muonVecBool[3]->at(idx);
+            muon.isTriggerMatched = muonVecBool[4]->at(idx);
+
+            if(muonVecBool[5]->size()!=0){
+                muon.isFromSignal = muonVecBool[5]->at(idx);
+            }
+
+            event.particles[MUON].push_back(muon);
+        }
+
+        for(unsigned int idx=0; idx < eleVecFloat[0]->size(); idx++){
+            RecoParticle electron;
+
+            electron.LV = ROOT::Math::PxPyPzEVector(eleVecFloat[1]->at(idx), eleVecFloat[2]->at(idx), eleVecFloat[3]->at(idx), eleVecFloat[0]->at(idx));
+            if(eleVecFloat[6]->size() != 0){
+                electron.IDSF = {1., eleVecFloat[6]->at(idx), eleVecFloat[7]->at(idx)};
+                electron.otherSF = eleVecFloat[8]->at(idx);
+            }
+
+            electron.mediumIso = eleVecFloat[4]->at(idx) < 0.2;
+            electron.tightIso = eleVecFloat[4]->at(idx) < 0.1;
+            electron.isMedium = eleVecBool[0]->at(idx);
+            electron.isTight = eleVecBool[1]->at(idx);
+            electron.isTriggerMatched = eleVecBool[2]->at(idx);
+
+            if(eleVecBool[3]->size()!=0){
+                electron.isFromSignal = eleVecBool[3]->at(idx);
+            }
+
+            event.particles[ELECTRON].push_back(electron);
+        }
+
+        for(unsigned int idx=0; idx < jetVecFloat[0]->size(); idx++){
+            RecoParticle jet;
+
+            jet.LV = ROOT::Math::PxPyPzEVector(jetVecFloat[1]->at(idx), jetVecFloat[2]->at(idx), jetVecFloat[3]->at(idx), jetVecFloat[0]->at(idx));
+            jet.IDSF = {jetVecFloat[4]->at(idx), jetVecFloat[5]->at(idx), jetVecFloat[6]->at(idx)};
+       
+            jet.isLoose = jetVecBool[0]->at(idx);
+            jet.isMedium = jetVecBool[1]->at(idx);
+            jet.isTight = jetVecBool[2]->at(idx);
+            if(jetVecFloat[8]->size() != 0){
+                jet.isFromSignal = jetVecFloat[8]->at(idx);
+            }
+
+            if(jetVecFloat[7]->size() == 0) event.particles[JET].push_back(jet);
+            else if(jetVecFloat[7]->at(idx) == -1) event.particles[JET].push_back(jet);
+            else event.particles[SUBJET].push_back(jet);
+        }
+
+        for(unsigned int idx=0; idx < fatjetVecFloat[0]->size(); idx++){
+            RecoParticle fatJet;
+
+            fatJet.LV = ROOT::Math::PxPyPzEVector(fatjetVecFloat[1]->at(idx), fatjetVecFloat[2]->at(idx), fatjetVecFloat[3]->at(idx), fatjetVecFloat[0]->at(idx));
+
+            event.particles[FATJET].push_back(fatJet);
+        }
+
+        RecoParticle met;
+        met.LV = ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0);
+        event.particles[MET].push_back(met);
+
+        event.eventNumber = eventNumber;
+        event.HT = HT;
 
         //Fill additional weights
-        std::vector<float> weightVec = {*genWeight < 2.f and *genWeight > 0.2 ? *genWeight: 1.f, *puWeight, *lumi, *xSec, 1.f/nGen};
-
-        for(const float &weight: weightVec){
+        for(float& weight: weights){
             event.weight *= weight;
         }
+
+        event.weight *= 1./nGen;
+
+        if(pileUpWeight!=NULL){
+            //event.weight *= nTrue/pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
+        }
+
+        WBoson(event);
+        Higgs(event);
 
         //Check if event passes cut
         bool passedCut = true;
@@ -409,7 +577,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
             }
 
             else{break;}
-        }   
+        }
 
         if(passedCut){
             valuesX.clear();
@@ -469,6 +637,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
     delete outputFile;
     delete inputFile;
     delete cutflow;
+    delete pileUpWeight;
 
     //Progress bar
     if(nJobs != 0){
