@@ -17,21 +17,20 @@
 #include <pthread.h>
 
 #include <TROOT.h>
-#include <TLorentzVector.h>
+#include <Math/Vector4Dfwd.h>
 #include <TVector3.h>
 #include <TFile.h>
 #include <TH1F.h>
 #include <TH2F.h>
 #include <TTree.h>
-#include <TChain.h>
-#include <TTreeReader.h>
-#include <TTreeReaderValue.h>
+
 #include <TMath.h>
 
 #include <ChargedAnalysis/Skimming/interface/electronanalyzer.h>
 #include <ChargedAnalysis/Skimming/interface/muonanalyzer.h> 
 #include <ChargedAnalysis/Skimming/interface/jetanalyzer.h>
 #include <ChargedAnalysis/Skimming/interface/genpartanalyzer.h>
+#include <TLorentzVector.h>
 
 #include <ChargedAnalysis/Analysis/interface/bdt.h>
 
@@ -39,41 +38,64 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, TOP, GENHC, GENH};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, PHISTAR};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
 
+        //Struct for saving Particle information
+        struct RecoParticle {
+            ROOT::Math::PxPyPzEVector LV;
+
+            //Booleans
+            bool looseIso = true;
+            bool mediumIso = true;
+            bool tightIso = true;
+
+            bool isLoose = true;
+            bool isMedium = true;
+            bool isTight = true;
+            bool isTriggerMatched = true;
+
+            int isFromSignal = -1.;
+
+            //Scale factors
+            std::vector<float> IDSF = {1., 1., 1.};
+            float otherSF=1.;
+
+            //Subtiness for fat jets
+            std::vector<float> subtiness = {1., 1., 1.};
+
+            //Define add operator
+            RecoParticle operator+(const RecoParticle& other){
+                RecoParticle newPart;
+                newPart.LV = this->LV + other.LV;
+                return newPart;
+            }
+        };
+
         //Struct for reading out tree
         struct Event{ 
-            //Initially given       
-            std::vector<Electron> electrons;
-            std::vector<Muon> muons;
-            std::vector<Jet> jets;
-            std::vector<Jet> subjets;
-            std::vector<FatJet> fatjets;
-            GenPart genParts;                     
-            
-            TLorentzVector MET;  
-            float weight; 
-            float HT;
+            //Map with particles      
+            std::map<Particle, std::vector<RecoParticle>> particles;
+            float HT=1.;
             float eventNumber;
 
-            //Reconstructed during processing of the event
-            std::vector<Jet> h1Jets;
-            std::vector<Jet> h2Jets;
-            std::vector<TLorentzVector> W;
+            //Event weight
+            float weight=1.;
 
-            std::vector<TLorentzVector> h;
-            TLorentzVector Hc;
+            //Clear Function
+            void Clear(){
+                //Initialize particle map with empty vectors
+                for(int i=0; i!=GENH; ++i){
+                    particles[(Particle)i] = {};
+                }
 
-            std::vector<TLorentzVector> top;
-
-            //Dummy variable
-            TLorentzVector dummy;
+                weight=1.;
+            }
         };
 
         //Struct for saving Particle/Function and wished histogram
@@ -130,9 +152,6 @@ class TreeReader {
         //Save csv is wished
         bool saveCsv;
         std::vector<std::string> csvData;
-
-        //Get wished Particle during Loop
-        const TLorentzVector& GetParticle(Event &event, Particle &part, const int &index = 1);
     
         //Methods to calculate wished quantity (Defined in treereaderfunction.cc)
         float Mass(Event &event, Hist &hist);
@@ -147,7 +166,6 @@ class TreeReader {
         float HadronicEnergy(Event &event, Hist &hist);
         float EventNumber(Event &event, Hist &hist);
         float ConstantNumber(Event &event, Hist &hist);
-        float PhiStar(Event &event, Hist &hist);
 
         float BDTScore(Event &event, Hist &hist);
         //Function to get values for input parameter for BDT evaluation
@@ -159,20 +177,14 @@ class TreeReader {
 
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
+
         //Mapping for IDS/sf
-        std::map<float, std::pair<Bool_t Electron::*, float>> eleID;
-        std::map<float, Float_t Electron::*> eleSF;
-
-        std::map<float, std::pair<Bool_t Muon::*, Bool_t Muon::*>> muonID;
-        std::map<float, std::pair<Float_t Muon::*, Float_t Muon::*>> muonSF;
-
-        std::map<float, Bool_t Jet::*> bJetID;
-        std::map<float, Float_t Jet::*> bJetSF;
+        std::function<bool(int, RecoParticle)> ID;
+        std::function<float(int, RecoParticle)> SF;
 
         //Function for reconstruct objects
         void WBoson(Event &event);
         void Higgs(Event &event);
-        void Top(Event &event);
     
         //Function for cuts
         bool Cut(Event &event, Hist &hist);
