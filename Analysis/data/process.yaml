@@ -48,18 +48,28 @@ T:
     - ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8
 
 SingleE:
-    - SingleElectron-Run2017B-Nano14Dec2018-v1
-    - SingleElectron-Run2017C-Nano14Dec2018-v1
-    - SingleElectron-Run2017D-Nano14Dec2018-v1
-    - SingleElectron-Run2017E-Nano14Dec2018-v1
-    - SingleElectron-Run2017F-Nano14Dec2018-v1
+   # - SingleElectron-Run2017B-Nano14Dec2018-v1
+   # - SingleElectron-Run2017C-Nano14Dec2018-v1
+   # - SingleElectron-Run2017D-Nano14Dec2018-v1
+   # - SingleElectron-Run2017E-Nano14Dec2018-v1
+   # - SingleElectron-Run2017F-Nano14Dec2018-v1
+    - SingleElectron_Run2017B-31Mar2018-v1
+    - SingleElectron_Run2017C-31Mar2018-v1
+    - SingleElectron_Run2017D-31Mar2018-v1
+    - SingleElectron_Run2017E-31Mar2018-v1
+    - SingleElectron_Run2017F-31Mar2018-v1
 
 SingleMu:
-    - SingleMuon-Run2017B-Nano14Dec2018-v1
-    - SingleMuon-Run2017C-Nano14Dec2018-v1
-    - SingleMuon-Run2017D-Nano14Dec2018-v1
-    - SingleMuon-Run2017E-Nano14Dec2018-v1
-    - SingleMuon-Run2017F-Nano14Dec2018-v1
+    #- SingleMuon-Run2017B-Nano14Dec2018-v1
+    #- SingleMuon-Run2017C-Nano14Dec2018-v1
+    #- SingleMuon-Run2017D-Nano14Dec2018-v1
+    #- SingleMuon-Run2017E-Nano14Dec2018-v1
+    #- SingleMuon-Run2017F-Nano14Dec2018-v1
+    - SingleMuon_Run2017B-31Mar2018-v1
+    - SingleMuon_Run2017C-31Mar2018-v1
+    - SingleMuon_Run2017D-31Mar2018-v1
+    - SingleMuon_Run2017E-31Mar2018-v1
+    - SingleMuon_Run2017F-31Mar2018-v1
 
 MET:
     - MET-Run2017B-Nano14Dec2018-v1
