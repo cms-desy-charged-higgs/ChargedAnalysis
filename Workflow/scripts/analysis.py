@@ -2,24 +2,33 @@
 
 from ChargedAnalysis.Workflow.taskmanager import TaskManager
 
-from ChargedAnalysis.Skimming.miniskim import MiniSkim
-from ChargedAnalysis.Skimming.nanoskim import NanoSkim
-from ChargedAnalysis.Skimming.skimhadd import SkimHadd
+#from ChargedAnalysis.Skimming.miniskim import MiniSkim
+#from ChargedAnalysis.Skimming.nanoskim import NanoSkim
+#from ChargedAnalysis.Skimming.skimhadd import SkimHadd
+
+from ChargedAnalysis.Analysis.treeread import TreeRead
+from ChargedAnalysis.Analysis.plot1d import Plot1D
 
 from pprint import pprint
 import os
 import argparse
+import yaml
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["MiniSkim", "NanoSkim"])
+    parser.add_argument("--task", type=str, choices = ["MiniSkim", "NanoSkim", "Plot1D"])
+    parser.add_argument("--config", type=str)
 
     return parser.parse_args()
 
-def taskReturner(taskName):
+def taskReturner(taskName, **kwargs):
+    if kwargs["config"]:
+        config =  yaml.load(file("{}/src/ChargedAnalysis/Workflow/config/{}".format(os.environ["CMSSW_BASE"], kwargs["config"]), "r"), Loader=yaml.Loader)
+
     tasks = {
         "MiniSkim": lambda : skimTask(False),
         "NanoSkim": lambda : skimTask(True),
+        "Plot1D": lambda : plot1DTask(config),
     }
 
     return tasks[taskName]
@@ -42,11 +51,17 @@ def skimTask(isNANO):
 
     return tasks
 
+def plot1DTask(config):
+    treeTasks = TreeRead.configure(config)
+    histTasks = Plot1D.configure(treeTasks, config)
+
+    return treeTasks + histTasks
+
 def main():
     args = parser()
 
     ##Configure and get the tasks
-    tasks = taskReturner(args.task)()
+    tasks = taskReturner(args.task, config=args.config)()
 
     ##Run the manager
     manager = TaskManager()
