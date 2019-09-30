@@ -56,6 +56,10 @@ float TreeReader::BDTScore(Event &event, Hist &hist){
     return score;
 }
 
+float TreeReader::HTagger(Event &event, Hist &hist){
+    return 1.;
+}
+
 float TreeReader::NSigParticle(Event &event, Hist &hist){
     int nSigPart = 0;
 

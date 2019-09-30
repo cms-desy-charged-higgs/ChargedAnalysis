@@ -16,6 +16,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
 
     gROOT->SetBatch(kTRUE);
 
+
     //Start measure execution time
     start = std::chrono::steady_clock::now();
 
@@ -39,6 +40,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {"const", CONSTNUM},
                     {"Nsig", NSIGPART},
                     {"tau", SUBTINESS},
+                    {"htag", HTAGGER},
     };
     
     funcLabel = {
@@ -54,6 +56,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {CONSTNUM, "Bin number"},
                     {NSIGPART, "N^{gen matched}_{@}"},
                     {SUBTINESS, "#tau(@)"},
+                    {HTAGGER, "Higgs score (@)"},
     };
 
     //Maps of all binning, functions and SF
@@ -70,6 +73,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
+                {HTAGGER, {30., 0., 1.}},
     };
 
     funcDir = {
@@ -86,6 +90,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, &TreeReader::ConstantNumber},
                 {NSIGPART, &TreeReader::NSigParticle},
                 {SUBTINESS, &TreeReader::Subtiness},
+                {HTAGGER, &TreeReader::HTagger},
     };
 
     ID = [&](int WP, RecoParticle part){
@@ -148,8 +153,9 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool
     std::vector<Particle> parts;
     std::vector<int> indeces;
 
-    //Check if variable is BDT
+    //Check if variable is special
     if(func == BDTSCORE) isBDT = true;
+    if(func == HTAGGER) isHTag = true;
 
     //If functions has special value
     int partStart = 1;
@@ -411,6 +417,20 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
     float nTrue=0.;
     inputTree->SetBranchAddress("Misc_TrueInteraction", &nTrue);
 
+    //For DNN Higgs Tagger
+    std::vector<std::string> particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
+    std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
+    std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
+
+    if(isHTag){
+        for(unsigned int idx=0; idx < particleVariables.size(); idx++){
+            inputTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
+            inputTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
+        }
+    
+        classifier[index].SetModel("ChargedNetwork.Network.jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel_094.h5");
+    }
+
     //Number of generated events
     float nGen = 1.;
 
@@ -522,12 +542,13 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
             RecoParticle jet;
 
             jet.LV = ROOT::Math::PxPyPzEVector(jetVecFloat[1]->at(idx), jetVecFloat[2]->at(idx), jetVecFloat[3]->at(idx), jetVecFloat[0]->at(idx));
-            jet.IDSF = {jetVecFloat[4]->at(idx), jetVecFloat[5]->at(idx), jetVecFloat[6]->at(idx)};
        
             jet.isLoose = jetVecBool[0]->at(idx);
             jet.isMedium = jetVecBool[1]->at(idx);
             jet.isTight = jetVecBool[2]->at(idx);
+
             if(jetVecFloat[8]->size() != 0){
+                jet.IDSF = {jetVecFloat[4]->at(idx), jetVecFloat[5]->at(idx), jetVecFloat[6]->at(idx)};
                 jet.isFromSignal = jetVecFloat[8]->at(idx);
             }
 
@@ -542,6 +563,28 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
             fatJet.LV = ROOT::Math::PxPyPzEVector(fatjetVecFloat[1]->at(idx), fatjetVecFloat[2]->at(idx), fatjetVecFloat[3]->at(idx), fatjetVecFloat[0]->at(idx));
 
             event.particles[FATJET].push_back(fatJet);
+        }
+
+        if(isHTag){
+            for(unsigned int idx=0; idx < particleVec[0]->size(); idx++){
+                RecoParticle jetParticle;
+                jetParticle.LV = ROOT::Math::PxPyPzEVector(particleVec[1]->at(idx), particleVec[2]->at(idx), particleVec[3]->at(idx), particleVec[0]->at(idx));
+                jetParticle.Vtx = ROOT::Math::XYZVector(particleVec[4]->at(idx), particleVec[5]->at(idx), particleVec[6]->at(idx));
+                jetParticle.charge = particleVec[7]->at(idx);
+                jetParticle.FatJetIdx = particleVec[8]->at(idx);
+   
+                event.particles[JPART].push_back(jetParticle);
+            }
+
+            for(unsigned int idx=0; idx < secVtxVec[0]->size(); idx++){
+                RecoParticle secVtx;
+                secVtx.LV = ROOT::Math::PxPyPzEVector(secVtxVec[1]->at(idx), secVtxVec[2]->at(idx), secVtxVec[3]->at(idx), secVtxVec[0]->at(idx));
+                secVtx.Vtx = ROOT::Math::XYZVector(secVtxVec[4]->at(idx), secVtxVec[5]->at(idx), secVtxVec[6]->at(idx));
+                secVtx.charge = secVtxVec[7]->at(idx);
+                secVtx.FatJetIdx = secVtxVec[8]->at(idx);
+   
+                event.particles[SV].push_back(secVtx);
+            }
         }
 
         RecoParticle met;

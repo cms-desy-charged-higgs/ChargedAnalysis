@@ -17,7 +17,6 @@
 #include <pthread.h>
 
 #include <TROOT.h>
-#include <Math/Vector4Dfwd.h>
 #include <TVector3.h>
 #include <TFile.h>
 #include <TH1F.h>
@@ -25,23 +24,23 @@
 #include <TTree.h>
 
 #include <TMath.h>
-
-#include <ChargedAnalysis/Skimming/interface/electronanalyzer.h>
-#include <ChargedAnalysis/Skimming/interface/muonanalyzer.h> 
-#include <ChargedAnalysis/Skimming/interface/jetanalyzer.h>
-#include <ChargedAnalysis/Skimming/interface/genpartanalyzer.h>
-#include <TLorentzVector.h>
+#include <Math/GenVector/LorentzVector.h>
+#include <Math/GenVector/VectorUtil.h>
+#include <Math/Vector3Dfwd.h>
+#include <Math/Vector4Dfwd.h>
 
 #include <ChargedAnalysis/Analysis/interface/bdt.h>
+#include <ChargedAnalysis/Analysis/interface/dnn.h>
 
+#include <Python.h>
 
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, JPART, SV};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, HTAGGER};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
@@ -49,6 +48,8 @@ class TreeReader {
         //Struct for saving Particle information
         struct RecoParticle {
             ROOT::Math::PxPyPzEVector LV;
+            ROOT::Math::XYZVector Vtx;
+            int charge;
 
             //Booleans
             bool looseIso = true;
@@ -61,6 +62,7 @@ class TreeReader {
             bool isTriggerMatched = true;
 
             int isFromSignal = -1.;
+            int FatJetIdx=-1.;
 
             //Scale factors
             std::vector<float> IDSF = {1., 1., 1.};
@@ -168,12 +170,15 @@ class TreeReader {
         float ConstantNumber(Event &event, Hist &hist);
 
         float BDTScore(Event &event, Hist &hist);
+        bool isBDT = false;
         //Function to get values for input parameter for BDT evaluation
         std::map<std::thread::id, std::vector<Hist>> bdtFunctions;
         std::map<std::thread::id, BDT> evenClassifier;
         std::map<std::thread::id, BDT> oddClassifier;
 
-        bool isBDT = false;
+        float HTagger(Event &event, Hist &hist);
+        bool isHTag = false;
+        std::map<std::thread::id, DNN> classifier;
 
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
