@@ -1,5 +1,6 @@
-#include <ChargedAnalysis/Analysis/interface/limit.h>
+#include <ChargedAnalysis/Analysis/include/limit.h>
 
+/*
 Limit::Limit(){}
 
 Limit::Limit(std::string &mass, std::vector<std::string> &channels, std::vector<std::string> &bkgProc, std::string &outDir):
@@ -60,5 +61,5 @@ void Limit::CalcLimit(){
     std::system(("mv fitDiagnostics" + mass + ".root " + outDir + "/fitDiagnostics.root").c_str());
     std::system(("PostFitShapesFromWorkspace -d " + outDir + "/datacard.txt -o "+ outDir + "/fitshapes.root -f " + outDir + "/fitDiagnostics.root:fit_b --sampling --postfit -w " + outDir + "/datacard.root --mass " + mass).c_str());
 }
-
-
+"""
+*/

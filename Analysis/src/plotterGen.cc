@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/plotterGen.h>
+#include <ChargedAnalysis/Analysis/include/plotterGen.h>
 
 PlotterGen::PlotterGen() : Plotter() {}
 

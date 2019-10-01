@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/treereader.h>
+#include <ChargedAnalysis/Analysis/include/treereader.h>
 
 std::vector<std::string> SplitString(std::string splitString){
     std::istringstream iss(splitString);
@@ -26,8 +26,6 @@ int main(int argc, char* argv[]){
     TreeReader reader(process, xParameters, yParameters, cutStrings, outname, channel, saveTree, saveCsv);
     reader.Run(fileNames, eventFraction);
     reader.Merge();
-
-
 
     Py_Finalize();
 }

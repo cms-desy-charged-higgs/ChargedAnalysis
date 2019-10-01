@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/treereader.h>
+#include <ChargedAnalysis/Analysis/include/treereader.h>
 
 //Constructor
 
@@ -15,7 +15,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     saveCsv(saveCsv){
 
     gROOT->SetBatch(kTRUE);
-
 
     //Start measure execution time
     start = std::chrono::steady_clock::now();
@@ -687,6 +686,8 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
         progress += 100*(1.f/nJobs);
         ProgressBar(progress);
     }
+
+    classifier.clear();
 
     mutex.unlock();
 }

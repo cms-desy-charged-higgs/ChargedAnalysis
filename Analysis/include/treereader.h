@@ -29,8 +29,8 @@
 #include <Math/Vector3Dfwd.h>
 #include <Math/Vector4Dfwd.h>
 
-#include <ChargedAnalysis/Analysis/interface/bdt.h>
-#include <ChargedAnalysis/Analysis/interface/dnn.h>
+#include <ChargedAnalysis/Analysis/include/bdt.h>
+#include <ChargedAnalysis/Analysis/include/dnn.h>
 
 #include <Python.h>
 

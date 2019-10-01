@@ -1,7 +1,7 @@
 #ifndef PLOTTERPOSTFIT_H
 #define PLOTTERPOSTFIT_H
 
-#include <ChargedAnalysis/Analysis/interface/plotter.h>
+#include <ChargedAnalysis/Analysis/include/plotter.h>
 
 #include <vector>
 #include <map>

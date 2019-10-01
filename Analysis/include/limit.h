@@ -6,6 +6,7 @@
 
 #include <TFile.h>
 
+/*
 #include <CombineHarvester/CombineTools/interface/CombineHarvester.h>
 #include <CombineHarvester/CombineTools/interface/Systematics.h>
 
@@ -30,5 +31,5 @@ class Limit {
         void WriteDatacard(std::string &histDir, std::string &parameter);
         void CalcLimit();
 };
-
+*/
 #endif

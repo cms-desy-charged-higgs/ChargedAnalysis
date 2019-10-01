@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/dnn.h>
+#include <ChargedAnalysis/Analysis/include/dnn.h>
 #include <iostream>
 
 DNN::DNN(){}

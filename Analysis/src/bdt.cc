@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/bdt.h>
+#include <ChargedAnalysis/Analysis/include/bdt.h>
 
 BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate, const int &nCuts, const int &treeDepth, const int &dropOut, const std::string &sepType){
     //Write string which configures the hyperparameter space

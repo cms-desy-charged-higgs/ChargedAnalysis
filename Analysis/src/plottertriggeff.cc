@@ -1,4 +1,4 @@
-#include <ChargedAnalysis/Analysis/interface/plottertriggeff.h>
+#include <ChargedAnalysis/Analysis/include/plottertriggeff.h>
 
 PlotterTriggEff::PlotterTriggEff() : Plotter(){}
 

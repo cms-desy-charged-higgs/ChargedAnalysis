@@ -1,7 +1,7 @@
 #ifndef PLOTTER1D_H
 #define PLOTTER1D_H
 
-#include <ChargedAnalysis/Analysis/interface/plotter.h>
+#include <ChargedAnalysis/Analysis/include/plotter.h>
 
 #include "TFile.h"
 #include "TH1F.h"
