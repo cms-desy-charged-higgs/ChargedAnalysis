@@ -2,8 +2,8 @@
 
 ##Compiler/Linking flags
 CC      = $(CHDIR)/Anaconda3/bin/g++
-CFLAGS  = -I$(CHDIR)/CMSSW_9_4_13/src -fPIC -g
-LDFLAGS = -L$(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/lib -L$(CHDIR)/Anaconda3/lib
+CFLAGS  = -I$(CHDIR) -fPIC -g
+LDFLAGS = -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/Anaconda3/lib
 
 PYFLAGS_C = ${shell $(CHDIR)/Anaconda3/bin/python3.7-config --cflags}
 PYFLAGS_LD = ${shell $(CHDIR)/Anaconda3/bin/python3.7-config --ldflags}
@@ -11,11 +11,11 @@ ROOTFLAGS_C = $(shell root-config --cflags)
 ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lTMVA -lGenVector
 
 ##Source and target directories
-OBJDIR = $(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/obj
-SRCDIR = $(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/src
-HDIR = $(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/include
-LIBDIR = $(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/lib
-BINDIR = $(CHDIR)/CMSSW_9_4_13/src/ChargedAnalysis/Analysis/bin
+OBJDIR = $(CHDIR)/ChargedAnalysis/Analysis/obj
+SRCDIR = $(CHDIR)/ChargedAnalysis/Analysis/src
+HDIR = $(CHDIR)/ChargedAnalysis/Analysis/include
+LIBDIR = $(CHDIR)/ChargedAnalysis/Analysis/lib
+BINDIR = $(CHDIR)/ChargedAnalysis/Analysis/bin
 
 ##Target executbales
 TARGETS = $(BINDIR)/Plot1D $(BINDIR)/TreeRead
