@@ -8,19 +8,19 @@ cd $CHDIR
 ##Install Anaconda
 wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
 chmod +x Anaconda3-2019.07-Linux-x86_64.sh
-./Anaconda3-2019.07-Linux-x86_64.sh
+./Anaconda3-2019.07-Linux-x86_64.sh -b -p $CHDIR/Anaconda3
 command rm Anaconda3-2019.07-Linux-x86_64.sh
 
 ##Install ROOT, python packages and g++ compiler with conda
 export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
+conda install anaconda -y
 
 conda install -c conda-forge root -y
-conda install jupyter numpy tensorflow-gpu scipy scikit-learn pandas -y
-pip install htcondor
-
+conda install jupyter numpy tensorflow-gpu scipy scikit-learn pandas matplotlib -y
 conda install -c conda-forge compilers -y
-conda install -c anaconda git -y
+conda install -c anaconda git make -y
+pip install htcondor
 
 ##Git standalone analysis code and compile everything
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
