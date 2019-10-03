@@ -136,7 +136,7 @@ class TaskManager(object):
         ##Wrap all keys in block to make them colored
         def dicToNiceHtml(dic):
             newDic = {}
-            for (key, value) in dic.iteritems():
+            for (key, value) in dic.items():
                 if type(value) != dict:
                     newDic["<b style='color:brown'>{}</b>".format(key)] = value
 
@@ -156,7 +156,7 @@ class TaskManager(object):
                     maxheight = index*40 + 40
 
         ##Fill div/lines templates with right information of the task into list
-        for taskName, (dependencies, yamlInfo, status, display, x, y) in divPos.iteritems():
+        for taskName, (dependencies, yamlInfo, status, display, x, y) in divPos.items():
             divs.append(self._divTmp.format(yaml=yamlInfo, x=x, y=y, name = display, color=statusToColor[status]))
 
             if len(dependencies) != 0:

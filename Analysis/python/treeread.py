@@ -1,4 +1,4 @@
-from ChargedAnalysis.Workflow.task import Task
+from task import Task
 
 import os
 import yaml
@@ -26,20 +26,6 @@ class TreeRead(Task):
             self["status"] = "FINISHED"
         
     def run(self):
-        print("TreeRead {} '{}' '{}' '{}' {} {} {} {} '{}' {}".format(
-                self["process"], 
-                " ".join(self["x-parameter"]), 
-                " ".join(self["y-parameter"]), 
-                " ".join(self["cuts"]), 
-                self["output"],  
-                self["channel"],    
-                self["write-tree"], 
-                self["write-csv"], 
-                " ".join(self["filenames"]), 
-                self["event-fraction"]
-        ))
-
-
         ##Run the TreeReader executable
         os.system("TreeRead {} '{}' '{}' '{}' {} {} {} {} '{}' {}".format(
                 self["process"], 
@@ -62,7 +48,7 @@ class TreeRead(Task):
         chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
 
         ##Dic with process:filenames 
-        processDic = yaml.load(file("{}/src/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CMSSW_BASE"]), "r"), Loader=yaml.Loader)
+        processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
         skimDir = os.environ["CHDIR"] + "/Skim"
         tasks = []
@@ -77,7 +63,7 @@ class TreeRead(Task):
                           "display-name": "Hist: {} ({})".format(process, channel),
                           "channel": channel, 
                           "cuts": conf[channel]["cuts"], 
-                          "dir":  os.environ["CHDIR"] + "Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
+                          "dir":  os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
                           "process": process, 
                           "x-parameter": conf[channel]["x-parameter"], 
                           "filenames": filenames,

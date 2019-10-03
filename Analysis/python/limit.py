@@ -1,4 +1,4 @@
-from ChargedAnalysis.Workflow.task import Task
+from task import Task
 
 import os
 

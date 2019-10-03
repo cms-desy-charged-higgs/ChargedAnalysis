@@ -1,4 +1,4 @@
-from ChargedAnalysis.Workflow.task import Task
+from task import Task
 
 import os
 
@@ -32,7 +32,7 @@ class Plot1D(Task):
         for channel in conf.keys():
             plotConf = {"name": "Plot_{}".format(channel), 
                         "channel": channel, 
-                        "hist-dir": os.environ["CHDIR"] + "Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
+                        "hist-dir": os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
                         "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
                         "display-name": "Plots: {}".format(channel), 
                         "x-parameter": conf[channel]["x-parameter"], 

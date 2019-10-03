@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from ChargedAnalysis.Workflow.taskmanager import TaskManager
+from taskmanager import TaskManager
 
 #from ChargedAnalysis.Skimming.miniskim import MiniSkim
 #from ChargedAnalysis.Skimming.nanoskim import NanoSkim
 #from ChargedAnalysis.Skimming.skimhadd import SkimHadd
 
-from ChargedAnalysis.Analysis.treeread import TreeRead
-from ChargedAnalysis.Analysis.plot1d import Plot1D
+from treeread import TreeRead
+from plot1d import Plot1D
 
 from pprint import pprint
 import os
@@ -23,7 +23,7 @@ def parser():
 
 def taskReturner(taskName, **kwargs):
     if kwargs["config"]:
-        config =  yaml.load(file("{}/src/ChargedAnalysis/Workflow/config/{}".format(os.environ["CMSSW_BASE"], kwargs["config"]), "r"), Loader=yaml.Loader)
+        config =  yaml.load(open("{}/ChargedAnalysis/Workflow/config/{}".format(os.environ["CHDIR"], kwargs["config"]), "r"), Loader=yaml.Loader)
 
     tasks = {
         "MiniSkim": lambda : skimTask(False),

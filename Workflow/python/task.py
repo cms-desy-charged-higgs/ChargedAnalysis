@@ -1,10 +1,8 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 import yaml
 import os
 
-class Task(dict):
-    __metaclass__ = ABCMeta
-
+class Task(ABC, dict):
     def __init__(self, config = {}):
         ##Default values
         self["name"] = "Task"
