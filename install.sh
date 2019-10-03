@@ -17,7 +17,7 @@ source $CHDIR/Anaconda3/bin/activate
 conda install anaconda -y
 
 conda install -c conda-forge root -y
-conda install jupyter numpy tensorflow-gpu scipy scikit-learn pandas matplotlib -y
+conda install -c anaconda tensorflow-gpu -y
 conda install -c conda-forge compilers -y
 conda install -c anaconda git make -y
 pip install htcondor
