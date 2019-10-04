@@ -5,7 +5,7 @@ CC      = $(CHDIR)/Anaconda3/bin/g++
 CFLAGS  = -I$(CHDIR) -fPIC -g
 LDFLAGS = -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/Anaconda3/lib
 
-PYFLAGS_C = ${shell $(CHDIR)/Anaconda3/bin/python3.7-config --cflags}
+PYFLAGS_C = ${shell $(CHDIR)/Anaconda3/bin/python3.7-config --cflags} -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/numpy/core/include/
 PYFLAGS_LD = ${shell $(CHDIR)/Anaconda3/bin/python3.7-config --ldflags}
 ROOTFLAGS_C = $(shell root-config --cflags)
 ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lTMVA -lGenVector
@@ -18,17 +18,17 @@ LIBDIR = $(CHDIR)/ChargedAnalysis/Analysis/lib
 BINDIR = $(CHDIR)/ChargedAnalysis/Analysis/bin
 
 ##Target executbales
-TARGETS = $(BINDIR)/Plot1D $(BINDIR)/TreeRead
+BINARIES = $(BINDIR)/Plot1D $(BINDIR)/TreeRead
 
 ##Compile plotter class in shared libary and compile plot1d exetuable
 PLOTSRC = $(shell ls $(SRCDIR) --color=never | grep plot)
 PLOTOBJ = $(PLOTSRC:%.cc=$(OBJDIR)/%.o)
 
-all : $(TARGETS)
+all : $(BINARIES)
 
-$(BINDIR)/Plot1D: $(OBJDIR)/plot1d.o $(LIBDIR)/libPlot.so
+$(BINDIR)/Plot1D: $(OBJDIR)/plot1d.o $(LIBDIR)/libPlot.so $(LIBDIR)/libUtils.so
     @echo "Create binary $@"
-    @$(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lPlot -o $@ $^
+    @$(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lPlot -lUtils -o $@ $^
 
 $(OBJDIR)/plot1d.o: $(BINDIR)/plot1d.cc $(HDIR)/plotter.h
     @mkdir -p $(OBJDIR)
@@ -55,9 +55,9 @@ TREEOBJ = $(TREESRC:%.cc=$(OBJDIR)/%.o)
 MLSRC = dnn.cc bdt.cc
 MLOBJ = $(MLSRC:%.cc=$(OBJDIR)/%.o)
 
-$(BINDIR)/TreeRead: $(OBJDIR)/treeread.o $(TREEOBJ) $(LIBDIR)/libML.so
+$(BINDIR)/TreeRead: $(OBJDIR)/treeread.o $(TREEOBJ) $(LIBDIR)/libML.so $(LIBDIR)/libUtils.so
     @echo "Create binary $@"
-    @$(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYFLAGS_LD) -lML -o $@ $^
+    @$(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYFLAGS_LD) -lML -lUtils -o $@ $^
 
 $(OBJDIR)/treeread.o: $(BINDIR)/treeread.cc $(HDIR)/treereader.h
     @mkdir -p $(OBJDIR)
@@ -89,6 +89,19 @@ $(OBJDIR)/dnn.o: $(SRCDIR)/dnn.cc $(HDIR)/dnn.h
 
     @echo "Compiling file $<" 
     @$(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYFLAGS_C) -o $@ -c $<
+
+##Shared libary with utility functions
+$(OBJDIR)/utils.o: $(SRCDIR)/utils.cc $(HDIR)/utils.h
+    @mkdir -p $(OBJDIR)
+
+    @echo "Compiling file $<" 
+    @$(CC) $(CFLAGS) -o $@ -c $<
+
+$(LIBDIR)/libUtils.so: $(OBJDIR)/utils.o
+    @mkdir -p $(LIBDIR)    
+
+    @echo "Build shared libary $@"
+    @$(CC) -shared -o $@ $^
 
 
 ##Clean function
