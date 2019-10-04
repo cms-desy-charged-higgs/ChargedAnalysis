@@ -14,11 +14,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     saveTree(saveTree),
     saveCsv(saveCsv){
 
-    gROOT->SetBatch(kTRUE);
-
-    //Start measure execution time
-    start = std::chrono::steady_clock::now();
-
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
     strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"h1j", H1JET}, {"h2j", H2JET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}};
@@ -116,24 +111,6 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
         writeCutFlow = true;
         this->xParameters.erase(it);
     }   
-}
-
-void TreeReader::ProgressBar(const int &progress){
-    std::string progressBar = "["; 
-
-    for(int i = 0; i < progress; i++){
-        if(i%2) progressBar += "#";
-    }
-
-    for(int i = 0; i < 100 - progress; i++){
-        if(i%2) progressBar += " ";
-    }
-
-    progressBar = progressBar + "] " + "Progress of process " + process + ": " + std::to_string(progress) + "%";
-    std::cout << "\r" << progressBar << std::flush;
-
-    if(progress == 100) std::cout << std::endl;
-
 }
 
 TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool &isCutString){
@@ -300,18 +277,56 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
     return {histograms1D, histograms2D};
 }
 
-void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
-    std::thread::id index = std::this_thread::get_id();
-    std::stringstream threadString;  threadString << index;
+std::vector<std::vector<std::pair<int, int>>> TreeReader::EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac){
+    std::vector<int> jobsPerFile(filenames.size(), 0); 
 
+    //Calculate number of jobs per file
+    for(unsigned int i = 0; i < jobsPerFile.size(); i++){
+        for(int j = 0; j < std::floor(nJobs/jobsPerFile.size()); j++){
+             jobsPerFile[i]++;
+        }
+    }
+
+    std::vector<std::vector<std::pair<int, int>>> entryRange(filenames.size(), std::vector<std::pair<int, int>>());
+
+    for(unsigned int i = 0; i < filenames.size(); i++){
+        //Get nGen for each file
+        TFile* file = TFile::Open(filenames[i].c_str());
+        TTree* tree = NULL;
+
+        if(!file->GetListOfKeys()->Contains(channel.c_str())){
+            std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
+        }
+
+        else tree = (TTree*)file->Get(channel.c_str());
+
+        for(int j = 0; j < jobsPerFile[i]; j++){
+            if(j != jobsPerFile[i] - 1 and tree != NULL){
+                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], (j+1)*tree->GetEntries()*frac/jobsPerFile[i]});
+            }
+
+            else if(tree != NULL){
+                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], tree->GetEntries()*frac});
+            }
+
+            else{
+                entryRange[i].push_back({-1., -1.});
+            }
+        }
+    }
+
+    return entryRange;
+}
+
+void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
     TH1::AddDirectory(kFALSE);
-
-    //Lock thread unsafe operation
-    mutex.lock();
+    gROOT->SetBatch(kTRUE);
+    gPrintViaErrorHandler = kTRUE;  
+    gErrorIgnoreLevel = kWarning;
 
     //ROOT files
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TFile* outputFile = TFile::Open(std::string(process + "_" + threadString.str() + ".root").c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open(std::string(process + "_" + std::to_string(getpid()) + ".root").c_str(), "RECREATE");
 
     //Define containers for histograms
     std::vector<Hist> histograms1D;
@@ -427,7 +442,7 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
             inputTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
         }
     
-        classifier[index].SetModel("ChargedNetwork.Network.jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel_094.h5");
+        classifier.SetModel("jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel_094.h5");
     }
 
     //Number of generated events
@@ -471,17 +486,15 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
 
         std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + chanPaths[channel]; 
 
-        std::vector<std::string> bdtVar = evenClassifier[index].SetEvaluation(bdtPath + "/Even/");
-        oddClassifier[index].SetEvaluation(bdtPath + "/Odd/");
+        std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
+        oddClassifier.SetEvaluation(bdtPath + "/Odd/");
 
         bdtVar.pop_back();
 
         for(std::string param: bdtVar){
-            bdtFunctions[index].push_back(ConvertStringToEnums(param));
+            bdtFunctions.push_back(ConvertStringToEnums(param));
         }
     }
-
-    mutex.unlock();
 
     Event event;
 
@@ -645,16 +658,10 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
             //Fill csv vector if wished
             if(saveCsv){
                 csvString.replace(csvString.end()-1, csvString.end(), "\n");
-
-                mutex.lock();
                 csvData.push_back(csvString);
-                mutex.unlock();
             };
         }
     }
-
-    //Lock again and merge local histograms into final histograms
-    mutex.lock();
 
     //Write histograms
     outputFile->cd();
@@ -680,135 +687,11 @@ void TreeReader::ParallelisedLoop(const std::string &fileName, const int &entryS
     delete inputFile;
     delete cutflow;
     delete pileUpWeight;
-
-    //Progress bar
-    if(nJobs != 0){
-        progress += 100*(1.f/nJobs);
-        ProgressBar(progress);
-    }
-
-    classifier.clear();
-
-    mutex.unlock();
-}
-
-std::vector<std::vector<std::pair<int, int>>> TreeReader::EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac){
-    std::vector<int> jobsPerFile(filenames.size(), 0); 
-
-    //Calculate number of jobs per file
-    for(unsigned int i = 0; i < jobsPerFile.size(); i++){
-        for(int j = 0; j < std::floor(nJobs/jobsPerFile.size()); j++){
-             jobsPerFile[i]++;
-        }
-    }
-
-    std::vector<std::vector<std::pair<int, int>>> entryRange(filenames.size(), std::vector<std::pair<int, int>>());
-
-    for(unsigned int i = 0; i < filenames.size(); i++){
-        //Get nGen for each file
-        TFile* file = TFile::Open(filenames[i].c_str());
-        TTree* tree = NULL;
-
-        if(!file->GetListOfKeys()->Contains(channel.c_str())){
-            std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
-        }
-
-        else tree = (TTree*)file->Get(channel.c_str());
-
-        for(int j = 0; j < jobsPerFile[i]; j++){
-            if(j != jobsPerFile[i] - 1 and tree != NULL){
-                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], (j+1)*tree->GetEntries()*frac/jobsPerFile[i]});
-            }
-
-            else if(tree != NULL){
-                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], tree->GetEntries()*frac});
-            }
-
-            else{
-                entryRange[i].push_back({-1., -1.});
-            }
-        }
-    }
-
-    return entryRange;
-}
-
-void TreeReader::Run(std::vector<std::string> &filenames, const float &frac){
-    if(saveCsv){
-        std::string header;
-
-        for(std::string &parameter: xParameters){
-            header += parameter + ",";
-        }
-
-        header.replace(header.end()-1, header.end(), "\n");
-        csvData.push_back(header);
-    }
-
-    //Configure threads
-    nJobs = (int)std::thread::hardware_concurrency();   
-
-    std::vector<std::thread> threads;
-    int assignedCores = 0;
-
-    //Get entry ranges
-    std::vector<std::vector<std::pair<int, int>>> entries = EntryRanges(filenames, nJobs, channel, frac);
-
-    for(unsigned int i = 0; i < filenames.size(); i++){
-        for(std::pair<int, int> range: entries[i]){
-            if(range.first == -1.) continue;
-
-            threads.push_back(std::thread(&TreeReader::ParallelisedLoop, this, filenames[i], range.first, range.second));
-
-            //Set for each thread one core
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(assignedCores, &cpuset);
-
-            pthread_setaffinity_np(threads[assignedCores].native_handle(), sizeof(cpu_set_t), &cpuset);
-
-            assignedCores++;
-        }
-    }
-
-    //Progress bar at 0 %
-    ProgressBar(progress);
-
-    //Let it run
-    for(std::thread &thread: threads){
-        thread.join();
-    }
-
-    //Progress bar at 100%
-    ProgressBar(100);
-
-    end = std::chrono::steady_clock::now();
-    std::cout << "Created output for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
-}
-
-void TreeReader::Run(std::string &fileName, int &entryStart, int &entryEnd){
-    ParallelisedLoop(fileName, entryStart, entryEnd);
-
-    end = std::chrono::steady_clock::now();
-    std::cout << "Created output for process:" << process << " (" << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s)" << std::endl;
 }
 
 void TreeReader::Merge(){
-    std::system(std::string("hadd -f " + outname + " " + process + "_*").c_str());
+    std::system(std::string("hadd -f -v 0 " + outname + " " + process + "_*").c_str());
     std::system(std::string("command rm " + process + "_*").c_str());
-
-    //Save in csv file if wished
-    if(saveCsv){
-        std::ofstream myFile;
-        outname.replace(outname.end()-4, outname.end(), "csv");
-        myFile.open(outname);
-
-        for(std::string &line: csvData){
-            myFile << line;
-        }
-
-        myFile.close();
-    }
 
     TSeqCollection* fileList = gROOT->GetListOfFiles();
 

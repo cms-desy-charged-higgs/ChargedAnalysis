@@ -11,13 +11,7 @@
 #include <tuple>
 #include <fstream>
 
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <pthread.h>
-
 #include <TROOT.h>
-#include <TVector3.h>
 #include <TFile.h>
 #include <TH1F.h>
 #include <TH2F.h>
@@ -125,13 +119,6 @@ class TreeReader {
         //Map for cut string/enumeration 
         std::map<std::string, Operator> strToOp;
 
-        int progress = 0;
-        int nJobs = 0;
-
-        //Measure execution time
-        std::chrono::steady_clock::time_point start;
-        std::chrono::steady_clock::time_point end;
-
         //Needed parameter set in the constructor
         std::string process;
         std::vector<std::string> xParameters; 
@@ -139,9 +126,6 @@ class TreeReader {
         std::vector<std::string> cutStrings;
         std::string outname;
         std::string channel;
-
-        //Class for locking thread unsafe operation
-        std::mutex mutex;
 
         //Vector with cut information
         std::vector<Hist> cuts;
@@ -172,14 +156,14 @@ class TreeReader {
         float BDTScore(Event &event, Hist &hist);
         bool isBDT = false;
         //Function to get values for input parameter for BDT evaluation
-        std::map<std::thread::id, std::vector<Hist>> bdtFunctions;
-        std::map<std::thread::id, BDT> evenClassifier;
-        std::map<std::thread::id, BDT> oddClassifier;
+        std::vector<Hist> bdtFunctions;
+        BDT evenClassifier;
+        BDT oddClassifier;
 
         float HTagger(Event &event, Hist &hist);
         bool isHTag = false;
-        std::map<std::thread::id, DNN> classifier;
-
+        DNN classifier;
+    
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
 
@@ -194,25 +178,16 @@ class TreeReader {
         //Function for cuts
         bool Cut(Event &event, Hist &hist);
 
-        //Progress bar function
-        void ProgressBar(const int &progress);
-
         //Function for converting string into wished enumerations
         Hist ConvertStringToEnums(std::string &input, const bool &isCutString = false);
         std::tuple<std::vector<Hist>, std::vector<std::vector<Hist>>> SetHistograms(TFile* outputFile);
 
-        //Calculate entry ranges for each job
-        static std::vector<std::vector<std::pair<int, int>>> EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac);
-
-        //Loop for each thread
-        void ParallelisedLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
-
-
     public:
         TreeReader();
         TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false, const bool& saveCsv = false);
-        void Run(std::vector<std::string> &filenames, const float &frac = 1.0);
-        void Run(std::string &fileName, int &entryStart, int &entryEnd);
+
+        static std::vector<std::vector<std::pair<int, int>>> EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac);
+        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
         void Merge();
 };
 
