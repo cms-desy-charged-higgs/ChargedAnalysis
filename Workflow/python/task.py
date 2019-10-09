@@ -5,10 +5,11 @@ import os
 class Task(ABC, dict):
     def __init__(self, config = {}):
         ##Default values
-        self["name"] = "Task"
+        self["name"] = "Task_{}".format(id(self))
         self["status"] = "VALID"
         self["dir"] = os.getcwd() + "/"
         self["dependencies"] = []
+        self["run-mode"] = "Local"
 
         ##Update with input config
         self.update(config)
@@ -16,14 +17,49 @@ class Task(ABC, dict):
         if "display-name" not in self:
             self["display-name"] = self["name"]
 
-        self._allowParallel = True
-
     def __hash__(self):
         return id(self)
 
     def __call__(self):
         self.run()
     
+    def createCondor(self):
+        ##Create directory with condor
+        self["condor-dir"] = "{}/Condor/{}".format(self["dir"], self["name"])
+        os.makedirs(self["condor-dir"], exist_ok=True)
+
+        ##Dic which will be written into submit file
+        condorDic = {
+            "universe": "vanilla",
+            "executable": "{}/condor.sh".format(self["condor-dir"]),
+            "transfer_executable": "True",
+            "getenv": "True",
+            "log": "{}/condor.log".format(self["condor-dir"]),
+            "error": "{}/condor.err".format(self["condor-dir"]),
+            "output":"{}/condor.out".format(self["condor-dir"]),
+        }
+
+        ##Write submit file
+        with open("{}/condor.sub".format(self["condor-dir"]), "w") as condFile:
+            for key, value in condorDic.items():
+                condFile.write("{} = {}\n".format(key, value))
+
+            condFile.write("queue 1")
+
+        ##Write executable
+        fileContent = [
+                        "#!/bin/bash\n", 
+                        "cd $CHDIR\n",
+                        "source ChargedAnalysis/setenv.sh StandAlone\n",
+                        "{} {}".format(self["executable"], self["arguments"])
+        ]
+
+        with open("{}/condor.sh".format(self["condor-dir"]), "w") as condExe:
+            for line in fileContent:
+                condExe.write(line)
+
+        os.system("chmod a+x {}/condor.sh".format(self["condor-dir"]))
+
     def getDependentFiles(self, depGraph):
         if self["tasklayer"] == 0:
             return 0
@@ -44,14 +80,6 @@ class Task(ABC, dict):
         if(not os.path.exists(self["dir"])):
             os.system("mkdir -p {}".format(self["dir"])) 
             print("Created task dir: {}".format(self["dir"]))
-
-    @property
-    def allowParallel(self):
-        return self._allowParallel
-
-    @allowParallel.setter
-    def tasks(self, decision):
-        self._allowParallel = decision
 
     ##Abstract functions which has to be overwritten
     @abstractmethod
