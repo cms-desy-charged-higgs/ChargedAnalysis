@@ -116,7 +116,46 @@ class TaskManager(object):
             self._graph.append(nextLayer)
 
             for task in nextLayer:
-                allTask.remove(task)         
+                allTask.remove(task)   
+
+
+    def __printRunStatus(self, layer, time):
+        ##Helper function:
+        nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
+
+        localRun = nStatus(self.localTask, "RUNNING")
+        localFin = nStatus(self.localTask, "FINISHED")
+        localFail = nStatus(self.localTask, "FAILED")
+
+        condRun = nStatus(self.condorTask, "RUNNING")
+        condFin = nStatus(self.condorTask, "FINISHED")
+        condFail = nStatus(self.condorTask, "FAILED")
+
+        runString = "\t\t\033[92mRUN\033[0m : {} \t\033[93mVALID\033[0m :  {} \t\033[91mFAILED\033[0m : {} \t\033[1mFINISHED\033[0m : {}"
+
+        statString = "{}/{} ({} %) \t Time : {} s".format(localFin+condFin , len(self.localTask)+len(self.condorTask), 100*(localFin+condFin)/(len(self.localTask)+len(self.condorTask)), time)
+
+        os.system("clear")
+
+        outputPrint = [
+                "Overview of task layer {}".format(layer),
+                "".join(["-" for i in range(80)]),
+                "Overall stats",
+                "",
+                statString,
+                "".join(["-" for i in range(80)]),
+                "Local Task",
+                "",
+                runString.format(localRun, len(self.localTask) - localFin - localRun - localFail, localFail, localFin),
+                "".join(["-" for i in range(80)]),
+                "Condor Task",
+                "",
+                runString.format(condRun, len(self.condorTask) - condFin - condRun - condFail, condFail, condFin),
+                "".join(["-" for i in range(80)]),
+        ]
+
+        for line in outputPrint:
+            print(line.center(os.get_terminal_size().columns))
         
     def drawGraph(self):
         divPos = {}
@@ -168,49 +207,72 @@ class TaskManager(object):
             f.write(self._htmlHead + self._htmlBody.format(divs="\n".join(divs), lines = "\n".join(lines),maxheight=maxheight) + self._javascript)
 
     def runTasks(self):
+        ##Helper function:
+        nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
+
         ##Create dependency graph
         self.__createGraph()   
 
-        for index, taskLayer in enumerate(self._graph):
+        for layer, taskLayer in enumerate(self._graph):
+            self.localTask = []
+            self.condorTask = []
+            startTime = time.time()
+
+            for task in taskLayer:
+                if task["run-mode"] == "Local":
+                    self.localTask.append(task)
+
+                if task["run-mode"] == "Condor":
+                    self.condorTask.append(task)
+
+            ##Submit all condors jobs
+            for task in self.condorTask:
+                task.run()
+
+            ##Run all local task
+            nCores = cpu_count()
+            pool = Pool(processes=nCores)
+            localRuns = [pool.apply_async(task) for task in self.localTask]
+
             while(True):
-                taskFin = 0
-                taskInParallel = []
-
-                sys.stdout.write("\rTask Layer {} |  Running Task: {}  |  Finished Task: {}".format(index, len(taskLayer) - taskFin, taskFin))
-                sys.stdout.flush()
                 self.drawGraph() 
 
-                for task in taskLayer:
-                    if task["status"] != "FINISHED":
-                        task.status()
+                ##Track local jobs
+                for index, job in enumerate(localRuns):
+                    if job.ready():
+                        if job.successful():
+                            self.localTask[index]["status"] = "FINISHED"
 
-                    if task["status"] != "RUNNING" and task["status"] != "FINISHED":
-                        task["status"] = "RUNNING"
-                        task.getDependentFiles(self._graph)
-
-                        if task.allowParallel:
-                            taskInParallel.append(task)
-    
                         else:
-                            task.run()
+                            self.localTask[index]["status"] = "FAILED"
+                            
+                    else:
+                        nRuns = nStatus(self.localTask, "RUNNING")
+                        nFinished = nStatus(self.localTask, "FINISHED")
+                        nFailed = nStatus(self.localTask, "FAILED")
+       
+                        if nRuns < nCores and nRuns < len(self.localTask) - nFinished - nFailed:
+                            self.localTask[index]["status"] = "RUNNING"
+                           
+                ##Track condor jobs
+                for task in self.condorTask:
+                    with open("{}/condor.log".format(task["condor-dir"])) as logFile:
+                        if True in ["Job executing" in line for line in logFile.readlines()]:
+                            task["status"] = "RUNNING"
 
-                    if task["status"] == "FINISHED":
-                        taskFin+=1
+                        logFile.seek(0)
 
-                    task.dump()
-
-                ##Run all allowed jobs in parallel of this task layer
-                pool = Pool(processes=cpu_count())
-                results = [pool.apply_async(task) for task in taskInParallel]
-                output = [p.get() for p in results]
-
-                self.drawGraph() 
+                        if True in ["Normal termination" in line for line in logFile.readlines()]:
+                            logFile.seek(0)
+            
+                            if True in ["(return value 0)" in line for line in logFile.readlines()]:
+                                task["status"] = "FINISHED"
     
-                if(taskFin != len(taskLayer)):
-                    sys.stdout.write("\rTask Layer {} |  Running Task: {}  |  Finished Task: {}".format(index, len(taskLayer) - taskFin, taskFin))
-                    sys.stdout.flush()
-                    time.sleep(1)
+                            else:
+                                task["status"] = "FAILED"
 
-                else:
-                    sys.stdout.write("\n")
+                self.__printRunStatus(layer, time.time() - startTime)
+                time.sleep(5)
+
+                if nStatus(self.localTask, "FINISHED") == len(self.localTask) and nStatus(self.condorTask, "FINISHED") == len(self.condorTask):
                     break
