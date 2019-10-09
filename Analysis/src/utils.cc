@@ -1,11 +1,15 @@
 #include <ChargedAnalysis/Analysis/include/utils.h>
 
-std::vector<std::string> Utils::SplitString(const std::string& splitString){
-    std::istringstream iss(splitString);
-    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                 std::istream_iterator<std::string>());
+std::vector<std::string> Utils::SplitString(const std::string& splitString, const std::string& delimeter){
+    //Function which handles splitting of string input
+    std::vector<std::string> splittedString;
+    std::string string;
+    std::istringstream splittedStream(splitString);
+    while (std::getline(splittedStream, string, delimeter.c_str()[0])){
+        splittedString.push_back(string);
+    }
 
-    return results;
+    return splittedString;
 }
 
 void Utils::ProgressBar(const int& progress, const std::string& process){
@@ -33,4 +37,16 @@ Utils::RunTime::RunTime(){
 float Utils::RunTime::Time(){
     end = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+}
+
+int Utils::FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind){
+    int position = -1.;
+
+    for(unsigned int i=0; i < vect.size(); i++){
+        if(vect[i].find(itemToFind) != std::string::npos){
+            position=i;
+        }
+    }
+
+    return position;
 }
