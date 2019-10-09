@@ -1,5 +1,6 @@
 #ifndef TREEREADER_H
 #define TREEREADER_H
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <iostream>
 #include <vector>
@@ -25,13 +26,16 @@
 
 #include <ChargedAnalysis/Analysis/include/bdt.h>
 #include <ChargedAnalysis/Analysis/include/dnn.h>
+#include <ChargedAnalysis/Analysis/include/utils.h>
 
 #include <Python.h>
+#include <numpy/ndarrayobject.h>
+#include <numpy/arrayobject.h>
 
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, JPART, SV};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, CJ1PART, CJ2PART, NJ1PART, NJ2PART, SV1, SV2, };
 
         //Enumeration for functions to calculate quantities
         enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, HTAGGER};
@@ -56,7 +60,6 @@ class TreeReader {
             bool isTriggerMatched = true;
 
             int isFromSignal = -1.;
-            int FatJetIdx=-1.;
 
             //Scale factors
             std::vector<float> IDSF = {1., 1., 1.};
@@ -77,6 +80,7 @@ class TreeReader {
         struct Event{ 
             //Map with particles      
             std::map<Particle, std::vector<RecoParticle>> particles;
+
             float HT=1.;
             float eventNumber;
 
@@ -186,9 +190,7 @@ class TreeReader {
         TreeReader();
         TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false, const bool& saveCsv = false);
 
-        static std::vector<std::vector<std::pair<int, int>>> EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac);
         void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
-        void Merge();
 };
 
 #endif

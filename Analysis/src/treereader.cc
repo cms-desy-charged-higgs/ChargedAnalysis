@@ -105,22 +105,44 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     }
 
     //Check if cutflow should be written out
-    std::vector<std::string>::iterator it = std::find(this->xParameters.begin(), this->xParameters.end(), "cutflow");
+    int pos = Utils::FindInVec(this->xParameters, "cutflow");
 
-    if(it != this->xParameters.end()){
+    if(pos != -1){
         writeCutFlow = true;
-        this->xParameters.erase(it);
+        this->xParameters.erase(this->xParameters.begin() + pos);
     }   
+
+    //Check if BDT and DNN classes has to be initialized
+    isBDT = Utils::FindInVec(this->xParameters, "bdt_") != -1 or Utils::FindInVec(cutStrings, "bdt_") != -1;
+    isHTag = Utils::FindInVec(this->xParameters, "htag") != -1 or Utils::FindInVec(cutStrings, "htag") != -1;
+
+    //BDT intialization
+    if(isBDT){
+        std::map<std::string, std::string> chanPaths = {
+                    {"e4j", "Ele4J"},
+                    {"mu4j", "Muon4J"},
+                    {"e2j1f", "Ele2J1F"},
+                    {"mu2j1f", "Muon2J1F"},
+                    {"e2f", "Ele2F"},
+                    {"mu2f", "Muon2F"},
+        };
+
+        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + chanPaths[channel]; 
+
+        std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
+        oddClassifier.SetEvaluation(bdtPath + "/Odd/");
+
+        bdtVar.pop_back();
+
+        for(std::string param: bdtVar){
+            bdtFunctions.push_back(ConvertStringToEnums(param));
+        }
+    }
 }
 
 TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool &isCutString){
     //Function which handles splitting of string input
-    std::vector<std::string> splittedString;
-    std::string string;
-    std::istringstream splittedStream(input);
-    while (std::getline(splittedStream, string,  '_')){
-        splittedString.push_back(string);
-    }
+    std::vector<std::string> splittedString = Utils::SplitString(input, "_");
 
     //Translate strings into enumeration
     Function func = strToFunc[splittedString[0]];
@@ -128,10 +150,6 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool
     Operator op; float cutValue;
     std::vector<Particle> parts;
     std::vector<int> indeces;
-
-    //Check if variable is special
-    if(func == BDTSCORE) isBDT = true;
-    if(func == HTAGGER) isHTag = true;
 
     //If functions has special value
     int partStart = 1;
@@ -277,56 +295,22 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
     return {histograms1D, histograms2D};
 }
 
-std::vector<std::vector<std::pair<int, int>>> TreeReader::EntryRanges(std::vector<std::string> &filenames, int &nJobs, std::string &channel, const float &frac){
-    std::vector<int> jobsPerFile(filenames.size(), 0); 
-
-    //Calculate number of jobs per file
-    for(unsigned int i = 0; i < jobsPerFile.size(); i++){
-        for(int j = 0; j < std::floor(nJobs/jobsPerFile.size()); j++){
-             jobsPerFile[i]++;
-        }
-    }
-
-    std::vector<std::vector<std::pair<int, int>>> entryRange(filenames.size(), std::vector<std::pair<int, int>>());
-
-    for(unsigned int i = 0; i < filenames.size(); i++){
-        //Get nGen for each file
-        TFile* file = TFile::Open(filenames[i].c_str());
-        TTree* tree = NULL;
-
-        if(!file->GetListOfKeys()->Contains(channel.c_str())){
-            std::cout << file->GetName() << " has no event tree. It will be skipped.." << std::endl;
-        }
-
-        else tree = (TTree*)file->Get(channel.c_str());
-
-        for(int j = 0; j < jobsPerFile[i]; j++){
-            if(j != jobsPerFile[i] - 1 and tree != NULL){
-                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], (j+1)*tree->GetEntries()*frac/jobsPerFile[i]});
-            }
-
-            else if(tree != NULL){
-                entryRange[i].push_back({j*tree->GetEntries()*frac/jobsPerFile[i], tree->GetEntries()*frac});
-            }
-
-            else{
-                entryRange[i].push_back({-1., -1.});
-            }
-        }
-    }
-
-    return entryRange;
-}
-
 void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
     TH1::AddDirectory(kFALSE);
     gROOT->SetBatch(kTRUE);
     gPrintViaErrorHandler = kTRUE;  
     gErrorIgnoreLevel = kWarning;
 
+    //DNN initialization
+    if(isHTag){
+        Py_Initialize();
+
+        classifier.SetModel("jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel.h5");
+    }
+
     //ROOT files
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TFile* outputFile = TFile::Open(std::string(process + "_" + std::to_string(getpid()) + ".root").c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
 
     //Define containers for histograms
     std::vector<Hist> histograms1D;
@@ -441,8 +425,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             inputTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
             inputTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
         }
-    
-        classifier.SetModel("jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel_094.h5");
     }
 
     //Number of generated events
@@ -472,29 +454,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     TH1F* cutflow = (TH1F*)inputFile->Get(("cutflow_" + channel).c_str())->Clone();
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
     cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
-
-    //BDT intialization
-    if(isBDT){
-        std::map<std::string, std::string> chanPaths = {
-                    {"e4j", "Ele4J"},
-                    {"mu4j", "Muon4J"},
-                    {"e2j1f", "Ele2J1F"},
-                    {"mu2j1f", "Muon2J1F"},
-                    {"e2f", "Ele2F"},
-                    {"mu2f", "Muon2F"},
-        };
-
-        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + chanPaths[channel]; 
-
-        std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
-        oddClassifier.SetEvaluation(bdtPath + "/Odd/");
-
-        bdtVar.pop_back();
-
-        for(std::string param: bdtVar){
-            bdtFunctions.push_back(ConvertStringToEnums(param));
-        }
-    }
 
     Event event;
 
@@ -583,9 +542,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
                 jetParticle.LV = ROOT::Math::PxPyPzEVector(particleVec[1]->at(idx), particleVec[2]->at(idx), particleVec[3]->at(idx), particleVec[0]->at(idx));
                 jetParticle.Vtx = ROOT::Math::XYZVector(particleVec[4]->at(idx), particleVec[5]->at(idx), particleVec[6]->at(idx));
                 jetParticle.charge = particleVec[7]->at(idx);
-                jetParticle.FatJetIdx = particleVec[8]->at(idx);
    
-                event.particles[JPART].push_back(jetParticle);
+                if(particleVec[7]->at(idx) == 0) event.particles[particleVec[8]->at(idx)==0 ? NJ1PART : NJ2PART].push_back(jetParticle);
+                else event.particles[particleVec[8]->at(idx)==0 ? CJ1PART : CJ2PART].push_back(jetParticle);
             }
 
             for(unsigned int idx=0; idx < secVtxVec[0]->size(); idx++){
@@ -593,9 +552,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
                 secVtx.LV = ROOT::Math::PxPyPzEVector(secVtxVec[1]->at(idx), secVtxVec[2]->at(idx), secVtxVec[3]->at(idx), secVtxVec[0]->at(idx));
                 secVtx.Vtx = ROOT::Math::XYZVector(secVtxVec[4]->at(idx), secVtxVec[5]->at(idx), secVtxVec[6]->at(idx));
                 secVtx.charge = secVtxVec[7]->at(idx);
-                secVtx.FatJetIdx = secVtxVec[8]->at(idx);
    
-                event.particles[SV].push_back(secVtx);
+                event.particles[secVtxVec[8]->at(idx)==0 ? SV1 : SV2].push_back(secVtx);
             }
         }
 
@@ -617,8 +575,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             //event.weight *= nTrue/pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
         }
 
-        WBoson(event);
-        Higgs(event);
+       // WBoson(event);
+       // Higgs(event);
 
         //Check if event passes cut
         bool passedCut = true;
@@ -687,15 +645,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     delete inputFile;
     delete cutflow;
     delete pileUpWeight;
-}
 
-void TreeReader::Merge(){
-    std::system(std::string("hadd -f -v 0 " + outname + " " + process + "_*").c_str());
-    std::system(std::string("command rm " + process + "_*").c_str());
-
-    TSeqCollection* fileList = gROOT->GetListOfFiles();
-
-    for(int i=0; i < fileList->GetSize(); i++){
-        delete fileList->At(i);
+   if(isHTag){
+        classifier.Clear();
+        Py_Finalize();
     }
 }
