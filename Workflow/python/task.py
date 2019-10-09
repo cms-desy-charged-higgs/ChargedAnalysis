@@ -68,7 +68,7 @@ class Task(ABC, dict):
         for task in depGraph[self["tasklayer"]-1]:
             if task["name"] in self["dependencies"] and type(task["output"]) == str:
                 if len(task["output"]) != 0:
-                    self.setdefault("dependent_files", []).append(task["output"])
+                    self.setdefault("dependent-files", []).append(task["output"])
 
     def dump(self):
         ##Dump this task config in yaml file

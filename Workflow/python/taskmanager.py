@@ -22,7 +22,10 @@ class TaskManager(object):
                         
                         svg {width: 100%; height: 100%; top:0; left:0; position: absolute;}
                         object {width: 200px; height: 1000px;}
+
                     </style>
+                    <script type="text/javascript" src="http://livejs.com/live.js"></script>
+
                 </head>
             """
 
@@ -220,9 +223,11 @@ class TaskManager(object):
 
             for task in taskLayer:
                 if task["run-mode"] == "Local":
+                    task.getDependentFiles(self._graph)
                     self.localTask.append(task)
-
+                  
                 if task["run-mode"] == "Condor":
+                    task.getDependentFiles(self._graph)
                     self.condorTask.append(task)
 
             ##Submit all condors jobs
@@ -245,6 +250,9 @@ class TaskManager(object):
 
                         else:
                             self.localTask[index]["status"] = "FAILED"
+                            self.__printRunStatus(layer, time.time() - startTime)
+                            self.drawGraph()
+                            job.get()
                             
                     else:
                         nRuns = nStatus(self.localTask, "RUNNING")
@@ -273,6 +281,7 @@ class TaskManager(object):
 
                 self.__printRunStatus(layer, time.time() - startTime)
                 time.sleep(5)
+                self.drawGraph()
 
                 if nStatus(self.localTask, "FINISHED") == len(self.localTask) and nStatus(self.condorTask, "FINISHED") == len(self.condorTask):
                     break
