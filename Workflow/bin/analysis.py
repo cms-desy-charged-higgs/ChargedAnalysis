@@ -8,6 +8,7 @@ from taskmanager import TaskManager
 
 from treeread import TreeRead
 from plot1d import Plot1D
+from hadd import Hadd
 
 from pprint import pprint
 import os
@@ -52,10 +53,16 @@ def skimTask(isNANO):
     return tasks
 
 def plot1DTask(config):
-    treeTasks = TreeRead.configure(config)
-    histTasks = Plot1D.configure(treeTasks, config)
+    allTasks = []
 
-    return treeTasks + histTasks
+    for channel, conf in config.items():
+        treeTasks = TreeRead.configure(config, channel)
+        haddTasks = Hadd.configure(config, treeTasks, channel)
+        histTasks = Plot1D.configure(config, haddTasks, channel)
+
+        allTasks.extend(treeTasks+haddTasks+histTasks)
+
+    return allTasks
 
 def main():
     args = parser()
