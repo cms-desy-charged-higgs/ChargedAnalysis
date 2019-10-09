@@ -20,7 +20,10 @@ BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate,
 }
 
 BDT::~BDT(){
-    delete reader;
+    //delete reader;
+    if(reader){
+        delete reader;
+    }
 }
 
 float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::vector<std::string> &signals, std::vector<std::string> &backgrounds, std::string &evType){

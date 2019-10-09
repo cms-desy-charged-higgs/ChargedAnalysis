@@ -18,7 +18,7 @@
 class BDT{
     private:
         std::string trainString;
-        TMVA::Reader* reader;
+        TMVA::Reader* reader = NULL;
 
     public:
         BDT(const int &nTrees = 500, const float &minNodeSize = 2.5, const float &learningRate = 0.5, const int &nCuts = 20, const int &treeDepth = 3, const int &dropOut = 2, const std::string &sepType = "GiniIndex");
