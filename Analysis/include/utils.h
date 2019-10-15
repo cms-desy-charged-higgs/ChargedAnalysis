@@ -29,6 +29,8 @@ namespace Utils{
     };
 
     int FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind);
+
+    int Ratio(const float& num, const float& dem);
 };
 
 #endif

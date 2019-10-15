@@ -50,3 +50,7 @@ int Utils::FindInVec(const std::vector<std::string>& vect, const std::string& it
 
     return position;
 }
+
+int Utils::Ratio(const float& num, const float& dem){
+    return num/dem;
+}
