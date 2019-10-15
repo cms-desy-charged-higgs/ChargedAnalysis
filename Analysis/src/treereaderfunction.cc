@@ -42,22 +42,106 @@ float TreeReader::Subtiness(Event &event, Hist &hist){
 }
 
 float TreeReader::BDTScore(Event &event, Hist &hist){
-    std::thread::id index = std::this_thread::get_id();
     std::vector<float> paramValues;
 
-    for(Hist funcs: bdtFunctions[index]){
+    for(Hist funcs: bdtFunctions){
         paramValues.push_back((this->*funcDir[funcs.func])(event, funcs));
     }
 
     paramValues.push_back(hist.funcValue);
 
-    float score = (int)EventNumber(event, hist) % 2 == 0 ? oddClassifier[index].Evaluate(paramValues) : evenClassifier[index].Evaluate(paramValues);
+    float score = (int)EventNumber(event, hist) % 2 == 0 ? oddClassifier.Evaluate(paramValues) : evenClassifier.Evaluate(paramValues);
 
     return score;
 }
 
-float TreeReader::HTagger(Event &event, Hist &hist){
-    return 1.;
+std::vector<std::vector<float>> TreeReader::JetParameter(Event &event, Hist &hist){
+    std::vector<Particle> jetParts = hist.indeces[0]==1 ? std::vector<Particle>{CJ1PART, NJ1PART, SV1} : std::vector<Particle>{CJ2PART, NJ2PART, SV2};
+
+    std::vector<float> chargedArray(7*event.particles[jetParts[0]].size(), 1);
+    std::vector<float> neutralArray(7*event.particles[jetParts[1]].size(), 1);
+    std::vector<float> SVArray(7*event.particles[jetParts[2]].size(), 1);
+
+    for(const Particle& part: jetParts){
+        for(unsigned int i=0; i < event.particles[part].size(); i++){
+            if(part == CJ1PART or part == CJ2PART){
+                chargedArray[7*i] = event.particles[part][i].LV.E();
+                chargedArray[7*i+1] = event.particles[part][i].LV.Px();
+                chargedArray[7*i+2] = event.particles[part][i].LV.Py();
+                chargedArray[7*i+3] = event.particles[part][i].LV.Pz();
+                chargedArray[7*i+4] = event.particles[part][i].Vtx.X();
+                chargedArray[7*i+5] = event.particles[part][i].Vtx.Y();
+                chargedArray[7*i+6] = event.particles[part][i].Vtx.Z();
+            }  
+
+            if(part == NJ1PART or part == NJ2PART){
+                neutralArray[7*i] = event.particles[part][i].LV.E();
+                neutralArray[7*i+1] = event.particles[part][i].LV.Px();
+                neutralArray[7*i+2] = event.particles[part][i].LV.Py();
+                neutralArray[7*i+3] = event.particles[part][i].LV.Pz();
+                neutralArray[7*i+4] = event.particles[part][i].Vtx.X();
+                neutralArray[7*i+5] = event.particles[part][i].Vtx.Y();
+                neutralArray[7*i+6] = event.particles[part][i].Vtx.Z();
+            }  
+
+            if(part == SV1 or part == SV2){
+                SVArray[7*i] = event.particles[part][i].LV.E();
+                SVArray[7*i+1] = event.particles[part][i].LV.Px();
+                SVArray[7*i+2] = event.particles[part][i].LV.Py();
+                SVArray[7*i+3] = event.particles[part][i].LV.Pz();
+                SVArray[7*i+4] = event.particles[part][i].Vtx.X();
+                SVArray[7*i+5] = event.particles[part][i].Vtx.Y();
+                SVArray[7*i+6] = event.particles[part][i].Vtx.Z();
+            }
+        }
+    }
+
+    std::vector<std::vector<float>> jetParam = {chargedArray, neutralArray, SVArray};
+
+    return jetParam;
+}
+
+float TreeReader::HTag(Event &event, Hist &hist){
+    /*
+
+    std::vector<Particle> jetParts = hist.indeces[0]==1 ? std::vector<Particle>{CJ1PART, NJ1PART, SV1} : std::vector<Particle>{CJ2PART, NJ2PART, SV2};
+
+    for(const Particle& part: jetParts){
+        for(unsigned int i=0; i < event.particles[part].size(); i++){
+            if(part == CJ1PART or part == CJ2PART){
+                chargedArray[0][i][0] = event.particles[part][i].LV.E();
+                chargedArray[0][i][1] = event.particles[part][i].LV.Px();
+                chargedArray[0][i][2] = event.particles[part][i].LV.Py();
+                chargedArray[0][i][3] = event.particles[part][i].LV.Pz();
+                chargedArray[0][i][4] = event.particles[part][i].Vtx.X();
+                chargedArray[0][i][5] = event.particles[part][i].Vtx.Y();
+                chargedArray[0][i][6] = event.particles[part][i].Vtx.Z();
+            }
+
+            if(part == NJ1PART or part == NJ2PART){
+                neutralArray[0][i][0] = event.particles[part][i].LV.E();
+                neutralArray[0][i][1] = event.particles[part][i].LV.Px();
+                neutralArray[0][i][2] = event.particles[part][i].LV.Py();
+                neutralArray[0][i][3] = event.particles[part][i].LV.Pz();
+                neutralArray[0][i][4] = event.particles[part][i].Vtx.X();
+                neutralArray[0][i][5] = event.particles[part][i].Vtx.Y();
+                neutralArray[0][i][6] = event.particles[part][i].Vtx.Z();
+            }
+
+            if(part == SV1 or part == SV2){
+                SVArray[0][i][0] = event.particles[part][i].LV.E();
+                SVArray[0][i][1] = event.particles[part][i].LV.Px();
+                SVArray[0][i][2] = event.particles[part][i].LV.Py();
+                SVArray[0][i][3] = event.particles[part][i].LV.Pz();
+                SVArray[0][i][4] = event.particles[part][i].Vtx.X();
+                SVArray[0][i][5] = event.particles[part][i].Vtx.Y();
+                SVArray[0][i][6] = event.particles[part][i].Vtx.Z();
+            }
+        }
+    }
+    */
+
+    return 1;
 }
 
 float TreeReader::NSigParticle(Event &event, Hist &hist){
