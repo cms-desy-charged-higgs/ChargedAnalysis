@@ -4,15 +4,13 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree, const bool& saveCsv):
+TreeReader::TreeReader(const std::string &process, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel, const std::string& saveMode):
     process(process),
     xParameters(xParameters),
     yParameters(yParameters),
     cutStrings(cutStrings),
     outname(outname),
-    channel(channel),
-    saveTree(saveTree),
-    saveCsv(saveCsv){
+    channel(channel){
 
     //Maps of all strings/enumeration
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
@@ -34,7 +32,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {"const", CONSTNUM},
                     {"Nsig", NSIGPART},
                     {"tau", SUBTINESS},
-                    {"htag", HTAGGER},
+                    {"htag", HTAG},
     };
     
     funcLabel = {
@@ -50,7 +48,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                     {CONSTNUM, "Bin number"},
                     {NSIGPART, "N^{gen matched}_{@}"},
                     {SUBTINESS, "#tau(@)"},
-                    {HTAGGER, "Higgs score (@)"},
+                    {HTAG, "Higgs score (@)"},
     };
 
     //Maps of all binning, functions and SF
@@ -67,7 +65,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
-                {HTAGGER, {30., 0., 1.}},
+                {HTAG, {30., 0., 1.}},
     };
 
     funcDir = {
@@ -84,7 +82,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
                 {CONSTNUM, &TreeReader::ConstantNumber},
                 {NSIGPART, &TreeReader::NSigParticle},
                 {SUBTINESS, &TreeReader::Subtiness},
-                {HTAGGER, &TreeReader::HTagger},
+                {HTAG, &TreeReader::HTag},
     };
 
     ID = [&](int WP, RecoParticle part){
@@ -100,7 +98,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     };
 
     //Cut configuration
-    for(std::string &cut: cutStrings){
+    for(const std::string &cut: cutStrings){
         cuts.push_back(ConvertStringToEnums(cut, true));
     }
 
@@ -110,7 +108,12 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     if(pos != -1){
         writeCutFlow = true;
         this->xParameters.erase(this->xParameters.begin() + pos);
-    }   
+    }
+
+    //Check what file format has to be saved 
+    std::map<std::string, SaveMode> strToMode = {{"Hist", HIST}, {"Tree", TREE}, {"Csv", CSV}, {"Tensor", TENSOR}};
+
+    toSave = strToMode[saveMode];
 
     //Check if BDT and DNN classes has to be initialized
     isBDT = Utils::FindInVec(this->xParameters, "bdt_") != -1 or Utils::FindInVec(cutStrings, "bdt_") != -1;
@@ -140,7 +143,7 @@ TreeReader::TreeReader(std::string &process, std::vector<std::string> &xParamete
     }
 }
 
-TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool &isCutString){
+TreeReader::Hist TreeReader::ConvertStringToEnums(const std::string &input, const bool &isCutString){
     //Function which handles splitting of string input
     std::vector<std::string> splittedString = Utils::SplitString(input, "_");
 
@@ -171,7 +174,7 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(std::string &input, const bool
     }
     
     else{
-        for(std::string part: std::vector<std::string>(splittedString.begin()+partStart, splittedString.end() - partEnd)){ 
+        for(std::string& part: std::vector<std::string>(splittedString.begin()+partStart, splittedString.end() - partEnd)){ 
             try{
                 indeces.push_back(std::stoi(std::string(part.end()-1 ,part.end())));
                 parts.push_back(strToPart[std::string(part.begin(),part.end()-1)]);
@@ -295,28 +298,22 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
     return {histograms1D, histograms2D};
 }
 
-void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
+void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, std::vector<std::vector<float>>* jetParam){
     TH1::AddDirectory(kFALSE);
     gROOT->SetBatch(kTRUE);
     gPrintViaErrorHandler = kTRUE;  
     gErrorIgnoreLevel = kWarning;
 
-    //DNN initialization
-    if(isHTag){
-        Py_Initialize();
-
-        classifier.SetModel("jetmodel", "JetModel", std::string(std::getenv("CHDIR")) + "/DNN/Model/jetmodel.h5");
-    }
-
     //ROOT files
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open(outname != "" ? outname.c_str() : "dummy.root", "RECREATE");
 
     //Define containers for histograms
     std::vector<Hist> histograms1D;
     std::vector<std::vector<Hist>> histograms2D;
     TTree* outputTree = new TTree(process.c_str(), process.c_str());
     outputTree->SetDirectory(outputFile);
+    std::vector<std::string> csvData;
 
     //Set up histograms
     std::tie(histograms1D, histograms2D) = SetHistograms(outputFile);
@@ -324,9 +321,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     //vector with values
     std::vector<float> valuesX(histograms1D.size(), 1.);
 
-    //Create thread local histograms/branches
+    //Create histograms/branches
     for(unsigned int i = 0; i < histograms1D.size(); i++){
-        if(saveTree) outputTree->Branch(xParameters[i].c_str(), &valuesX[i]);
+        if(toSave==TREE) outputTree->Branch(xParameters[i].c_str(), &valuesX[i]);
     }
 
     //Define TTreeReader 
@@ -420,7 +417,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
     std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
 
-    if(isHTag){
+    if(isHTag or jetParam!=NULL){
         for(unsigned int idx=0; idx < particleVariables.size(); idx++){
             inputTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
             inputTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
@@ -536,7 +533,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             event.particles[FATJET].push_back(fatJet);
         }
 
-        if(isHTag){
+        if(isHTag or jetParam!=NULL){
             for(unsigned int idx=0; idx < particleVec[0]->size(); idx++){
                 RecoParticle jetParticle;
                 jetParticle.LV = ROOT::Math::PxPyPzEVector(particleVec[1]->at(idx), particleVec[2]->at(idx), particleVec[3]->at(idx), particleVec[0]->at(idx));
@@ -598,23 +595,31 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
             for(unsigned int l = 0; l < histograms1D.size(); l++){
                 valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
-                histograms1D[l].hist1D->Fill(valuesX[l], event.weight);
+
+                if(toSave==HIST){
+                    histograms1D[l].hist1D->Fill(valuesX[l], event.weight);
+
+                   for(unsigned int m = 0; m < histograms2D[l].size(); m++){
+                        histograms2D[l][m].hist2D->Fill(valuesX[l], (this->*funcDir[histograms2D[l][m].func])(event, histograms2D[l][m]), event.weight);
+                    }
+                }
 
                 //Write information in string for csv
-                if(saveCsv){
+                if(toSave==CSV){
                     csvString+=std::to_string(valuesX[l]) + ",";
                 }
 
-               for(unsigned int m = 0; m < histograms2D[l].size(); m++){
-                    histograms2D[l][m].hist2D->Fill(valuesX[l], (this->*funcDir[histograms2D[l][m].func])(event, histograms2D[l][m]), event.weight);
+                if(jetParam!=NULL and toSave==TENSOR){
+                    std::vector<std::vector<float>> jetVec = JetParameter(event, histograms1D[l]);
+                    jetParam->insert(jetParam->end(), jetVec.begin(), jetVec.end());
                 }
             }
 
             //Fill tree if wished
-            if(saveTree) outputTree->Fill();
+            if(toSave==TREE) outputTree->Fill();
 
             //Fill csv vector if wished
-            if(saveCsv){
+            if(toSave==CSV){
                 csvString.replace(csvString.end()-1, csvString.end(), "\n");
                 csvData.push_back(csvString);
             };
@@ -625,15 +630,15 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     outputFile->cd();
         
     if(writeCutFlow) cutflow->Write();
-    if(saveTree) outputTree->Write();
+    if(toSave==CSV) outputTree->Write();
     
     else{
         for(unsigned int l = 0; l < histograms1D.size(); l++){
-            histograms1D[l].hist1D->Write();
+            if(toSave==HIST) histograms1D[l].hist1D->Write();
             delete histograms1D[l].hist1D;
 
             for(unsigned int m = 0; m < histograms2D[l].size(); m++){
-                histograms2D[l][m].hist2D->Write();
+                if(toSave==HIST) histograms2D[l][m].hist2D->Write();
                 delete histograms2D[l][m].hist2D;
             }
         }
@@ -646,8 +651,5 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     delete cutflow;
     delete pileUpWeight;
 
-   if(isHTag){
-        classifier.Clear();
-        Py_Finalize();
-    }
+    if(outname == "") std::system("rm dummy.root");
 }

@@ -1,6 +1,5 @@
 #ifndef TREEREADER_H
 #define TREEREADER_H
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <iostream>
 #include <vector>
@@ -24,24 +23,25 @@
 #include <Math/Vector3Dfwd.h>
 #include <Math/Vector4Dfwd.h>
 
-#include <ChargedAnalysis/Analysis/include/bdt.h>
-#include <ChargedAnalysis/Analysis/include/dnn.h>
+#include <ChargedAnalysis/Network/include/bdt.h>
+#include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Analysis/include/utils.h>
 
-#include <Python.h>
-#include <numpy/ndarrayobject.h>
-#include <numpy/arrayobject.h>
+#include <torch/torch.h>
 
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, CJ1PART, CJ2PART, NJ1PART, NJ2PART, SV1, SV2, };
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, CJ1PART, CJ2PART, NJ1PART, NJ2PART, SV1, SV2};
 
         //Enumeration for functions to calculate quantities
-        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, HTAGGER};
+        enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, HTAG};
 
         //Enumeration for cut operation
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
+
+        //Enumeration for safe mode
+        enum SaveMode {HIST, TREE, CSV, TENSOR};
 
         //Struct for saving Particle information
         struct RecoParticle {
@@ -90,7 +90,7 @@ class TreeReader {
             //Clear Function
             void Clear(){
                 //Initialize particle map with empty vectors
-                for(int i=0; i!=GENH; ++i){
+                for(int i=0; i!=SV2; ++i){
                     particles[(Particle)i] = {};
                 }
 
@@ -136,12 +136,8 @@ class TreeReader {
         std::vector<std::string> cutNames;
         bool writeCutFlow = false;
 
-        //Save tree if wished
-        bool saveTree;
-
-        //Save csv is wished
-        bool saveCsv;
-        std::vector<std::string> csvData;
+        //Variable to check what to save
+        SaveMode toSave;
     
         //Methods to calculate wished quantity (Defined in treereaderfunction.cc)
         float Mass(Event &event, Hist &hist);
@@ -164,10 +160,11 @@ class TreeReader {
         BDT evenClassifier;
         BDT oddClassifier;
 
-        float HTagger(Event &event, Hist &hist);
+        std::vector<std::vector<float>> JetParameter(Event &event, Hist &hist);
+        float HTag(Event &event, Hist &hist);
         bool isHTag = false;
-        DNN classifier;
-    
+        HTagger tagger;
+
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
 
@@ -183,14 +180,14 @@ class TreeReader {
         bool Cut(Event &event, Hist &hist);
 
         //Function for converting string into wished enumerations
-        Hist ConvertStringToEnums(std::string &input, const bool &isCutString = false);
+        Hist ConvertStringToEnums(const std::string &input, const bool &isCutString = false);
         std::tuple<std::vector<Hist>, std::vector<std::vector<Hist>>> SetHistograms(TFile* outputFile);
 
     public:
         TreeReader();
-        TreeReader(std::string &process, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::vector<std::string> &cutStrings, std::string &outname, std::string &channel, const bool& saveTree = false, const bool& saveCsv = false);
+        TreeReader(const std::string &process, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel, const std::string &saveMode = "Hist");
 
-        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
+        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, std::vector<std::vector<float>>* jetParam = NULL);
 };
 
 #endif
