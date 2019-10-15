@@ -1,4 +1,8 @@
 *__init__*
 *pyc
-*Analysis/lib/*
-*Analysis/obj/*
+*/lib/*
+Analysis/bin/TreeRead
+Analysis/bin/Plot1D
+Network/bin/HTag
+*html
+*/obj/*
