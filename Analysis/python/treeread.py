@@ -12,11 +12,8 @@ class TreeRead(Task):
         if not "y-parameter" in self:
             self["y-parameter"] = []
 
-        if not "write-tree" in self:
-            self["write-tree"] = False
-
-        if not "write-csv" in self:
-            self["write-csv"] = False
+        if not "save-mode" in self:
+            self["save-mode"] = "Hist"
 
     def status(self):
         if os.path.isfile(self["output"]):
@@ -25,15 +22,14 @@ class TreeRead(Task):
     def run(self):
         self["executable"] = "TreeRead"
 
-        self["arguments"] = "'{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}'".format(
+        self["arguments"] = "'{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}'".format(
                 self["process"], 
                 " ".join(self["x-parameter"]), 
                 " ".join(self["y-parameter"]), 
                 " ".join(self["cuts"]), 
                 self["output"],  
                 self["channel"],    
-                self["write-tree"], 
-                self["write-csv"], 
+                self["save-mode"],
                 self["filename"], 
                 " ".join(self["interval"])
         )
@@ -42,7 +38,7 @@ class TreeRead(Task):
             os.system("{} {}".format(self["executable"], self["arguments"]))
 
         if self["run-mode"] == "Condor":
-            self.__createCondor()
+            self.createCondor()
             os.system("condor_submit {}/condor.sub".format(self["condor-dir"]))
         
     def output(self):
