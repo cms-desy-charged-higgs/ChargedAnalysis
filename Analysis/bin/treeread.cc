@@ -9,12 +9,11 @@ int main(int argc, char* argv[]){
     std::vector<std::string> cutStrings = Utils::SplitString(std::string(argv[4]), " ");
     std::string outname = std::string(argv[5]);
     std::string channel = std::string(argv[6]);
-    bool saveTree = std::string(argv[7]) == "True" ? true : false;
-    bool saveCsv = std::string(argv[8]) == "True" ? true : false;
-    std::string fileName = argv[9];
-    std::vector<std::string> eventYield = Utils::SplitString(std::string(argv[10]), " ");
+    std::string saveMode = std::string(argv[7]);
+    std::string fileName = argv[8];
+    std::vector<std::string> eventYield = Utils::SplitString(std::string(argv[9]), " ");
 
     //Create treereader instance
-    TreeReader reader(process, xParameters, yParameters, cutStrings, outname, channel, saveTree, saveCsv);
+    TreeReader reader(process, xParameters, yParameters, cutStrings, outname, channel, saveMode);
     reader.EventLoop(fileName, std::stoi(eventYield[0]), std::stoi(eventYield[1]));
 }
