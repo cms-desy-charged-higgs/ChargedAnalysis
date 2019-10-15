@@ -27,8 +27,8 @@ case $1 in
             
     "StandAlone")
         export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedNetwork/python
-        export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/Analysis/bin:$CHDIR/ChargedAnalysis/Workflow/bin:$CHDIR/ChargedNetwork/bin:$PATH
-        export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib
+        export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/Analysis/bin:$CHDIR/ChargedAnalysis/Workflow/bin:$CHDIR/ChargedAnalysis/Network/bin:$PATH
+        export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib:$CHDIR/ChargedAnalysis/Network/lib:$CHDIR/Anaconda3/lib/python3.7/site-packages/torch/lib
 
         alias make="make -j 20"
 
