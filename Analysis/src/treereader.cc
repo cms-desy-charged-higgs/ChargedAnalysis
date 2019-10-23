@@ -304,11 +304,23 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     gPrintViaErrorHandler = kTRUE;  
     gErrorIgnoreLevel = kWarning;
 
-    //ROOT files
+    if(jetParam!=NULL){
+        JetParameter(fileName, entryStart, entryEnd, jetParam);
+        return;
+    }
+
+    if(isHTag){
+        at::set_num_interop_threads(1);
+        at::set_num_threads(1);
+        JetParameter(fileName, entryStart, entryEnd);
+    }
+
+    //Input ROOT TTree
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TFile* outputFile = TFile::Open(outname != "" ? outname.c_str() : "dummy.root", "RECREATE");
+    TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
 
     //Define containers for histograms
+    TFile* outputFile = TFile::Open(outname.c_str(), "RECREATE");
     std::vector<Hist> histograms1D;
     std::vector<std::vector<Hist>> histograms2D;
     TTree* outputTree = new TTree(process.c_str(), process.c_str());
@@ -325,9 +337,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     for(unsigned int i = 0; i < histograms1D.size(); i++){
         if(toSave==TREE) outputTree->Branch(xParameters[i].c_str(), &valuesX[i]);
     }
-
-    //Define TTreeReader 
-    TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
 
     //Vector of particle
     std::map<std::string, std::vector<std::string>> floatVariables = {
@@ -412,18 +421,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     float nTrue=0.;
     inputTree->SetBranchAddress("Misc_TrueInteraction", &nTrue);
 
-    //For DNN Higgs Tagger
-    std::vector<std::string> particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
-    std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
-    std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
-
-    if(isHTag or jetParam!=NULL){
-        for(unsigned int idx=0; idx < particleVariables.size(); idx++){
-            inputTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
-            inputTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
-        }
-    }
-
     //Number of generated events
     float nGen = 1.;
 
@@ -457,7 +454,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     for (int i = entryStart; i < entryEnd; i++){
         //Load event and fill event class
         inputTree->GetEntry(i); 
-
+        
         //Clear events 
         event.Clear(); 
 
@@ -511,9 +508,11 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
             jet.LV = ROOT::Math::PxPyPzEVector(jetVecFloat[1]->at(idx), jetVecFloat[2]->at(idx), jetVecFloat[3]->at(idx), jetVecFloat[0]->at(idx));
        
+            /*
             jet.isLoose = jetVecBool[0]->at(idx);
             jet.isMedium = jetVecBool[1]->at(idx);
             jet.isTight = jetVecBool[2]->at(idx);
+            */
 
             if(jetVecFloat[8]->size() != 0){
                 jet.IDSF = {jetVecFloat[4]->at(idx), jetVecFloat[5]->at(idx), jetVecFloat[6]->at(idx)};
@@ -533,26 +532,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             event.particles[FATJET].push_back(fatJet);
         }
 
-        if(isHTag or jetParam!=NULL){
-            for(unsigned int idx=0; idx < particleVec[0]->size(); idx++){
-                RecoParticle jetParticle;
-                jetParticle.LV = ROOT::Math::PxPyPzEVector(particleVec[1]->at(idx), particleVec[2]->at(idx), particleVec[3]->at(idx), particleVec[0]->at(idx));
-                jetParticle.Vtx = ROOT::Math::XYZVector(particleVec[4]->at(idx), particleVec[5]->at(idx), particleVec[6]->at(idx));
-                jetParticle.charge = particleVec[7]->at(idx);
-   
-                if(particleVec[7]->at(idx) == 0) event.particles[particleVec[8]->at(idx)==0 ? NJ1PART : NJ2PART].push_back(jetParticle);
-                else event.particles[particleVec[8]->at(idx)==0 ? CJ1PART : CJ2PART].push_back(jetParticle);
-            }
-
-            for(unsigned int idx=0; idx < secVtxVec[0]->size(); idx++){
-                RecoParticle secVtx;
-                secVtx.LV = ROOT::Math::PxPyPzEVector(secVtxVec[1]->at(idx), secVtxVec[2]->at(idx), secVtxVec[3]->at(idx), secVtxVec[0]->at(idx));
-                secVtx.Vtx = ROOT::Math::XYZVector(secVtxVec[4]->at(idx), secVtxVec[5]->at(idx), secVtxVec[6]->at(idx));
-                secVtx.charge = secVtxVec[7]->at(idx);
-   
-                event.particles[secVtxVec[8]->at(idx)==0 ? SV1 : SV2].push_back(secVtx);
-            }
-        }
 
         RecoParticle met;
         met.LV = ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0);
@@ -575,6 +554,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
        // WBoson(event);
        // Higgs(event);
 
+
         //Check if event passes cut
         bool passedCut = true;
  
@@ -593,6 +573,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             valuesX.clear();
             std::string csvString; 
 
+
             for(unsigned int l = 0; l < histograms1D.size(); l++){
                 valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
 
@@ -607,11 +588,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
                 //Write information in string for csv
                 if(toSave==CSV){
                     csvString+=std::to_string(valuesX[l]) + ",";
-                }
-
-                if(jetParam!=NULL and toSave==TENSOR){
-                    std::vector<std::vector<float>> jetVec = JetParameter(event, histograms1D[l]);
-                    jetParam->insert(jetParam->end(), jetVec.begin(), jetVec.end());
                 }
             }
 
@@ -650,6 +626,4 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     delete inputFile;
     delete cutflow;
     delete pileUpWeight;
-
-    if(outname == "") std::system("rm dummy.root");
 }
