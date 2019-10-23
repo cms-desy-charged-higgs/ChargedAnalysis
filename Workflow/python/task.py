@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import yaml
 import os
+import shutil
 
 class Task(ABC, dict):
     def __init__(self, config = {}):
@@ -26,6 +27,7 @@ class Task(ABC, dict):
     def createCondor(self):
         ##Create directory with condor
         self["condor-dir"] = "{}/Condor/{}".format(self["dir"], self["name"])
+        shutil.rmtree(self["condor-dir"], ignore_errors=True)
         os.makedirs(self["condor-dir"], exist_ok=True)
 
         ##Dic which will be written into submit file
@@ -50,8 +52,10 @@ class Task(ABC, dict):
         fileContent = [
                         "#!/bin/bash\n", 
                         "cd $CHDIR\n",
+                        "echo 'You are in directory: $(pwd)'\n"
                         "source ChargedAnalysis/setenv.sh StandAlone\n",
-                        "{} {}".format(self["executable"], self["arguments"])
+                        "echo 'Exetubale is called: {}'\n".format(self["executable"]),
+                        "{} {}".format(self["executable"], " ".join("'{}'".format(i) for i in self["arguments"]))
         ]
 
         with open("{}/condor.sh".format(self["condor-dir"]), "w") as condExe:
