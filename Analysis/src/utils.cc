@@ -12,23 +12,23 @@ std::vector<std::string> Utils::SplitString(const std::string& splitString, cons
     return splittedString;
 }
 
-void Utils::ProgressBar(const int& progress, const std::string& process){
+void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 
 
-    for(int i = 0; i < progress; i++){
-        if(i%2) progressBar += "#";
+    for(int i = 0; i <= progress; i++){
+        if(i%10 == 0) progressBar += "#";
     }
 
     for(int i = 0; i < 100 - progress; i++){
-        if(i%2) progressBar += " ";
+        if(i%10 == 0) progressBar += " ";
     }
 
-    progressBar = progressBar + "] " + "Progress of process " + process + ": " + std::to_string(progress) + "%";
+    progressBar = progressBar + "] " + addInfo;
+
     std::cout << "\r" << progressBar << std::flush;
 
     if(progress == 100) std::cout << std::endl;
 }
-
 
 Utils::RunTime::RunTime(){
     start = std::chrono::steady_clock::now();
