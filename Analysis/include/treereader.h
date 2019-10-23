@@ -32,7 +32,7 @@
 class TreeReader {
     private:
         //Enumeration for particles
-        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH, CJ1PART, CJ2PART, NJ1PART, NJ2PART, SV1, SV2};
+        enum Particle{ELECTRON, MUON, JET, SUBJET, BSUBJET, BJET, FATJET, BFATJET, MET, W, HC, h, H1JET, H2JET, GENHC, GENH};
 
         //Enumeration for functions to calculate quantities
         enum Function{MASS, PHI, PT, ETA, DPHI, DR, NPART, HT, EVENTNUMBER, BDTSCORE, CONSTNUM, NSIGPART, SUBTINESS, HTAG};
@@ -46,7 +46,6 @@ class TreeReader {
         //Struct for saving Particle information
         struct RecoParticle {
             ROOT::Math::PxPyPzEVector LV;
-            ROOT::Math::XYZVector Vtx;
             int charge;
 
             //Booleans
@@ -81,6 +80,7 @@ class TreeReader {
             //Map with particles      
             std::map<Particle, std::vector<RecoParticle>> particles;
 
+            int loopNr = -1;
             float HT=1.;
             float eventNumber;
 
@@ -90,10 +90,11 @@ class TreeReader {
             //Clear Function
             void Clear(){
                 //Initialize particle map with empty vectors
-                for(int i=0; i!=SV2; ++i){
+                for(int i=0; i!=GENH; ++i){
                     particles[(Particle)i] = {};
                 }
 
+                loopNr++;
                 weight=1.;
             }
         };
@@ -160,10 +161,10 @@ class TreeReader {
         BDT evenClassifier;
         BDT oddClassifier;
 
-        std::vector<std::vector<float>> JetParameter(Event &event, Hist &hist);
+        void JetParameter(const std::string& fileName, const int& start, const int& end, std::vector<std::vector<float>>* jetParam=NULL);
         float HTag(Event &event, Hist &hist);
         bool isHTag = false;
-        HTagger tagger;
+        std::vector<float> tagValues;
 
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
