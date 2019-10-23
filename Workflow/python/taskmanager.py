@@ -3,6 +3,7 @@ import copy
 import os
 import time
 import sys
+import subprocess
 
 from multiprocessing import Pool, cpu_count
 
@@ -126,17 +127,17 @@ class TaskManager(object):
         ##Helper function:
         nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
 
-        localRun = nStatus(self.localTask, "RUNNING")
-        localFin = nStatus(self.localTask, "FINISHED")
-        localFail = nStatus(self.localTask, "FAILED")
+        self.localRun = nStatus(self.localTask, "RUNNING")
+        self.localFin = nStatus(self.localTask, "FINISHED")
+        self.localFail = nStatus(self.localTask, "FAILED")
 
-        condRun = nStatus(self.condorTask, "RUNNING")
-        condFin = nStatus(self.condorTask, "FINISHED")
-        condFail = nStatus(self.condorTask, "FAILED")
+        self.condRun = nStatus(self.condorTask, "RUNNING")
+        self.condFin = nStatus(self.condorTask, "FINISHED")
+        self.condFail = nStatus(self.condorTask, "FAILED")
 
         runString = "\t\t\033[92mRUN\033[0m : {} \t\033[93mVALID\033[0m :  {} \t\033[91mFAILED\033[0m : {} \t\033[1mFINISHED\033[0m : {}"
 
-        statString = "{}/{} ({} %) \t Time : {} s".format(localFin+condFin , len(self.localTask)+len(self.condorTask), 100*(localFin+condFin)/(len(self.localTask)+len(self.condorTask)), time)
+        statString = "{}/{} ({} %) \t Time : {} s".format(self.localFin+self.condFin , len(self.localTask)+len(self.condorTask), 100*(self.localFin+self.condFin)/(len(self.localTask)+len(self.condorTask)), time)
 
         os.system("clear")
 
@@ -149,11 +150,11 @@ class TaskManager(object):
                 "".join(["-" for i in range(80)]),
                 "Local Task",
                 "",
-                runString.format(localRun, len(self.localTask) - localFin - localRun - localFail, localFail, localFin),
+                runString.format(self.localRun, len(self.localTask) - self.localFin - self.localRun - self.localFail, self.localFail, self.localFin),
                 "".join(["-" for i in range(80)]),
                 "Condor Task",
                 "",
-                runString.format(condRun, len(self.condorTask) - condFin - condRun - condFail, condFail, condFin),
+                runString.format(self.condRun, len(self.condorTask) - self.condFin - self.condRun - self.condFail, self.condFail, self.condFin),
                 "".join(["-" for i in range(80)]),
         ]
 
@@ -169,9 +170,10 @@ class TaskManager(object):
         lines = []
 
         statusToColor = {
-                        "FINISHED": "linear-gradient(to bottom right, #00ff00 0%, #009933 111%)",
+                        "VALID": "linear-gradient(to bottom right, #f4ff00, #e8fb15, #dcf821, #d1f42a, #c6f032)",
+                        "SUBMITTED": "linear-gradient(to bottom right, #ff8500, #f38900, #e68c00, #da8f00, #cf9106)",
                         "RUNNING": "linear-gradient(to bottom right, #00ccff 0%, #3333cc 111%)",
-                        "VALID": "linear-gradient(to bottom right, #808080 0%, #ffffff 111%)",
+                        "FINISHED": "linear-gradient(to bottom right, #00ff00 0%, #009933 111%)",
                         "FAILED": "linear-gradient(to bottom right, #ff0000 0%, #cc0066 111%)",
         }
 
@@ -230,9 +232,13 @@ class TaskManager(object):
                     task.getDependentFiles(self._graph)
                     self.condorTask.append(task)
 
-            ##Submit all condors jobs
-            for task in self.condorTask:
+            ##Submit condors jobs (Only 200 hundred at one time)
+            for index, task in enumerate(self.condorTask):
                 task.run()
+                task["status"] = "SUBMITTED"
+
+                if index==199:
+                    break
 
             ##Run all local task
             nCores = cpu_count()
@@ -264,22 +270,44 @@ class TaskManager(object):
                            
                 ##Track condor jobs
                 for task in self.condorTask:
-                    with open("{}/condor.log".format(task["condor-dir"])) as logFile:
-                        if True in ["Job executing" in line for line in logFile.readlines()]:
-                            task["status"] = "RUNNING"
+                    try: #If job not submitted yet, there is no condor.log file
+                        with open("{}/condor.log".format(task["condor-dir"])) as logFile:
+                            if True in ["Job executing" in line for line in logFile.readlines()]:
+                                task["status"] = "RUNNING"
 
-                        logFile.seek(0)
-
-                        if True in ["Normal termination" in line for line in logFile.readlines()]:
                             logFile.seek(0)
-            
-                            if True in ["(return value 0)" in line for line in logFile.readlines()]:
-                                task["status"] = "FINISHED"
-    
-                            else:
-                                task["status"] = "FAILED"
 
+                            if True in ["Normal termination" in line for line in logFile.readlines()]:
+                                logFile.seek(0)
+                
+                                if True in ["(return value 0)" in line for line in logFile.readlines()]:
+                                    task["status"] = "FINISHED"
+
+                                else:
+                                    task["status"] = "FAILED"
+
+                            logFile.seek(0)
+
+                            if True in ["SYSTEM_PERIODIC_REMOVE" in line for line in logFile.readlines()]:
+                                 task["status"] = "VALID"
+
+                    except:
+                        pass
+
+                nSubmitted = nStatus(self.condorTask, "SUBMITTED") + nStatus(self.condorTask, "RUNNING")
+
+                ##Submit more jobs up to 200 if jobs left
+                for task in self.condorTask:
+                    if task["status"] == "VALID":
+                        if nSubmitted < 200:
+                            task.run()
+                            task["status"] = "SUBMITTED"
+                            nSubmitted+=1
+
+                ##Print status
                 self.__printRunStatus(layer, time.time() - startTime)
+
+                ##Draw graph
                 time.sleep(5)
                 self.drawGraph()
 
