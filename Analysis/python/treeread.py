@@ -4,6 +4,7 @@ from ROOT import TFile, TTree
 
 import os
 import yaml
+import subprocess
 
 class TreeRead(Task):
     def __init__(self, config = {}):
@@ -14,39 +15,44 @@ class TreeRead(Task):
 
         if not "save-mode" in self:
             self["save-mode"] = "Hist"
-
-    def status(self):
-        if os.path.isfile(self["output"]):
-            self["status"] = "FINISHED"
         
+        self["run-mode"] = "Condor"
+
     def run(self):
         self["executable"] = "TreeRead"
 
-        self["arguments"] = "'{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}' '{}'".format(
+        self["arguments"] = [
                 self["process"], 
-                " ".join(self["x-parameter"]), 
-                " ".join(self["y-parameter"]), 
-                " ".join(self["cuts"]), 
+                "{}".format(" ".join(self["x-parameter"])), 
+                "{}".format(" ".join(self["y-parameter"])), 
+                "{}".format(" ".join(self["cuts"])), 
                 self["output"],  
                 self["channel"],    
                 self["save-mode"],
                 self["filename"], 
-                " ".join(self["interval"])
-        )
+                "{}".format(' '.join(self["interval"]))
+        ]
 
         if self["run-mode"] == "Local":
-            os.system("{} {}".format(self["executable"], self["arguments"]))
+            result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            if result.returncode == 0:
+                pass #print(result.stdout)
+            else:
+                #print(result.stdout)
+                print(result.stderr.decode('utf-8'))
+                result.check_returncode()
 
         if self["run-mode"] == "Condor":
             self.createCondor()
-            os.system("condor_submit {}/condor.sub".format(self["condor-dir"]))
+            subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["name"])
 
     @staticmethod
     def configure(conf, channel):
-        nEvents = int(1e6)
+        nEvents = int(1e4)
 
         chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
 
