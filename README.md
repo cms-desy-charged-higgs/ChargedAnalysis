@@ -8,6 +8,6 @@ Source the installation:
 
 `source install.sh`
 
-Attention: The installation of Anaconda requires user interaction. Then coming to the point to select the directory for anaconda, use this:
+To source the enviroment on DESY, there are two options. For skimming you need the `CMSSW` key word, for the analysis you need the `StandAlone` key word:
 
-`[/afs/desy.de/user/d/davebrun/anaconda3] >>> $CHDIR/Anaconda`
+`source setenv.sh StandAlone`
