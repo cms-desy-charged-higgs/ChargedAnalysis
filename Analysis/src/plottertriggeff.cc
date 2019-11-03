@@ -2,10 +2,11 @@
 
 PlotterTriggEff::PlotterTriggEff() : Plotter(){}
 
-PlotterTriggEff::PlotterTriggEff(std::string &histdir, std::string &total, std::vector<std::string> &passed,std::vector<std::string> &yParam, std::string &channel) : 
-        Plotter(histdir, passed, channel),
+PlotterTriggEff::PlotterTriggEff(std::string &histdir, std::string &total, std::vector<std::string> &passed,std::vector<std::string> &yParam) : 
+        Plotter(histdir),
         total(total),
         passed(passed),
+        processes(processes),
         yParam(yParam) {
             ptNames = {{"ele+4j", "e_pt"}, {"mu+4j", "mu_pt"}};
             phiNames = {{"ele+4j", "e_phi"}, {"mu+4j", "mu_phi"}};
@@ -13,7 +14,7 @@ PlotterTriggEff::PlotterTriggEff(std::string &histdir, std::string &total, std::
         }
 
 
-void PlotterTriggEff::ConfigureHists(std::vector<std::string> &processes){
+void PlotterTriggEff::ConfigureHists(){
     bkgEfficiencies = std::vector<std::vector<TGraphAsymmErrors*>>(yParam.size(), std::vector<TGraphAsymmErrors*>(passed.size(), NULL));
 
     dataEfficiencies = std::vector<std::vector<TGraphAsymmErrors*>>(yParam.size(), std::vector<TGraphAsymmErrors*>(passed.size(), NULL));
@@ -131,7 +132,7 @@ void PlotterTriggEff::Draw(std::vector<std::string> &outdirs){
 
     canvas->cd();
 
-    this->DrawHeader(false, "e inclusive", "Work in progress");
+    Plotter::DrawHeader(false, "e inclusive", "Work in progress");
 
     for(unsigned int i = 0; i < yParam.size(); i++){
         for(unsigned int j = 0; j < passed.size(); j++){

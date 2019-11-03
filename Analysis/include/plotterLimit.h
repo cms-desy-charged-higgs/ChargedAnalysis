@@ -33,7 +33,7 @@ class PlotterLimit : public Plotter{
     public:
         PlotterLimit();
         PlotterLimit(std::string &limitDir, std::vector<int> masses);
-        void ConfigureHists(std::vector<std::string> &processes);
+        void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
 };
 

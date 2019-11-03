@@ -24,10 +24,14 @@ class Plotter1D : public Plotter{
         std::vector<std::vector<TH1F*>> signal;
         std::vector<TH1F*> data;
 
+        std::string channel;
+        std::vector<std::string> xParameters;
+        std::vector<std::string> processes;
+
     public:
         Plotter1D();
-        Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel);
-        void ConfigureHists(std::vector<std::string> &processes);
+        Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel,std::vector<std::string> &processes);
+        void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         
 };

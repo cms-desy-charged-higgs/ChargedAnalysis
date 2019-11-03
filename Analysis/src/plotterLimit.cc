@@ -26,7 +26,7 @@ PlotterLimit::PlotterLimit(std::string &limitDir, std::vector<int> masses) :
     }
 
 
-void PlotterLimit::ConfigureHists(std::vector<std::string> &processes){
+void PlotterLimit::ConfigureHists(){
     for(unsigned int i=0; i < masses.size(); i++){
         //Read file and tree with limits
         TFile* limitFile = TFile::Open((limitDir + "/" + std::to_string(masses[i]) + "/limit.root").c_str(), "READ");
@@ -77,13 +77,13 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
     TPad* legendpad = new TPad("legendpad", "legendpad", 0.87, 0.3 , 1., 0.8);
 
-    this->SetStyle();
+    Plotter::SetStyle();
 
     //TLegend
     TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
 
     //Draw main pad
-    this->SetPad(mainpad);
+    Plotter::SetPad(mainpad);
     mainpad->Draw();
     mainpad->cd();
 
@@ -100,7 +100,7 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     legend->AddEntry(sigmaTwo, "95% expected", "F");
     
     //Configure labels
-    this->SetHist(sigmaTwo->GetHistogram());
+    Plotter::SetHist(sigmaTwo->GetHistogram());
     sigmaTwo->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
     sigmaTwo->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
 
@@ -114,7 +114,7 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
 
     mainpad->cd();
 
-    this->DrawHeader(false, "All channel", "Work in progress");
+    Plotter::DrawHeader(false, "All channel", "Work in progress");
 
     //Set range
     sigmaTwo->SetMinimum(theory->GetMinimum()*1e-2);

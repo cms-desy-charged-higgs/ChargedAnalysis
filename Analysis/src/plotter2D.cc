@@ -2,16 +2,19 @@
 
 Plotter2D::Plotter2D() : Plotter(){}
 
-
-Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel) :
-    Plotter(histdir, xParameters, yParameters, channel),
+Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel, std::vector<std::string>& processes) :
+    Plotter(histdir),
+    xParameters(xParameters),
+    yParameters(yParameters),
+    channel(channel),
+    processes(processes),
     background({}),
     signal({}),
     data({})
  {}
 
 
-void Plotter2D::ConfigureHists(std::vector<std::string> &processes){
+void Plotter2D::ConfigureHists(){
     //Save pairs of XY parameters to avoid redundant plots
     std::vector<std::string> parameterPairs;
 
@@ -63,7 +66,7 @@ void Plotter2D::ConfigureHists(std::vector<std::string> &processes){
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
-    this->SetStyle();
+    Plotter::SetStyle();
 
     TCanvas *canvas = new TCanvas("canvas2D", "canvas2D", 1000, 800); 
     TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
@@ -98,7 +101,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 mainpad->cd();
 
                 bkgSum->DrawNormalized("COLZ");
-                this->DrawHeader(false, channelHeader[channel], "Work in progress");
+                Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
 
                 for(std::string outdir: outdirs){
                     canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.pdf").c_str());
@@ -113,7 +116,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 mainpad->cd();
 
                 signal[i][j][0]->DrawNormalized("COLZ");
-                this->DrawHeader(false, channelHeader[channel], "Work in progress");
+                Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
 
                 for(std::string outdir: outdirs){
                     canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.pdf").c_str());

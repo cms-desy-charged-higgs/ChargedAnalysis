@@ -2,14 +2,17 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel) :
-    Plotter(histdir, xParameters, channel),
+Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel, std::vector<std::string>& processes) :
+    Plotter(histdir),
+    xParameters(xParameters),   
+    channel(channel),
+    processes(processes),
     background({}),
     signal({}),
     data({})
  {}
 
-void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
+void Plotter1D::ConfigureHists(){
     //Lambda function for sorting Histograms
     std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
 
@@ -75,7 +78,7 @@ void Plotter1D::ConfigureHists(std::vector<std::string> &processes){
 
 void Plotter1D::Draw(std::vector<std::string> &outdirs){
     //Set Style
-    this->SetStyle();
+    Plotter::SetStyle();
 
     //Define canvas and pads
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 800);
@@ -107,7 +110,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         sumbkg->Reset();
 
         //Draw main pad
-        this->SetPad(mainpad);
+        Plotter::SetPad(mainpad);
         mainpad->Draw();
         mainpad->cd();
     
@@ -122,7 +125,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                
         //Configure and draw THStack
         stack->Draw("HIST");
-        this->SetHist(stack->GetHistogram());
+        Plotter::SetHist(stack->GetHistogram());
         stack->GetXaxis()->SetTitle(sumbkg->GetXaxis()->GetTitle());
         stack->GetYaxis()->SetTitle("Events");
 
@@ -167,7 +170,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         mainpad->cd();
 
         //Draw CMS/lumi info
-        this->DrawHeader(data.size() == 0 ? false : true, channelHeader[channel], "Work in progress");
+        Plotter::DrawHeader(data.size() == 0 ? false : true, channelHeader[channel], "Work in progress");
            
         //If you have data, draw Data/MC ratio
         if(!data.empty()){
@@ -278,7 +281,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                    
                 hist->DrawNormalized("HIST SAME");
 
-                this->DrawHeader(false, channelHeader[channel], "Work in progress");
+                Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
 
                 legendpad->cd();
                 legendSig->SetTextSize(0.2);

@@ -31,7 +31,7 @@ class PlotterPostfit : public Plotter{
     public:
         PlotterPostfit();
         PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channel);
-        void ConfigureHists(std::vector<std::string> &processes);
+        void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
 };
 

@@ -23,27 +23,22 @@ class Plotter{
     protected:
         enum Processes {BKG, DATA, SIGNAL};
 
-        std::string histdir;
-        std::string channel;
-        std::vector<std::string> xParameters;
-        std::vector<std::string> yParameters;
-
         std::map<std::string, Processes> procDic;
         std::map<std::string, std::string> channelHeader;
         std::map<std::string, int> colors;
 
-        void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
-        void SetStyle();
-        void SetPad(TPad* pad);
-        void SetHist(TH1* frameHist);
+        std::string histdir;
 
     public:
-        virtual ~Plotter();
         Plotter();
-        Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel);
-        Plotter(const std::string &histdir, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::string &channel);
+        Plotter(const std::string& histdir);
 
-        virtual void ConfigureHists(std::vector<std::string> &processes) = 0;
+        static void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
+        static void SetStyle();
+        static void SetPad(TPad* pad);
+        static void SetHist(TH1* frameHist);
+
+        virtual void ConfigureHists() = 0;
         virtual void Draw(std::vector<std::string> &outdirs) = 0;
         
 };

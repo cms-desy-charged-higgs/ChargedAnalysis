@@ -14,10 +14,15 @@ class Plotter2D : public Plotter{
         std::vector<std::vector<std::vector<TH2F*>>> signal;
         std::vector<TH2F*> data;
 
+        std::string channel;
+        std::vector<std::string> xParameters;
+        std::vector<std::string> yParameters;
+        std::vector<std::string> processes;
+
     public:
         Plotter2D();
-        Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel);
-        void ConfigureHists(std::vector<std::string> &processes);
+        Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel, std::vector<std::string>& processes);
+        void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         
 };

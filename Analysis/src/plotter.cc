@@ -1,18 +1,9 @@
 #include <ChargedAnalysis/Analysis/include/plotter.h>
 
-Plotter::~Plotter(){}
+Plotter::Plotter() : Plotter("") {}
 
-Plotter::Plotter() :
-    Plotter("", {}, {}, ""){}
-
-Plotter::Plotter(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel):
-    Plotter(histdir, xParameters, {}, channel){}
-
-Plotter::Plotter(const std::string &histdir, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::string &channel):
+Plotter::Plotter(const std::string& histdir):
     histdir(histdir),
-    channel(channel),
-    xParameters(xParameters),
-    yParameters(yParameters),
     procDic({
             {"DY+j", BKG},
             {"W+j", BKG},

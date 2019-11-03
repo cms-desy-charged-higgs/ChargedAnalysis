@@ -2,14 +2,17 @@
 
 PlotterCut::PlotterCut() : Plotter(){}
 
-PlotterCut::PlotterCut(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel) : Plotter(histdir, xParameters, channel) {}
+PlotterCut::PlotterCut(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel, std::vector<std::string> &processes) : Plotter(histdir),
+xParameters(xParameters),
+channel(channel),
+processes(processes) {}
 
 
 Double_t PlotterCut::GetAsimov(const Double_t &s, const Double_t &b, const Double_t &sigB, const Double_t &sigS){
     return std::sqrt(2*((s+b)*std::log(1.+s/b) - s));
 }
 
-void PlotterCut::ConfigureHists(std::vector<std::string> &processes){
+void PlotterCut::ConfigureHists(){
     std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() > hist2->Integral();};
 
     for(std::string parameter: xParameters){
@@ -100,7 +103,7 @@ void PlotterCut::ConfigureHists(std::vector<std::string> &processes){
 
 void PlotterCut::Draw(std::vector<std::string> &outdirs){
     //Set style
-    this->SetStyle();
+    Plotter::SetStyle();
 
     //Define canvas and pads
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 800);
@@ -119,7 +122,7 @@ void PlotterCut::Draw(std::vector<std::string> &outdirs){
             TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
 
             //Draw main pad
-            this->SetPad(mainpad);
+            Plotter::SetPad(mainpad);
             mainpad->Draw();
             mainpad->cd();
                    
@@ -129,7 +132,7 @@ void PlotterCut::Draw(std::vector<std::string> &outdirs){
             histograms[j][i][0]->Draw("P");
             histograms[j][i][0]->GetYaxis()->SetTitle(yTitles[j].c_str());
             histograms[j][i][0]->SetMaximum(j == 0 ? histograms[j][i][0]->GetMaximum()*1.25 : NbkgHists[i]->GetMaximum()*1e2);
-            this->SetHist(histograms[j][i][0]);
+            Plotter::SetHist(histograms[j][i][0]);
 
             std::string lentry = std::string(histograms[j][i][0]->GetName());
             legend->AddEntry(histograms[j][i][0], lentry.c_str(), "P");
@@ -160,7 +163,7 @@ void PlotterCut::Draw(std::vector<std::string> &outdirs){
             mainpad->cd();
 
             //Draw CMS/lumi info
-            this->DrawHeader(false, channelHeader[channel], "Work in progress");
+            Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + xParameters[i] + "_" + fileEnd[j] + ".pdf").c_str());

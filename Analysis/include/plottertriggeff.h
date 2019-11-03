@@ -17,6 +17,7 @@ class PlotterTriggEff : public Plotter{
     private:
         std::string total;
         std::vector<std::string> passed;
+        std::vector<std::string> processes;
         std::vector<std::string> yParam;
 
         std::map<std::string, std::string> ptNames;
@@ -28,9 +29,9 @@ class PlotterTriggEff : public Plotter{
 
     public:
         PlotterTriggEff();
-        PlotterTriggEff(std::string &histdir, std::string &total, std::vector<std::string> &passed, std::vector<std::string> &yParam, std::string &channel);
+        PlotterTriggEff(std::string &histdir, std::string &total, std::vector<std::string> &passed, std::vector<std::string> &yParam);
 
-        void ConfigureHists(std::vector<std::string> &processes);
+        void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         
 };

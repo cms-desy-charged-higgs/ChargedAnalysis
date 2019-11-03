@@ -16,7 +16,7 @@ PlotterPostfit::PlotterPostfit(std::string &limitDir, int &mass, std::vector<std
 
 }
 
-void PlotterPostfit::ConfigureHists(std::vector<std::string> &processes){
+void PlotterPostfit::ConfigureHists(){
     //Lambda function for sorting Histograms
     std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
 
@@ -67,7 +67,7 @@ void PlotterPostfit::ConfigureHists(std::vector<std::string> &processes){
 
 void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     //Set Style
-    this->SetStyle();
+    Plotter::SetStyle();
 
     //Define canvas and pads
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1400, 800);
