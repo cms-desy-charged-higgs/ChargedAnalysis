@@ -12,7 +12,6 @@ struct HTagger : torch::nn::Module{
 
         //Conv1 layer
         torch::nn::Conv1d convLayer{nullptr};
-        torch::nn::BatchNorm normConv{nullptr};
 
         //Output layer
         torch::nn::Linear outLayer{nullptr};

@@ -26,8 +26,6 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
     //Convolution layer
     convLayer = register_module("Conv layer 1", torch::nn::Conv1d(3, nConvFilter, kernelSize));
     convLayer->pretty_print(modelSummary); modelSummary << "\n";
-    normConv = register_module("Batch Norm Conv", torch::nn::BatchNorm(nConvFilter));
-    normConv->pretty_print(modelSummary); modelSummary << "\n";
 
     //Output layer
     int outConv = nHidden + 2 - kernelSize -1;
@@ -82,7 +80,6 @@ torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNe
 
     //Convolution layer
     z = convLayer->forward(z);
-    z = normConv->forward(z);
     z = torch::dropout(z, dropOut, isTraining);
     z = torch::relu(z).view({-1, z.size(1)*z.size(2)});
 
