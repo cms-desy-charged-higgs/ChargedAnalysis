@@ -10,7 +10,7 @@ int main(int argc, char *argv[]){
     std::vector<std::string> outDirs = Utils::SplitString(std::string(argv[5]), " ");
 
     //Call and run Plotter1D class
-    Plotter1D plotter(histDir, xParameters, channel);
-    plotter.ConfigureHists(processes);
+    Plotter1D plotter(histDir, xParameters, channel, processes);
+    plotter.ConfigureHists();
     plotter.Draw(outDirs);
 }
