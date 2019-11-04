@@ -4,6 +4,7 @@ import os
 import time
 import sys
 import subprocess
+import shutil
 
 from multiprocessing import Pool, cpu_count
 
@@ -296,10 +297,10 @@ class TaskManager(object):
 
                 nSubmitted = nStatus(self.condorTask, "SUBMITTED") + nStatus(self.condorTask, "RUNNING")
 
-                ##Submit more jobs up to 200 if jobs left
+                ##Submit more condors jobs up to 200 if jobs left
                 for task in self.condorTask:
                     if task["status"] == "VALID":
-                        if nSubmitted < 200:
+                        if nSubmitted < 500:
                             task.run()
                             task["status"] = "SUBMITTED"
                             nSubmitted+=1
