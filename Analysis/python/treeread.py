@@ -15,8 +15,6 @@ class TreeRead(Task):
 
         if not "save-mode" in self:
             self["save-mode"] = "Hist"
-        
-        self["run-mode"] = "Condor"
 
     def run(self):
         self["executable"] = "TreeRead"
@@ -37,7 +35,7 @@ class TreeRead(Task):
             result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode == 0:
-                pass #print(result.stdout)
+                print(result.stdout)
             else:
                 #print(result.stdout)
                 print(result.stderr.decode('utf-8'))
@@ -45,14 +43,21 @@ class TreeRead(Task):
 
         if self["run-mode"] == "Condor":
             self.createCondor()
-            subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            if result.returncode == 0:
+                print(result.stdout)
+            else:
+                #print(result.stdout)
+                print(result.stderr.decode('utf-8'))
+                result.check_returncode()
         
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["name"])
 
     @staticmethod
     def configure(conf, channel):
-        nEvents = int(1e4)
+        nEvents = 5*int(1e5) if not "number-events" in conf[channel] else conf[channel]["number-events"]
 
         chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
 
@@ -87,8 +92,11 @@ class TreeRead(Task):
                               "process": process, 
                               "x-parameter": conf[channel]["x-parameter"], 
                               "filename": filename,
-                               "interval": interval,
+                              "interval": interval,  
                     }
+
+                    if "run-mode" in conf[channel]:
+                        config["run-mode"] = conf[channel]["run-mode"]
 
                     tasks.append(TreeRead(config))
                     nJobs+=1
