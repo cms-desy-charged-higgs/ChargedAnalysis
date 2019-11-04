@@ -41,7 +41,7 @@ class TreeReader {
         enum Operator{EQUAL, BIGGER, SMALLER, EQBIGGER, EQSMALLER, DIVISIBLE, NOTDIVISIBLE};
 
         //Enumeration for safe mode
-        enum SaveMode {HIST, TREE, CSV, TENSOR};
+        enum SaveMode {HIST, TREE, CSV};
 
         //Struct for saving Particle information
         struct RecoParticle {
@@ -161,10 +161,9 @@ class TreeReader {
         BDT evenClassifier;
         BDT oddClassifier;
 
-        void JetParameter(const std::string& fileName, const int& start, const int& end, std::vector<std::vector<float>>* jetParam=NULL);
         float HTag(Event &event, Hist &hist);
         bool isHTag = false;
-        std::vector<float> tagValues;
+        std::vector<std::vector<float>> tagValues;
 
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
@@ -188,7 +187,7 @@ class TreeReader {
         TreeReader();
         TreeReader(const std::string &process, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel, const std::string &saveMode = "Hist");
 
-        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, std::vector<std::vector<float>>* jetParam = NULL);
+        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
 };
 
 #endif

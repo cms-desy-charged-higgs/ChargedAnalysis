@@ -55,140 +55,8 @@ float TreeReader::BDTScore(Event &event, Hist &hist){
     return score;
 }
 
-void TreeReader::JetParameter(const std::string& fileName, const int& start, const int& end, std::vector<std::vector<float>>* jetParam){
-    //Input ROOT TTree
-    TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TTree* eventTree = (TTree*)inputFile->Get(channel.c_str());
-
-    std::vector<std::string> particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
-    std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
-    std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
-
-    for(unsigned int idx=0; idx < particleVariables.size(); idx++){
-        eventTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
-        eventTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
-    }
-    
-    std::vector<std::vector<float>> chargedVec;
-    std::vector<std::vector<float>> neutralVec;
-    std::vector<std::vector<float>> SVVec;
-
-    int nCharged = 0;
-    int nNeutral = 0;
-    int nSV = 0;
-
-    for (int i = start; i < end; i++){
-        eventTree->GetEntry(i); 
-
-        std::vector<float> chargedParticles;
-        std::vector<float> neutralParticles;
-        std::vector<float> SV;
-
-        for(unsigned int idx=0; idx < particleVec[0]->size(); idx++){
-            if(particleVec[7]->at(idx) != 0 and particleVec[8]->at(idx) == 0){
-                for(int j=0; j < 7; j++){
-                    chargedParticles.push_back(particleVec[j]->at(idx));
-                }
-            }
-
-            else if(particleVec[8]->at(idx) == 0){
-                for(int j=0; j < 7; j++){
-                    neutralParticles.push_back(particleVec[j]->at(idx));
-                }
-            }
-        }
-
-        for(unsigned int idx=0; idx < secVtxVec[0]->size(); idx++){
-            if(secVtxVec[8]->at(idx) == 0){
-                for(int j=0; j < 7; j++){
-                    SV.push_back(secVtxVec[j]->at(idx));
-                }
-            }
-        }
-
-        if(chargedParticles.empty()) chargedParticles = std::vector<float>(7, 0);
-        if(neutralParticles.empty()) neutralParticles = std::vector<float>(7, 0);
-        if(SV.empty()) SV = std::vector<float>(7, 0);
-
-        int tmpCharged = Utils::Ratio(chargedParticles.size(), 7);
-        int tmpNeutral = Utils::Ratio(neutralParticles.size(), 7);
-        int tmpSV = Utils::Ratio(SV.size(), 7);
-
-        nCharged = tmpCharged > nCharged ? tmpCharged : nCharged;
-        nNeutral = tmpNeutral > nNeutral ? tmpNeutral : nNeutral;
-        nSV = tmpSV > nSV ? tmpSV : nSV;
-
-        chargedVec.push_back(chargedParticles);
-        neutralVec.push_back(neutralParticles);
-        SVVec.push_back(SV);
-
-        if(jetParam!=NULL){
-            jetParam->push_back(chargedParticles);
-            jetParam->push_back(neutralParticles);
-            jetParam->push_back(SV);
-        }
-    }
-
-    delete eventTree;
-    delete inputFile;
-
-    if(jetParam!=NULL){
-        return;
-    }
-
-    std::vector<torch::Tensor> chargedTensors; 
-    std::vector<torch::Tensor> neutralTensors; 
-    std::vector<torch::Tensor> SVTensors; 
-
-    for(std::vector<float>& data: chargedVec){
-        int tensorSize = Utils::Ratio(data.size(), 7);
-
-        torch::Tensor tensor = torch::from_blob(data.data(), {1, tensorSize, 7});
-        if(tensorSize < nCharged) tensor = torch::constant_pad_nd(tensor, {0,0, 0, nCharged - tensorSize}, 0);
-        chargedTensors.push_back(tensor);
-    }
-
-    for(std::vector<float>& data: neutralVec){
-        int tensorSize = Utils::Ratio(data.size(), 7);
-
-        torch::Tensor tensor = torch::from_blob(data.data(), {1, tensorSize, 7});
-        if(tensorSize < nNeutral) tensor = torch::constant_pad_nd(tensor, {0,0, 0, nNeutral - tensorSize}, 0);
-        neutralTensors.push_back(tensor);
-    }
-
-    for(std::vector<float>& data: SVVec){
-        int tensorSize = Utils::Ratio(data.size(), 7);
-
-        torch::Tensor tensor = torch::from_blob(data.data(), {1, tensorSize, 7});
-        if(tensorSize < nSV) tensor = torch::constant_pad_nd(tensor, {0,0, 0, nSV - tensorSize}, 0);
-        SVTensors.push_back(tensor);
-    }
-
-    torch::Tensor chargedTensor = torch::cat(chargedTensors, 0);
-    torch::Tensor neutralTensor = torch::cat(neutralTensors, 0);
-    torch::Tensor SVTensor = torch::cat(SVTensors, 0);
-
-    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 30, 3, 10, 2, 0.1);
-    torch::load(tagger, std::string(std::getenv("CHDIR")) + "/DNN/Model/htagger_2.pt");
-
-    int batchSize = 512;
-    int nBatches = std::ceil((end-start)/batchSize);
-
-    for(int i=0; i <= nBatches; i++){
-        torch::Tensor prediction = tagger->forward(
-                chargedTensor.narrow(0, batchSize*i, i!=nBatches ? batchSize : (end-start) - i*batchSize),
-                neutralTensor.narrow(0, batchSize*i, i!=nBatches ? batchSize : (end-start) - i*batchSize),
-                SVTensor.narrow(0, batchSize*i, i!=nBatches ? batchSize : (end-start) - i*batchSize), 
-                false);
-
-        for(int j=0; j < prediction.size(0); j++){
-            tagValues.push_back(prediction[j].item<float>());
-        }
-    }
-}
-
 float TreeReader::HTag(Event &event, Hist &hist){
-    return tagValues[event.loopNr];
+    return tagValues[hist.indeces[0]-1][event.loopNr];
 }
 
 float TreeReader::NSigParticle(Event &event, Hist &hist){
@@ -215,7 +83,7 @@ float TreeReader::NSigParticle(Event &event, Hist &hist){
 
 float TreeReader::NParticle(Event &event, Hist &hist){
     int nPart = 0;
-    int WP = hist.funcValue == -999. ? 1 : hist.funcValue;
+    int WP = hist.funcValue == -999. ? 0 : hist.funcValue;
 
     if(hist.parts[0] == ELECTRON or hist.parts[0] == MUON){
         for(const RecoParticle &part: event.particles[hist.parts[0]]){

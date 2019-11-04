@@ -94,6 +94,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     };
 
     SF = [&](int WP, RecoParticle part){
+        if(part.IDSF[(int)WP]*part.otherSF == 0) return float(1.); 
         return part.IDSF[(int)WP]*part.otherSF;
     };
 
@@ -111,7 +112,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     }
 
     //Check what file format has to be saved 
-    std::map<std::string, SaveMode> strToMode = {{"Hist", HIST}, {"Tree", TREE}, {"Csv", CSV}, {"Tensor", TENSOR}};
+    std::map<std::string, SaveMode> strToMode = {{"Hist", HIST}, {"Tree", TREE}, {"Csv", CSV}};
 
     toSave = strToMode[saveMode];
 
@@ -298,22 +299,11 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
     return {histograms1D, histograms2D};
 }
 
-void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, std::vector<std::vector<float>>* jetParam){
+void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
     TH1::AddDirectory(kFALSE);
     gROOT->SetBatch(kTRUE);
     gPrintViaErrorHandler = kTRUE;  
     gErrorIgnoreLevel = kWarning;
-
-    if(jetParam!=NULL){
-        JetParameter(fileName, entryStart, entryEnd, jetParam);
-        return;
-    }
-
-    if(isHTag){
-        at::set_num_interop_threads(1);
-        at::set_num_threads(1);
-        JetParameter(fileName, entryStart, entryEnd);
-    }
 
     //Input ROOT TTree
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
@@ -340,14 +330,14 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
     //Vector of particle
     std::map<std::string, std::vector<std::string>> floatVariables = {
-        {"Muon_", {"E", "Px", "Py", "Pz", "Charge", "looseIsoMediumSF", "tightIsoMediumSF", "looseIsoTightSF", "tightIsoTightSF", "mediumSF", "tightSF", "triggerSF"}},
+        {"Muon_", {"E", "Px", "Py", "Pz", "Charge", "looseIsoLooseSF", "tightIsoTightSF", "looseSF", "tightSF", "triggerSF"}},
         {"Electron_", {"E", "Px", "Py", "Pz", "Isolation", "Charge", "mediumSF", "tightSF", "recoSF"}},
         {"Jet_", {"E", "Px", "Py", "Pz", "loosebTagSF", "mediumbTagSF", "tightbTagSF", "FatJetIdx", "isFromh"}},
         {"FatJet_", {"E", "Px", "Py", "Pz", "oneSubJettiness", "twoSubJettiness", "threeSubJettiness", "loosebTagSF", "mediumbTagSF", "isFromh"}},
     };
 
     std::map<std::string, std::vector<std::string>> boolVariables = {
-        {"Muon_", {"isMediumIso", "isTightIso", "isMedium", "isTight", "isTriggerMatched", "isFromHc"}},
+        {"Muon_", {"isLooseIso", "isTightIso", "isLoose", "isTight", "isTriggerMatched", "isFromHc"}},
         {"Electron_", {"isMedium", "isTight", "isTriggerMatched", "isFromHc"}},
         {"Jet_", {"isLooseB", "isMediumB", "isTightB"}},
         {"FatJet_", {"isMediumB", "isTightB"}},
@@ -410,7 +400,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     inputTree->SetBranchAddress("Misc_eventNumber", &eventNumber);
     
     //Vector of  weights
-    std::vector<std::string> weightNames = {"lumi", "xsec"};
+    std::vector<std::string> weightNames = {"lumi", "xsec", "genWeight"};
     std::vector<float> weights(weightNames.size(), 0);
 
     for(unsigned int idx=0; idx < weightNames.size(); idx++){;
@@ -424,8 +414,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     //Number of generated events
     float nGen = 1.;
 
-    if(inputFile->GetListOfKeys()->Contains("nGen")){
-        TH1F* genHist = (TH1F*)inputFile->Get("nGen");
+    if(inputFile->GetListOfKeys()->Contains("nGenWeighted")){
+        TH1F* genHist = (TH1F*)inputFile->Get("nGenWeighted");
         nGen = genHist->Integral();
         delete genHist;
     }
@@ -464,13 +454,13 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
             muon.LV = ROOT::Math::PxPyPzEVector(muonVecFloat[1]->at(idx), muonVecFloat[2]->at(idx), muonVecFloat[3]->at(idx), muonVecFloat[0]->at(idx));
             if(muonVecFloat[6]->size() != 0){
-                muon.IDSF = {1.,  muonVecFloat[6]->at(idx)*muonVecFloat[9]->at(idx), muonVecFloat[8]->at(idx)*muonVecFloat[10]->at(idx)};
-                muon.otherSF = muonVecFloat[11]->at(idx);
+                muon.IDSF = {muonVecFloat[5]->at(idx)*muonVecFloat[7]->at(idx), 1., muonVecFloat[6]->at(idx)*muonVecFloat[8]->at(idx)};
+                muon.otherSF = muonVecFloat[9]->at(idx);
             }
 
-            muon.mediumIso = muonVecBool[0]->at(idx);
+            muon.looseIso = muonVecBool[0]->at(idx);
             muon.tightIso = muonVecBool[1]->at(idx);
-            muon.isMedium = muonVecBool[2]->at(idx);
+            muon.isLoose = muonVecBool[2]->at(idx);
             muon.isTight = muonVecBool[3]->at(idx);
             muon.isTriggerMatched = muonVecBool[4]->at(idx);
 
