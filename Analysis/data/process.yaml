@@ -9,11 +9,10 @@ QCD:
     - QCD_HT2000toInf_TuneCP5_13TeV-madgraph-pythia8
 
 TT+j-1L: 
-    - TTJets_SingleLeptFromTbar_TuneCP5_13TeV-madgraphMLM-pythia8
-    - TTJets_SingleLeptFromT_TuneCP5_13TeV-madgraphMLM-pythia8
+    - TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8
 
 TT+j-2L:
-    - TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8
+    - TTTo2L2Nu_TuneCP5_PSweights_13TeV-powheg-pythia8
 
 TT+V:
     - TTZToLLNuNu_M-10_TuneCP5_13TeV-amcatnlo-pythia8
