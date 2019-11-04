@@ -3,10 +3,10 @@
 ##Compiler/Linking flags
 CC      = $(CHDIR)/Anaconda3/bin/g++
 CFLAGS  = -I$(CHDIR) -fPIC -g
-LDFLAGS = -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib -L$(CHDIR)/Anaconda3/lib
+LDFLAGS = -L$(CHDIR)/Anaconda3/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib
 
 ROOTFLAGS_C = $(shell root-config --cflags)
-ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lTMVA -lGenVector
+ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lGX11 -lTMVA -lGenVector
 
 PYTORCH_C = -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include
 PYTORCH_LD = -L$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -ltorch -lc10 -lcaffe2_detectron_ops_gpu -D_GLIBCXX_USE_CXX11_ABI=0
@@ -26,8 +26,8 @@ N_LIBDIR = $(CHDIR)/ChargedAnalysis/Network/lib
 N_BINDIR = $(CHDIR)/ChargedAnalysis/Network/bin
 
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot1D $(A_BINDIR)/TreeRead $(N_BINDIR)/HTag
-LIBARIES = $(A_LIBDIR)/libPlot.so $(A_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libReader.so
+BINARIES = $(A_BINDIR)/Plot1D $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(N_BINDIR)/HTag
+LIBARIES = $(A_LIBDIR)/libPlot.so $(A_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
     @+make --quiet $(LIBARIES)
@@ -45,11 +45,11 @@ $(A_OBJDIR)/plot1d.o: $(A_BINDIR)/plot1d.cc
     echo "Compiling file $<"
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
 
-########################### Executable for plotter ###########################
+########################### Executable for treeread ###########################
 
 $(A_BINDIR)/TreeRead: $(A_OBJDIR)/treeread.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lML -lUtils -lReader -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lML -lUtils -lTrees -o $@ $^
 
 $(A_OBJDIR)/treeread.o: $(A_BINDIR)/treeread.cc
     mkdir -p $(A_OBJDIR)
@@ -57,11 +57,35 @@ $(A_OBJDIR)/treeread.o: $(A_BINDIR)/treeread.cc
     echo "Compiling file $<"
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
+########################### Executable for treeappend ###########################
+
+$(A_BINDIR)/TreeAppend: $(A_OBJDIR)/treeappend.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lML -lUtils -lTrees -o $@ $^
+
+$(A_OBJDIR)/treeappend.o: $(A_BINDIR)/treeappend.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
+
+########################### Executable for fileskim ###########################
+
+$(A_BINDIR)/FileSkim: $(A_OBJDIR)/fileskim.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+
+$(A_OBJDIR)/fileskim.o: $(A_BINDIR)/fileskim.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+
 ########################### Executable for htagger training ###########################
 
 $(N_BINDIR)/HTag: $(N_OBJDIR)/htag.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lML -lReader -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lML -lTrees -lPlot -o $@ $^
 
 $(N_OBJDIR)/htag.o: $(N_BINDIR)/htag.cc
     mkdir -p $(N_OBJDIR)
@@ -71,17 +95,23 @@ $(N_OBJDIR)/htag.o: $(N_BINDIR)/htag.cc
 
 ########################### Shared libaries ###########################
 
-TREESRC = treereader.cc treereaderfunction.cc
+TREESRC = treereader.cc treereaderfunction.cc treeappender.cc
 TREEOBJ = $(TREESRC:%.cc=$(A_OBJDIR)/%.o)
 
-#Treereader libary
-$(A_LIBDIR)/libReader.so: $(TREEOBJ)
+#Tree related libaries
+$(A_LIBDIR)/libTrees.so: $(TREEOBJ)
     mkdir -p $(A_LIBDIR)
 
     echo "Build shared libary $@"
     $(CC) $(LDFLAGS) -shared -o $@ $^
 
-$(A_OBJDIR)/tree%.o: $(A_SRCDIR)/tree%.cc $(A_HDIR)/treereader.h $(MLH)
+$(A_OBJDIR)/treeread%.o: $(A_SRCDIR)/treeread%.cc $(A_HDIR)/treereader.h $(MLH)
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<" 
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
+
+$(A_OBJDIR)/treeappend%.o: $(A_SRCDIR)/treeappend%.cc $(A_HDIR)/treeappender.h
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<" 
@@ -121,13 +151,17 @@ $(N_OBJDIR)/%.o: $(N_SRCDIR)/%.cc $(N_HDIR)/%.h
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ##Utility libary
-$(A_LIBDIR)/libUtils.so: $(A_OBJDIR)/utils.o
+UTILSRC = utils.cc frame.cc
+UTILOBJ = $(UTILSRC:%.cc=$(A_OBJDIR)/%.o)
+UTILH = $(UTILSRC:%.cc=$(A_HDIR)/%.h)
+
+$(A_LIBDIR)/libUtils.so: $(UTILOBJ)
     mkdir -p $(A_LIBDIR)    
 
     echo "Build shared libary $@"
     $(CC) -shared -o $@ $^
 
-$(A_OBJDIR)/utils.o: $(A_SRCDIR)/utils.cc $(A_HDIR)/utils.h
+$(A_OBJDIR)/%.o: $(A_SRCDIR)/%.cc $(A_HDIR)/%.h
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<" 
