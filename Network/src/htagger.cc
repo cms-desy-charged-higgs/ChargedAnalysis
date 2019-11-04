@@ -90,3 +90,115 @@ torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNe
 
     return z;
 }
+
+std::vector<torch::Tensor> HTagger::GatherInput(const std::string& fileName, const std::string& channel, const int& entryStart, const int& entryEnd, const int& FJindex){
+    //Input ROOT TTree
+    TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
+    TTree* eventTree = (TTree*)inputFile->Get(channel.c_str());
+
+    //Variables names and vectors to set branch address to
+    std::vector<std::string> particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
+
+    std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
+    std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
+
+    std::vector<float>* jetPx = NULL;
+    std::vector<float>* jetPy = NULL;
+
+    //Set all addresses
+    for(unsigned int idx=0; idx < particleVariables.size(); idx++){
+        eventTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
+        eventTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
+    }
+
+    eventTree->SetBranchAddress("FatJet_Px", &jetPx);
+    eventTree->SetBranchAddress("FatJet_Py", &jetPy);
+    
+    //Save FJ1 and FJ2 jet particles in pseudo matrix (IsPhiUp/FatJetIndex/Vector of Particles)
+    std::vector<torch::Tensor> chargedTensors; 
+    std::vector<torch::Tensor> neutralTensors; 
+    std::vector<torch::Tensor> SVTensors; 
+
+    //Save fo FJ1 and FJ2 NMax particles
+    int nCharged = 0;
+    int nNeutral = 0;
+    int nSV = 0;
+
+    //Vector to check is event number is even or odd
+    std::vector<long> phiUp; 
+    std::vector<long> phiDown; 
+    int index = 0;
+
+    for (int i = entryStart; i < entryEnd; i++){
+        eventTree->GetEntry(i); 
+
+        float phi = ROOT::Math::PxPyPzEVector(jetPx->at(0), jetPy->at(0), 0, 0).Phi();
+        
+        if(phi > 0) phiUp.push_back(index);
+        else phiDown.push_back(index);        
+
+        //Vector to save for FJ1 and FJ2 to PF Cand (FatJetIndex/Vector of Particles)
+        std::vector<float> chargedParticles;
+        std::vector<float> neutralParticles;
+        std::vector<float> SV;
+
+        //Fill vec of jet parts with (E1, PX1, .., VZ1, E2, PX2.. VZN) for each FatJet
+        for(unsigned int idx=0; idx < particleVec[0]->size(); idx++){
+            if(particleVec[7]->at(idx) != 0 and particleVec[8]->at(idx) == FJindex){
+                for(int j=0; j < 7; j++){
+                    chargedParticles.push_back(particleVec[j]->at(idx));
+                }
+            }
+
+            else if(particleVec[8]->at(idx) == FJindex){
+                for(int j=0; j < 7; j++){
+                    neutralParticles.push_back(particleVec[j]->at(idx));
+                }
+            }
+        }
+
+        for(unsigned int idx=0; idx < secVtxVec[0]->size(); idx++){
+            if(secVtxVec[8]->at(idx) == FJindex){
+                for(int j=0; j < 7; j++){
+                    SV.push_back(secVtxVec[j]->at(idx));
+                }
+            }
+        }
+
+        //Do padding if no SV is there
+        if(SV.empty()) SV = std::vector<float>(7, 0);
+
+        int tmpCharged = Utils::Ratio(chargedParticles.size(), 7);
+        int tmpNeutral = Utils::Ratio(neutralParticles.size(), 7);
+        int tmpSV = Utils::Ratio(SV.size(), 7);
+
+        nCharged = tmpCharged > nCharged ? tmpCharged : nCharged;
+        nNeutral = tmpNeutral > nNeutral ? tmpNeutral : nNeutral;
+        nSV = tmpSV > nSV ? tmpSV : nSV;
+
+        //Fill fat jets particles into event vector
+        chargedTensors.push_back(torch::from_blob(chargedParticles.data(), {1, tmpCharged, 7}).clone());
+        neutralTensors.push_back(torch::from_blob(neutralParticles.data(), {1, tmpNeutral, 7}).clone());
+        SVTensors.push_back(torch::from_blob(SV.data(), {1, tmpSV, 7}).clone());
+
+        index++;
+    }
+
+    delete eventTree;
+    delete inputFile;
+
+    //Transform to tensors and do padding
+    for(int i = 0; i < chargedTensors.size(); i++){
+        if(chargedTensors[i].size(1) < nCharged) chargedTensors[i] = torch::constant_pad_nd(chargedTensors[i], {0,0, 0, nCharged - chargedTensors[i].size(1)}, 0);
+
+        if(neutralTensors[i].size(1) < nNeutral) neutralTensors[i] = torch::constant_pad_nd(neutralTensors[i], {0,0, 0, nNeutral - neutralTensors[i].size(1)}, 0);
+
+        if(SVTensors[i].size(1) < nSV) SVTensors[i] = torch::constant_pad_nd(SVTensors[i], {0,0, 0, nSV - SVTensors[i].size(1)}, 0);
+    }
+
+    return {torch::cat(chargedTensors, 0), 
+            torch::cat(neutralTensors, 0), 
+            torch::cat(SVTensors, 0), 
+            torch::from_blob(phiUp.data(), {(int)phiUp.size()}, torch::kLong).clone(),
+            torch::from_blob(phiDown.data(), {(int)phiDown.size()}, torch::kLong).clone()};
+}
