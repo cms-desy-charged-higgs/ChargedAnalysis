@@ -4,21 +4,20 @@ import os
 
 class Plot1D(Task):
     def __init__(self, config = {}):
-        Task.__init__(self, config)
-
-    def status(self):
-        if not False in [os.path.isfile(output) for output in self["output"]]:
-            self["status"] = "FINISHED"
+        super().__init__(config)
 
     def run(self):
-        ##Run the Plotter1D executable
-        os.system("Plot1D {} '{}' {} '{}' '{}'".format(
+        self["executable"] = "Plot1D"
+
+        self["arguments"] = [
                 self["hist-dir"], 
-                " ".join(self["x-parameter"]),  
-                self["channel"],    
-                " ".join(self["processes"]), 
-                " ".join([self["dir"]]))
-        )
+                "{}".format(" ".join(self["x-parameter"])),
+                self["channel"], 
+                "{}".format(" ".join(self["processes"])), 
+                self["dir"], 
+        ]
+
+        super()._run()
 
     def output(self):
         self["output"] = ["{}/{}.pdf".format(self["dir"], x) for x in self["x-parameter"]]
