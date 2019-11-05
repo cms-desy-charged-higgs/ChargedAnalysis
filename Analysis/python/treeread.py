@@ -4,7 +4,7 @@ from ROOT import TFile, TTree
 
 import os
 import yaml
-import subprocess
+import numpy as np
 
 class TreeRead(Task):
     def __init__(self, config = {}):
@@ -31,26 +31,7 @@ class TreeRead(Task):
                 "{}".format(' '.join(self["interval"]))
         ]
 
-        if self["run-mode"] == "Local":
-            result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            if result.returncode == 0:
-                print(result.stdout)
-            else:
-                #print(result.stdout)
-                print(result.stderr.decode('utf-8'))
-                result.check_returncode()
-
-        if self["run-mode"] == "Condor":
-            self.createCondor()
-            result = subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            if result.returncode == 0:
-                print(result.stdout)
-            else:
-                #print(result.stdout)
-                print(result.stderr.decode('utf-8'))
-                result.check_returncode()
+        super()._run()
         
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["name"])
@@ -80,7 +61,11 @@ class TreeRead(Task):
                 rootFile.Close()
 
                 ##Complicated way of calculating intervals
-                intervals = [[str(nEvents*i) if i == 0 else str(nEvents*i + 1), str(nEvents + (entries-nEvents)) if i == round(entries/nEvents) else str(nEvents*(i+1))] for i in range(round(entries/nEvents +0.5))]
+                intervals = [["0", "0"]]
+
+                if entries != 0:
+                    nRange = np.arange(0, entries)
+                    intervals = [[str(i[0]), str(i[-1])] for i in np.array_split(nRange, round(entries/nEvents+0.5))]
 
                 for interval in intervals:
                     ##Configuration for treeread Task
@@ -88,7 +73,7 @@ class TreeRead(Task):
                               "display-name": "Hist: {} ({})".format(process, channel),
                               "channel": channel, 
                               "cuts": conf[channel]["cuts"], 
-                              "dir":  os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
+                              "dir":  os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
                               "process": process, 
                               "x-parameter": conf[channel]["x-parameter"], 
                               "filename": filename,
