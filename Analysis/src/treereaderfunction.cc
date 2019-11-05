@@ -56,7 +56,7 @@ float TreeReader::BDTScore(Event &event, Hist &hist){
 }
 
 float TreeReader::HTag(Event &event, Hist &hist){
-    return tagValues[hist.indeces[0]-1][event.loopNr];
+    return event.hTag[hist.indeces[0]-1];
 }
 
 float TreeReader::NSigParticle(Event &event, Hist &hist){

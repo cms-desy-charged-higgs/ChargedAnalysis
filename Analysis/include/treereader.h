@@ -27,8 +27,6 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Analysis/include/utils.h>
 
-#include <torch/torch.h>
-
 class TreeReader {
     private:
         //Enumeration for particles
@@ -80,12 +78,14 @@ class TreeReader {
             //Map with particles      
             std::map<Particle, std::vector<RecoParticle>> particles;
 
-            int loopNr = -1;
             float HT=1.;
             float eventNumber;
 
             //Event weight
             float weight=1.;
+
+            //Higg score
+            std::vector<float> hTag = std::vector<float>(2, -1.);
 
             //Clear Function
             void Clear(){
@@ -94,8 +94,8 @@ class TreeReader {
                     particles[(Particle)i] = {};
                 }
 
-                loopNr++;
                 weight=1.;
+                hTag[0] -1.; hTag[1] -1.; 
             }
         };
 
@@ -163,7 +163,6 @@ class TreeReader {
 
         float HTag(Event &event, Hist &hist);
         bool isHTag = false;
-        std::vector<std::vector<float>> tagValues;
 
         float NSigParticle(Event &event, Hist &hist);
         float NParticle(Event &event, Hist &hist);
@@ -175,6 +174,7 @@ class TreeReader {
         //Function for reconstruct objects
         void WBoson(Event &event);
         void Higgs(Event &event);
+        bool isHPlus = false;
     
         //Function for cuts
         bool Cut(Event &event, Hist &hist);

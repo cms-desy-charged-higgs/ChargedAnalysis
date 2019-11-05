@@ -119,6 +119,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     //Check if BDT and DNN classes has to be initialized
     isBDT = Utils::FindInVec(this->xParameters, "bdt_") != -1 or Utils::FindInVec(cutStrings, "bdt_") != -1;
     isHTag = Utils::FindInVec(this->xParameters, "htag") != -1 or Utils::FindInVec(cutStrings, "htag") != -1;
+    isHPlus = Utils::FindInVec(this->xParameters, "Hc") != -1 or Utils::FindInVec(cutStrings, "Hc") != -1;
 
     //BDT intialization
     if(isBDT){
@@ -398,9 +399,20 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     inputTree->SetBranchAddress("MET_Py", &MET_Py);
     inputTree->SetBranchAddress("HT", &HT);
     inputTree->SetBranchAddress("Misc_eventNumber", &eventNumber);
+
+    float htagFJ1 = -1.; float htagFJ2 = -1.;
+
+    //Read htag
+    if(isHTag){
+        inputTree->SetBranchAddress("ML_HTagFJ1", &htagFJ1); 
+
+        if(inputTree->GetListOfBranches()->Contains("ML_HTagFJ2")){
+            inputTree->SetBranchAddress("ML_HTagFJ2", &htagFJ2); 
+        }
+    }
     
     //Vector of  weights
-    std::vector<std::string> weightNames = {"lumi", "xsec", "genWeight"};
+    std::vector<std::string> weightNames = {"lumi", "xsec"};
     std::vector<float> weights(weightNames.size(), 0);
 
     for(unsigned int idx=0; idx < weightNames.size(); idx++){;
@@ -414,8 +426,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     //Number of generated events
     float nGen = 1.;
 
-    if(inputFile->GetListOfKeys()->Contains("nGenWeighted")){
-        TH1F* genHist = (TH1F*)inputFile->Get("nGenWeighted");
+    if(inputFile->GetListOfKeys()->Contains("nGen")){
+        TH1F* genHist = (TH1F*)inputFile->Get("nGen");
         nGen = genHist->Integral();
         delete genHist;
     }
@@ -522,6 +534,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             event.particles[FATJET].push_back(fatJet);
         }
 
+        if(isHTag){
+            event.hTag = {htagFJ1, htagFJ2};
+        }
 
         RecoParticle met;
         met.LV = ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0);
@@ -541,9 +556,10 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             //event.weight *= nTrue/pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
         }
 
-       // WBoson(event);
-       // Higgs(event);
-
+        if(isHPlus){
+            WBoson(event);
+            Higgs(event);
+        }
 
         //Check if event passes cut
         bool passedCut = true;
