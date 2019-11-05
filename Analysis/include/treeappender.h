@@ -26,14 +26,14 @@ class TreeAppender{
         std::vector<std::string> branchNames;
         int entryStart; 
         int entryEnd;
+
+        std::vector<float> HScore(const int& FJIndex);
         
     public:
         TreeAppender();
         TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const int& entryStart, const int& entryEnd);
 
         void Append();
-
-        std::vector<float> HScore(const int& FJIndex);
 };
 
 #endif
