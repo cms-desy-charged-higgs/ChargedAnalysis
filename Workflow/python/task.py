@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import yaml
 import os
 import shutil
+import subprocess
 
 class Task(ABC, dict):
     def __init__(self, config = {}):
@@ -23,6 +24,22 @@ class Task(ABC, dict):
 
     def __call__(self):
         self.run()
+
+    def _run(self):
+        if self["run-mode"] == "Local":
+            result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            if result.returncode == 0:
+                print(result.stdout.decode('utf-8'))
+            else:
+                print(result.stdout.decode('utf-8'))
+                print(result.stderr.decode('utf-8'))
+                result.check_returncode()
+
+        if self["run-mode"] == "Condor":
+            self.createCondor()
+            result = subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
     
     def createCondor(self):
         ##Create directory with condor
@@ -86,10 +103,6 @@ class Task(ABC, dict):
             print("Created task dir: {}".format(self["dir"]))
 
     ##Abstract functions which has to be overwritten
-    @abstractmethod
-    def status(self):
-        pass
-
     @abstractmethod
     def run(self):
         pass
