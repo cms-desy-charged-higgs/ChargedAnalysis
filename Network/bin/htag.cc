@@ -38,14 +38,14 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
            (float)std::experimental::randint(5, 50), //Number of Conv filter
            (float)std::experimental::randint(2, 20),  //Kernel size of Conv filter
             std::experimental::randint(0, 50)/100., //Dropout
-            std::pow(10, std::experimental::randint(-4, -1)), //Learning rate
+            std::pow(10, std::experimental::randint(-4, -2)), //Learning rate
            (float)std::experimental::randint(32, 2048), //BatchSize
     };
 
     std::shared_ptr<HTagger> tagger;
 
     if(!frame){
-        tagger = std::make_shared<HTagger>(7, 62, 2, 33, 13, 0.11);
+        tagger = std::make_shared<HTagger>(7, 45, 2, 16, 10, 0.09);
     }
 
     else{
@@ -56,14 +56,14 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
     tagger->to(device);
 
     //Optimizer
-    float lr = !frame ? 1e-4 : hyperParam[7];
+    float lr = !frame ? 0.001: hyperParam[7];
     torch::optim::Adam optimizer(tagger->parameters(), torch::optim::AdamOptions(lr).weight_decay(lr/10.));
 
     //Variables for number of batches and and batch size
     int nVali = 3000;
     int nTrain = tagValue.size(0) - nVali;
 
-    int batchSize = !frame ? 256 : hyperParam[8];
+    int batchSize = !frame ? 1024 : hyperParam[8];
     int nEpochs = 1000;
     int nBatches = nTrain % batchSize == 0 ? nTrain/batchSize -1 : std::ceil(nTrain/batchSize);
 
@@ -145,12 +145,12 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
 
         //Update histograms 
         for(unsigned int k=0; k < predictionVali.size(0); k++){
-            if(labelVali[k][0].item<float>() == 0){
-                topHist->Fill(predictionVali[k][0].item<float>());
+            if(labelVali[k].item<float>() == 0){
+                topHist->Fill(predictionVali[k].item<float>());
             }
 
             else{
-                higgsHist->Fill(predictionVali[k][0].item<float>());
+                higgsHist->Fill(predictionVali[k].item<float>());
             }
         }
 
@@ -189,7 +189,7 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
 
     //Save model
     if(!frame){
-        std::string taggerName = isPhiUp ? "ForPhiDown1.pt" : "ForPhiUp1.pt";
+        std::string taggerName = isPhiUp ? "ForPhiDown.pt" : "ForPhiUp.pt";
     
         std::string outName = std::string(std::getenv("CHDIR")) + "/DNN/Model/htagger" + taggerName;
         tagger->to(torch::kCPU);
@@ -227,7 +227,7 @@ int main(int argc, char** argv){
     std::vector<torch::Tensor> tagValues;
 
     for(std::string& channel: channels){
-        int nEvents = !optimize ? 0 : 300;
+        int nEvents = !optimize ? 0 : 10000;
         int nFJ = channel.find("2j1f") != std::string::npos ? 1 : 2;
 
         for(const std::pair<std::string, int>& fileName: fileNames){

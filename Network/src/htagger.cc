@@ -92,6 +92,10 @@ torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNe
 }
 
 std::vector<torch::Tensor> HTagger::GatherInput(const std::string& fileName, const std::string& channel, const int& entryStart, const int& entryEnd, const int& FJindex){
+    if(entryEnd == 0){
+        return {torch::empty({0}), torch::empty({0}), torch::empty({0}), torch::empty({0}), torch::empty({0})};
+    }
+
     //Input ROOT TTree
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
     TTree* eventTree = (TTree*)inputFile->Get(channel.c_str());
@@ -102,18 +106,18 @@ std::vector<torch::Tensor> HTagger::GatherInput(const std::string& fileName, con
     std::vector<std::vector<float>*> particleVec(particleVariables.size(), NULL);
     std::vector<std::vector<float>*> secVtxVec(particleVariables.size(), NULL);
 
-    std::vector<float>* jetPx = NULL;
-    std::vector<float>* jetPy = NULL;
-
     //Set all addresses
     for(unsigned int idx=0; idx < particleVariables.size(); idx++){
         eventTree->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
         eventTree->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
     }
 
+    std::vector<float>* jetPx = NULL;
+    std::vector<float>* jetPy = NULL;
+
     eventTree->SetBranchAddress("FatJet_Px", &jetPx);
     eventTree->SetBranchAddress("FatJet_Py", &jetPy);
-    
+
     //Save FJ1 and FJ2 jet particles in pseudo matrix (IsPhiUp/FatJetIndex/Vector of Particles)
     std::vector<torch::Tensor> chargedTensors; 
     std::vector<torch::Tensor> neutralTensors; 
@@ -131,11 +135,11 @@ std::vector<torch::Tensor> HTagger::GatherInput(const std::string& fileName, con
 
     for (int i = entryStart; i < entryEnd; i++){
         eventTree->GetEntry(i); 
-
-        float phi = ROOT::Math::PxPyPzEVector(jetPx->at(0), jetPy->at(0), 0, 0).Phi();
         
+        float phi = ROOT::Math::PxPyPzEVector(jetPx->at(0), jetPy->at(0), 0, 0).Phi();
+         
         if(phi > 0) phiUp.push_back(index);
-        else phiDown.push_back(index);        
+        else phiDown.push_back(index);      
 
         //Vector to save for FJ1 and FJ2 to PF Cand (FatJetIndex/Vector of Particles)
         std::vector<float> chargedParticles;
