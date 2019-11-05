@@ -1,0 +1,65 @@
+mu2f:
+    branch-names: 
+        - ML_HTagFJ1
+        - ML_HTagFJ2
+    processes:
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - L4B_200_100
+    number-events: 50000
+    run-mode: Condor
+
+e2f:
+    branch-names: 
+        - ML_HTagFJ1
+        - ML_HTagFJ2
+    processes:
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - L4B_200_100
+    number-events: 50000
+    run-mode: Condor
+
+mu2j1f:
+    branch-names: 
+        - ML_HTagFJ1
+    processes:
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - L4B_200_100
+    number-events: 50000
+    run-mode: Condor
+
+e2j1f:
+    branch-names: 
+        - ML_HTagFJ1
+    processes:
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - L4B_200_100
+    number-events: 50000
+    run-mode: Condor
