@@ -19,7 +19,7 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
 
     //Tagger
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 150, 1, 27, 20, 0.22));
+    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 38, 2, 35, 17, 0.04));
 
     torch::Tensor chargedTensor = input[0];
     torch::Tensor neutralTensor = input[1];
@@ -79,7 +79,9 @@ void TreeAppender::Append(){
 
     //Disables wished branches if they are already existing in old tree
     for(std::string& branchName: branchNames){
-        oldT->SetBranchStatus(branchName.c_str(), 0);
+        if(oldT->GetListOfBranches()->Contains(branchName.c_str())){
+            oldT->SetBranchStatus(branchName.c_str(), 0);
+        }
     }
 
     //Clone Tree
