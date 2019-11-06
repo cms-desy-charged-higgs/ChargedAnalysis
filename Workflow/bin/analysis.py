@@ -3,7 +3,7 @@
 from taskmanager import TaskManager
 
 from treeread import TreeRead
-from plot1d import Plot1D
+from plot import Plot
 from hadd import HaddPlot, HaddAppend
 from treeappend import TreeAppend
 from fileskim import FileSkim
@@ -14,7 +14,7 @@ import yaml
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot1D", "Append"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "Append"])
     parser.add_argument("--config", type=str)
 
     return parser.parse_args()
@@ -25,7 +25,7 @@ def taskReturner(taskName, **kwargs):
 
     tasks = {
         "Append": lambda : append(config),
-        "Plot1D": lambda : plot1DTask(config),
+        "Plot": lambda : plotTask(config),
     }
 
     return tasks[taskName]
@@ -43,13 +43,13 @@ def append(config):
 
     return allTasks
 
-def plot1DTask(config):
+def plotTask(config):
     allTasks = []
 
     for channel, conf in config.items():
         treeTasks = TreeRead.configure(config, channel)
         haddTasks = HaddPlot.configure(config, treeTasks, channel)
-        histTasks = Plot1D.configure(config, haddTasks, channel)
+        histTasks = Plot.configure(config, haddTasks, channel)
 
         allTasks.extend(treeTasks+haddTasks+histTasks)
 
