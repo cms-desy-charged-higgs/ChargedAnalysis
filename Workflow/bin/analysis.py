@@ -16,6 +16,7 @@ def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--task", type=str, choices = ["Plot", "Append"])
     parser.add_argument("--config", type=str)
+    parser.add_argument("--check-output", action = "store_true")
 
     return parser.parse_args()
 
@@ -62,7 +63,7 @@ def main():
     tasks = taskReturner(args.task, config=args.config)()
 
     ##Run the manager
-    manager = TaskManager()
+    manager = TaskManager(args.check_output)
     manager.tasks = tasks
     manager.runTasks()
 

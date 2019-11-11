@@ -102,6 +102,19 @@ class Task(ABC, dict):
             os.system("mkdir -p {}".format(self["dir"])) 
             print("Created task dir: {}".format(self["dir"]))
 
+    def checkOutput(self):
+        ##Check if output already exists
+        if type(self["output"]) == str:
+            return os.path.exists(self["output"])
+
+        else:
+            for output in self["output"]:
+                if not os.path.exists(output):
+                    return False
+
+            return True                
+        
+
     ##Abstract functions which has to be overwritten
     @abstractmethod
     def run(self):

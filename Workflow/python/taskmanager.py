@@ -9,7 +9,9 @@ import shutil
 from multiprocessing import Pool, cpu_count
 
 class TaskManager(object):
-    def __init__(self):
+    def __init__(self, checkOutput=False):
+        self.checkOutput = checkOutput
+
         ##Header of worflow HTML
         self._htmlHead = """
             <!DOCTYPE html>
@@ -225,6 +227,11 @@ class TaskManager(object):
             startTime = time.time()
 
             for task in taskLayer:
+                ##Skip task if already finished and you dont want to rerun
+                if self.checkOutput:
+                    if task.checkOutput():
+                        task["status"] = "FINISHED"
+
                 if task["run-mode"] == "Local":
                     task.getDependentFiles(self._graph)
                     self.localTask.append(task)
@@ -233,18 +240,19 @@ class TaskManager(object):
                     task.getDependentFiles(self._graph)
                     self.condorTask.append(task)
 
-            ##Submit condors jobs (Only 200 hundred at one time)
+            ##Submit condors jobs (Only 500 hundred at one time)
             for index, task in enumerate(self.condorTask):
-                task.run()
-                task["status"] = "SUBMITTED"
+                if(task["status"] != "FINISHED"):
+                    task.run()
+                    task["status"] = "SUBMITTED"
 
-                if index==199:
-                    break
+                    if index==499:
+                        break
 
             ##Run all local task
             nCores = cpu_count()
             pool = Pool(processes=nCores)
-            localRuns = [pool.apply_async(task) for task in self.localTask]
+            localRuns = [pool.apply_async(task) for task in self.localTask if task["status"] != "FINISHED"]
 
             while(True):
                 self.drawGraph() 
