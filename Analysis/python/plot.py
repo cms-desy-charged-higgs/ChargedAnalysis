@@ -2,16 +2,20 @@ from task import Task
 
 import os
 
-class Plot1D(Task):
+class Plot(Task):
     def __init__(self, config = {}):
         super().__init__(config)
 
+        if not "y-parameter" in self:
+            self["y-parameter"] = []
+
     def run(self):
-        self["executable"] = "Plot1D"
+        self["executable"] = "Plot"
 
         self["arguments"] = [
                 self["hist-dir"], 
                 "{}".format(" ".join(self["x-parameter"])),
+                "{}".format(" ".join(self["y-parameter"])),
                 self["channel"], 
                 "{}".format(" ".join(self["processes"])), 
                 self["dir"], 
@@ -38,6 +42,10 @@ class Plot1D(Task):
                     "processes": [t["process"] for t in haddTasks if t["channel"] == channel]
         }
 
-        tasks.append(Plot1D(plotConf))
+        if "y-parameter" in conf[channel]:
+            plotConf["y-parameter"] = conf[channel]["y-parameter"]
+
+
+        tasks.append(Plot(plotConf))
 
         return tasks
