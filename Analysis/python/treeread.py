@@ -75,13 +75,16 @@ class TreeRead(Task):
                               "cuts": conf[channel]["cuts"], 
                               "dir":  os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
                               "process": process, 
-                              "x-parameter": conf[channel]["x-parameter"], 
+                              "x-parameter": conf[channel]["x-parameter"],
                               "filename": filename,
                               "interval": interval,  
                     }
 
                     if "run-mode" in conf[channel]:
                         config["run-mode"] = conf[channel]["run-mode"]
+
+                    if "y-parameter" in conf[channel]:
+                        config["y-parameter"] = conf[channel]["y-parameter"]
 
                     tasks.append(TreeRead(config))
                     nJobs+=1
