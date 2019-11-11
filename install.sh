@@ -16,19 +16,27 @@ export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
 conda install anaconda -y
 
-conda install -c conda-forge root -y
-conda install -c anaconda pytorch-gpu -y
-conda install -c conda-forge compilers -y
-conda install -c anaconda git make -y
+conda install -c conda-forge root compilers boost vdt -y
+conda install -c anaconda pytorch-gpu git make -y
 pip install htcondor
 
 ##Git standalone analysis code and compile everything
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
-git clone https://github.com/cms-desy-charged-higgs/ChargedNetwork.git
 
 cd ChargedAnalysis
 make -j 20
 cd ..
+
+##Install Higgs combine
+git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+cd HiggsAnalysis/CombinedLimit
+
+cp $CHDIR/ChargedAnalysis/Makefile_combine $CHDIR/HiggsAnalysis/CombinedLimit/Makefile
+
+make lib
+make exe
+
+cd $CHDIR
 
 ##Add webpage for cern
 git clone https://github.com/DaveBrun94/CernWebpage.git
