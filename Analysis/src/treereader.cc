@@ -46,6 +46,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
                     {BDTSCORE, "BDT score"},
                     {NPART, "N_{@}"},
                     {CONSTNUM, "Bin number"},
+                    {EVENTNUMBER, "Event number"},
                     {NSIGPART, "N^{gen matched}_{@}"},
                     {SUBTINESS, "#tau(@)"},
                     {HTAG, "Higgs score (@)"},
@@ -85,10 +86,10 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
                 {HTAG, &TreeReader::HTag},
     };
 
-    ID = [&](int WP, RecoParticle part){
-        if(WP == 0) return part.isLoose && part.looseIso;
-        else if(WP == 1) return part.isMedium && part.mediumIso;
-        else if(WP == 2) return part.isTight && part.tightIso;
+    ID = [&](int WP, RecoParticle part, const bool isB){
+        if(WP == 0) return isB ? part.isLoose : part.isLoose && part.looseIso;
+        else if(WP == 1) return isB ? part.isMedium : part.isMedium && part.mediumIso;
+        else if(WP == 2) return isB ? part.isTight : part.isTight && part.tightIso;
 
         return false;
     };
@@ -137,6 +138,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
         std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
         oddClassifier.SetEvaluation(bdtPath + "/Odd/");
 
+        //Remove mass
         bdtVar.pop_back();
 
         for(std::string param: bdtVar){
@@ -146,8 +148,22 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
 }
 
 TreeReader::Hist TreeReader::ConvertStringToEnums(const std::string &input, const bool &isCutString){
+    //Check if binning is given, like pt_mu-30_0_200
+    bool modifiedBins = false;
+    std::vector<float> bins = {};
+
+    std::vector<std::string> splittedInput = Utils::SplitString(input, "-");
+    if(splittedInput.size() > 1){
+        modifiedBins = true;
+
+        //Read out bins (e.g. 30_0_200) and turn to ints
+        for(std::string& binValue: Utils::SplitString(splittedInput[1], "_")){
+            bins.push_back(std::stof(binValue));
+        }
+    }
+
     //Function which handles splitting of string input
-    std::vector<std::string> splittedString = Utils::SplitString(input, "_");
+    std::vector<std::string> splittedString = Utils::SplitString(modifiedBins ? splittedInput[0] : input, "_");
 
     //Translate strings into enumeration
     Function func = strToFunc[splittedString[0]];
@@ -213,7 +229,7 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(const std::string &input, cons
         }
     }
 
-    return {NULL, NULL, parts, indeces, func, funcValue, {op, cutValue}};
+    return {NULL, NULL, bins, parts, indeces, func, funcValue, {op, cutValue}};
 }
 
 std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hist>>> TreeReader::SetHistograms(TFile* outputFile){
@@ -231,9 +247,10 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
 
         //Split input string into information for particle and function to call value
         Hist confX = ConvertStringToEnums(xParameters[i]);
+        std::vector<float> xBins = confX.bins.empty() ? binning[confX.func] : confX.bins;
 
         //Create final histogram
-        TH1F* hist1D = new TH1F(xParameters[i].c_str(), xParameters[i].c_str(), binning[confX.func][0], binning[confX.func][1], binning[confX.func][2]);
+        TH1F* hist1D = new TH1F(xParameters[i].c_str(), xParameters[i].c_str(), xBins[0], xBins[1], xBins[2]);
         hist1D->Sumw2();
         hist1D->SetDirectory(outputFile);
 
@@ -260,17 +277,18 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
         for(unsigned int j = 0; j < yParameters.size(); j++){
             //Split input string into information for particle and function to call value
             Hist confY = ConvertStringToEnums(yParameters[j]);
+            std::vector<float> yBins = confY.bins.empty() ? binning[confY.func] : confY.bins;
 
             bool isNotRedundant = true;
 
             for(std::string pair: parameterPairs){
-                if(pair.find(xParameters[i]) == std::string::npos and pair.find(yParameters[j]) == std::string::npos) isNotRedundant = false;
+                if(pair.find(xParameters[i]) != std::string::npos and pair.find(yParameters[j]) != std::string::npos) isNotRedundant = false;
             }
 
             if(isNotRedundant and xParameters[i] != yParameters[j]){
                 parameterPairs.push_back(xParameters[i] + yParameters[j]);
             
-                TH2F* hist2D = new TH2F((xParameters[i] + "_VS_" + yParameters[j]).c_str() , (xParameters[i] + "_VS_" + yParameters[j]).c_str(), binning[confX.func][0], binning[confX.func][1], binning[confX.func][2], binning[confY.func][0], binning[confY.func][1], binning[confY.func][2]);
+                TH2F* hist2D = new TH2F((xParameters[i] + "_VS_" + yParameters[j]).c_str() , (xParameters[i] + "_VS_" + yParameters[j]).c_str(), xBins[0], xBins[1], xBins[2], yBins[0], yBins[1], yBins[2]);
                 hist2D->Sumw2();
                 hist2D->SetDirectory(outputFile);
 
@@ -510,11 +528,11 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
             jet.LV = ROOT::Math::PxPyPzEVector(jetVecFloat[1]->at(idx), jetVecFloat[2]->at(idx), jetVecFloat[3]->at(idx), jetVecFloat[0]->at(idx));
        
-            /*
-            jet.isLoose = jetVecBool[0]->at(idx);
-            jet.isMedium = jetVecBool[1]->at(idx);
-            jet.isTight = jetVecBool[2]->at(idx);
-            */
+            if(jetVecBool[0]->size()!=0){
+                jet.isLoose = jetVecBool[0]->at(idx);
+                jet.isMedium = jetVecBool[1]->at(idx);
+                jet.isTight = jetVecBool[2]->at(idx);
+            }
 
             if(jetVecFloat[8]->size() != 0){
                 jet.IDSF = {jetVecFloat[4]->at(idx), jetVecFloat[5]->at(idx), jetVecFloat[6]->at(idx)};
@@ -530,6 +548,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             RecoParticle fatJet;
 
             fatJet.LV = ROOT::Math::PxPyPzEVector(fatjetVecFloat[1]->at(idx), fatjetVecFloat[2]->at(idx), fatjetVecFloat[3]->at(idx), fatjetVecFloat[0]->at(idx));
+
+            fatJet.subtiness = {fatjetVecFloat[4]->at(idx), fatjetVecFloat[5]->at(idx), fatjetVecFloat[6]->at(idx)};
 
             event.particles[FATJET].push_back(fatJet);
         }
