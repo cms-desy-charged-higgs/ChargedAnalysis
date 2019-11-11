@@ -178,7 +178,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             TH1F* pull = (TH1F*)sumbkg->Clone();
             pull->Reset();
 
-            for(int j = 1; j < sumbkg->GetNbinsX(); j++){
+            for(int j = 1; j <= sumbkg->GetNbinsX(); j++){
                 float pullvalue = 0.;
 
                 if(sumbkg->GetBinError(j) != 0){          
