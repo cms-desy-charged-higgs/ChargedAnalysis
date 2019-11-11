@@ -47,14 +47,14 @@ class TreeReader {
             int charge;
 
             //Booleans
-            bool looseIso = true;
-            bool mediumIso = true;
-            bool tightIso = true;
+            bool looseIso = false;
+            bool mediumIso = false;
+            bool tightIso = false;
 
-            bool isLoose = true;
-            bool isMedium = true;
-            bool isTight = true;
-            bool isTriggerMatched = true;
+            bool isLoose = false;
+            bool isMedium = false;
+            bool isTight = false;
+            bool isTriggerMatched = false;
 
             int isFromSignal = -1.;
 
@@ -103,6 +103,7 @@ class TreeReader {
         struct Hist{
             TH1* hist1D;
             TH2* hist2D;
+            std::vector<float> bins;
             std::vector<Particle> parts;
             std::vector<int> indeces;
             Function func;
@@ -168,7 +169,7 @@ class TreeReader {
         float NParticle(Event &event, Hist &hist);
 
         //Mapping for IDS/sf
-        std::function<bool(int, RecoParticle)> ID;
+        std::function<bool(int, RecoParticle, const bool isB)> ID;
         std::function<float(int, RecoParticle)> SF;
 
         //Function for reconstruct objects

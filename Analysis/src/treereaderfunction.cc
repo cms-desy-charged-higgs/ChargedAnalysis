@@ -38,7 +38,7 @@ float TreeReader::EventNumber(Event &event, Hist &hist){
 }
 
 float TreeReader::Subtiness(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]].subtiness[hist.funcValue];
+    return event.particles[hist.parts[0]][hist.indeces[0]-1].subtiness[hist.funcValue];
 }
 
 float TreeReader::BDTScore(Event &event, Hist &hist){
@@ -87,7 +87,7 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
     if(hist.parts[0] == ELECTRON or hist.parts[0] == MUON){
         for(const RecoParticle &part: event.particles[hist.parts[0]]){
-            if(ID(WP, part) && part.isTriggerMatched && part.LV.Pt() > 35.){
+            if(ID(WP, part, false) && part.isTriggerMatched && part.LV.Pt() > 35.){
                 nPart++;
 
                 event.weight *= SF(WP, part);
@@ -106,7 +106,7 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
     else if(hist.parts[0] == BJET){
         for(const RecoParticle &part: event.particles[JET]){
-            if(ID(WP, part)){
+            if(ID(WP, part, true)){
                 nPart++;
                 event.weight *= part.IDSF[WP]; 
             }
@@ -115,7 +115,7 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
     else if(hist.parts[0] == BSUBJET){
         for(const RecoParticle &part: event.particles[SUBJET]){
-            if(ID(WP, part)){
+            if(ID(WP, part, true)){
                 nPart++;
                 event.weight *= part.IDSF[WP]; 
             }
@@ -124,7 +124,7 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
     else if(hist.parts[0] == BFATJET){
         for(const RecoParticle &part: event.particles[FATJET]){
-            if(ID(WP, part)){
+            if(ID(WP, part, true)){
                 nPart++;
                 event.weight *= part.IDSF[WP]; 
             }
