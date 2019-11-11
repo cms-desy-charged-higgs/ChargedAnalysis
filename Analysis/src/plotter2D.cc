@@ -15,31 +15,24 @@ Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters
 
 
 void Plotter2D::ConfigureHists(){
-    //Save pairs of XY parameters to avoid redundant plots
-    std::vector<std::string> parameterPairs;
-
     for(unsigned int i = 0; i < xParameters.size(); i++){
         //Define Vector for processes
         std::vector<std::vector<TH2F*>> bkgHistVec;
         std::vector<std::vector<TH2F*>> sigHistVec;
 
         for(unsigned int j = 0; j < yParameters.size(); j++){
-            bool isNotRedundant = true;
+            std::vector<TH2F*> bkgHists;
+            std::vector<TH2F*> sigHists;
 
-            for(std::string pair: parameterPairs){
-                if(pair.find(xParameters[i]) == std::string::npos and pair.find(yParameters[j]) == std::string::npos) isNotRedundant = false;
-            }
+            for(std::string process: processes){
+                //Get Histogram for parameter
+                std::string filename = histdir + "/" + process + ".root";
+                TFile* file = TFile::Open(filename.c_str());
+                
+                //Get hist names because only non redundant plots are saved
+                TList* histNames = file->GetListOfKeys();
 
-            if(isNotRedundant and xParameters[i] != yParameters[j]){
-                parameterPairs.push_back(xParameters[i] + yParameters[j]);
-
-                std::vector<TH2F*> bkgHists;
-                std::vector<TH2F*> sigHists;
-
-                for(std::string process: processes){
-                    //Get Histogram for parameter
-                    std::string filename = histdir + "/" + process + ".root";
-                    TFile* file = TFile::Open(filename.c_str());
+                if(histNames->Contains((xParameters[i] + "_VS_" + yParameters[j]).c_str())){
                     TH2F* hist = (TH2F*)file->Get((xParameters[i] + "_VS_" + yParameters[j]).c_str());
 
                     if(procDic[process] == BKG){
@@ -72,61 +65,59 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
     TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
 
     //Save pairs of XY parameters to avoid redundant plots
-    std::vector<std::string> parameterPairs;
+   std::vector<std::string> parameterPairs;
 
     for(unsigned int i = 0; i < xParameters.size(); i++){
-        for(unsigned int j = 0; j < yParameters.size(); j++){
+        for(unsigned int j = 0; j < background[i].size(); j++){
             canvas->cd();
 
-            bool isNotRedundant = true;
+            //Draw main pad
+            Plotter::SetPad(mainpad);
+            mainpad->SetRightMargin(0.15);
+            mainpad->Draw();
+            mainpad->cd();
 
-            for(std::string pair: parameterPairs){
-                if(pair.find(xParameters[i]) == std::string::npos and pair.find(yParameters[j]) == std::string::npos) isNotRedundant = false;
+            if(background[i][j].size() == 0) continue;
+
+            TH2F* bkgSum =  (TH2F*)background[i][j][0]->Clone();
+            bkgSum->Clear();
+
+            for(TH2F* hist: background[i][j]){
+                bkgSum->Add(hist);
+            }
+                       
+            Plotter::SetHist(bkgSum);
+            bkgSum->DrawNormalized("colz");
+            Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
+
+            for(std::string outdir: outdirs){
+                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_bkg.pdf").c_str());
+                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_bkg.png").c_str());
             }
 
-            if(isNotRedundant and xParameters[i] != yParameters[j]){
-                parameterPairs.push_back(xParameters[i] + yParameters[j]);
+            canvas->cd();
 
-                TH2F* bkgSum =  (TH2F*)background[i][j][0]->Clone();
-                bkgSum->Clear();
+            //Draw main pad
+            Plotter::SetPad(mainpad);
+            mainpad->SetRightMargin(0.15);
+            mainpad->Draw();
+            mainpad->cd();
 
-                for(TH2F* hist: background[i][j]){
-                    bkgSum->Add(hist);
-                }
-                
-                canvas->Clear();
+            if(signal[i][j].size() == 0) continue;
 
-                //Draw main pad
-                mainpad->Draw();
-                mainpad->cd();
+            Plotter::SetHist(signal[i][j][0]);
+            signal[i][j][0]->DrawNormalized("colz");
+            Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
 
-                bkgSum->DrawNormalized("COLZ");
-                Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
-
-                for(std::string outdir: outdirs){
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.pdf").c_str());
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_bkg.png").c_str());
-                }
-
-                canvas->cd();
-                canvas->Clear();
-
-                //Draw main pad
-                mainpad->Draw();
-                mainpad->cd();
-
-                signal[i][j][0]->DrawNormalized("COLZ");
-                Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
-
-                for(std::string outdir: outdirs){
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.pdf").c_str());
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_VS_" + yParameters[j] + "_sig.png").c_str());
-                }
-
-                std::cout << "Plot created for: " << xParameters[i] << " VS " << yParameters[j] << std::endl;
+            for(std::string outdir: outdirs){
+                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_sig.pdf").c_str());
+                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_sig.png").c_str());
             }
+
+            std::cout << "Plot created for: " << std::string(background[i][j][0]->GetName()) << std::endl;
         }   
     }
 
+    delete mainpad;
     delete canvas;
 }
