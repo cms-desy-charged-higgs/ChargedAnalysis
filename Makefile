@@ -26,7 +26,7 @@ N_LIBDIR = $(CHDIR)/ChargedAnalysis/Network/lib
 N_BINDIR = $(CHDIR)/ChargedAnalysis/Network/bin
 
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot1D $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(N_BINDIR)/HTag
+BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(N_BINDIR)/HTag
 LIBARIES = $(A_LIBDIR)/libPlot.so $(A_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
@@ -35,11 +35,11 @@ all:
 
 ########################### Executable for plotter ###########################
 
-$(A_BINDIR)/Plot1D: $(A_OBJDIR)/plot1d.o
+$(A_BINDIR)/Plot: $(A_OBJDIR)/plot.o
     echo "Create binary $@"
     $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lPlot -lUtils -o $@ $^
 
-$(A_OBJDIR)/plot1d.o: $(A_BINDIR)/plot1d.cc 
+$(A_OBJDIR)/plot.o: $(A_BINDIR)/plot.cc 
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
