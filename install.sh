@@ -27,14 +27,14 @@ cd ChargedAnalysis
 make -j 20
 cd ..
 
-##Install Higgs combine
-git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+##Install Higgs combine fork
+git clone https://github.com/cms-desy-charged-higgs/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 cd HiggsAnalysis/CombinedLimit
+ 
+git remote add original https://github.com/cms-desy-charged-higgs/HiggsAnalysis-CombinedLimit.git
+git pull original 102x
 
-cp $CHDIR/ChargedAnalysis/Makefile_combine $CHDIR/HiggsAnalysis/CombinedLimit/Makefile
-
-make lib
-make exe
+make -j 20
 
 cd $CHDIR
 
