@@ -16,7 +16,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
     strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"h1j", H1JET}, {"h2j", H2JET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}};
     partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {H1JET, "j^{h_{1}}_{@}"}, {H2JET, "j^{h_{2}}_{@}"}, {MET, "#vec{p}^{miss}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {GENHC, "H^{#pm}_{gen}"}, {h, "h_{@}"}, {GENH, "h_{@}^{gen}"}};
-    nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}};
+    nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}, {h, "Higgs"}};
 
     strToFunc = {
                     {"m", MASS}, 
@@ -119,21 +119,11 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
 
     //Check if BDT and DNN classes has to be initialized
     isBDT = Utils::FindInVec(this->xParameters, "bdt_") != -1 or Utils::FindInVec(cutStrings, "bdt_") != -1;
-    isHTag = Utils::FindInVec(this->xParameters, "htag") != -1 or Utils::FindInVec(cutStrings, "htag") != -1;
     isHPlus = Utils::FindInVec(this->xParameters, "Hc") != -1 or Utils::FindInVec(cutStrings, "Hc") != -1;
 
     //BDT intialization
     if(isBDT){
-        std::map<std::string, std::string> chanPaths = {
-                    {"e4j", "Ele4J"},
-                    {"mu4j", "Muon4J"},
-                    {"e2j1f", "Ele2J1F"},
-                    {"mu2j1f", "Muon2J1F"},
-                    {"e2f", "Ele2F"},
-                    {"mu2f", "Muon2F"},
-        };
-
-        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + chanPaths[channel]; 
+        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + Utils::ChanPaths(channel); 
 
         std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
         oddClassifier.SetEvaluation(bdtPath + "/Odd/");
@@ -421,12 +411,10 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     float htagFJ1 = -1.; float htagFJ2 = -1.;
 
     //Read htag
-    if(isHTag){
-        inputTree->SetBranchAddress("ML_HTagFJ1", &htagFJ1); 
+    inputTree->SetBranchAddress("ML_HTagFJ1", &htagFJ1); 
 
-        if(inputTree->GetListOfBranches()->Contains("ML_HTagFJ2")){
-            inputTree->SetBranchAddress("ML_HTagFJ2", &htagFJ2); 
-        }
+    if(inputTree->GetListOfBranches()->Contains("ML_HTagFJ2")){
+        inputTree->SetBranchAddress("ML_HTagFJ2", &htagFJ2); 
     }
     
     //Vector of  weights
@@ -554,10 +542,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             event.particles[FATJET].push_back(fatJet);
         }
 
-        if(isHTag){
-            event.hTag = {htagFJ1, htagFJ2};
-        }
-
+        event.hTag = {htagFJ1, htagFJ2};
+        
         RecoParticle met;
         met.LV = ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0);
         event.particles[MET].push_back(met);
