@@ -1,18 +1,18 @@
 mu4j:
-    cuts: ["N_mu_0_==_1", "N_j_>=_4"]
+    cuts: [N_0_mu_==_1, N_0_e_==_0, N_j_>=_4]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleMu"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleMu
     x-parameter: 
-        - pt_mu1
+        - pt_mu1-30_0_200
         - phi_mu1
         - eta_mu1
         - pt_j1
@@ -24,20 +24,21 @@ mu4j:
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
 
 mu2j1f:
-    cuts: ["N_mu_0_==_1", "N_j_>=_2"]
+    cuts: [N_0_mu_==_1, N_0_e_==_0, N_j_>=_2]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleMu"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleMu
     x-parameter: 
         - pt_mu1
         - phi_mu1
@@ -45,53 +46,55 @@ mu2j1f:
         - pt_j1
         - phi_j1
         - eta_j1
-        - pt_fj1
+        - pt_fj1-30_200_500
         - phi_fj1
         - eta_fj1
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
 
 mu2f:
-    cuts: ["N_mu_0_==_1"]
+    cuts: [N_0_mu_==_1, N_0_e_==_0]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleMu"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleMu
     x-parameter: 
         - pt_mu1
         - phi_mu1
         - eta_mu1
-        - pt_fj1
+        - pt_fj1-30_200_500
         - phi_fj1
         - eta_fj1
-        - pt_fj2
+        - pt_fj2-30_200_500
         - phi_fj2
         - eta_fj2
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
 
 e4j:
-    cuts: ["N_e_1_==_1", "N_j_>=_4"]
+    cuts: [N_1_e_==_1, N_0_mu_==_0, N_j_>=_4]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleE"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleE
     x-parameter: 
         - pt_e1
         - phi_e1
@@ -105,20 +108,21 @@ e4j:
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
 
 e2j1f:
-    cuts: ["N_e_1_==_1", "N_j_>=_2"]
+    cuts: [N_1_e_==_1, N_0_mu_==_0, N_j_>=_2]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleE"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleE
     x-parameter: 
         - pt_e1
         - phi_e1
@@ -126,36 +130,38 @@ e2j1f:
         - pt_j1
         - phi_j1
         - eta_j1
-        - pt_fj1
+        - pt_fj1-30_200_500
         - phi_fj1
         - eta_fj1
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
 
 e2f:
-    cuts: ["N_e_1_==_1"]
+    cuts: [N_1_e_==_1, N_0_mu_==_1]
     dir: Inclusive
     processes: 
-        - "W+j"
-        - "QCD"
-        - "DY+j"
-        - "TT+j-1L"
-        - "TT+j-2L" 
-        - "TT+V"
-        - "VV+VVV" 
-        - "T"
-        - "SingleE"
+        - W+j
+        - QCD
+        - DY+j
+        - TT+j-1L
+        - TT+j-2L 
+        - TT+V
+        - VV+VVV 
+        - T
+        - SingleE
     x-parameter: 
         - pt_e1
         - phi_e1
         - eta_e1
-        - pt_fj1
+        - pt_fj1-30_200_500
         - phi_fj1
         - eta_fj1
-        - pt_fj2
+        - pt_fj2-30_200_500
         - phi_fj2
         - eta_fj2
         - pt_met
         - phi_met
         - N_j 
+    run-mode: Local
