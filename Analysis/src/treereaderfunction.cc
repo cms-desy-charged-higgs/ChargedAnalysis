@@ -131,6 +131,13 @@ float TreeReader::NParticle(Event &event, Hist &hist){
         }
     } 
 
+    else if(hist.parts[0] == h){
+        std::vector<float> higgsWP = {0.5, 0.7, 0.9};
+        for(float& tag: event.hTag){
+            if(tag > higgsWP[hist.funcValue]) nPart++;
+        }
+    }
+
     else{
         return event.particles[hist.parts[0]].size();
     }
