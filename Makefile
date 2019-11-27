@@ -26,7 +26,7 @@ N_LIBDIR = $(CHDIR)/ChargedAnalysis/Network/lib
 N_BINDIR = $(CHDIR)/ChargedAnalysis/Network/bin
 
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(N_BINDIR)/HTag
+BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag
 LIBARIES = $(A_LIBDIR)/libPlot.so $(A_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
@@ -76,6 +76,42 @@ $(A_BINDIR)/FileSkim: $(A_OBJDIR)/fileskim.o
     $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
 
 $(A_OBJDIR)/fileskim.o: $(A_BINDIR)/fileskim.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+
+########################### Executable for datacard ###########################
+
+$(A_BINDIR)/WriteCard: $(A_OBJDIR)/writecard.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+
+$(A_OBJDIR)/writecard.o: $(A_BINDIR)/writecard.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+
+########################### Executable for limit ###########################
+
+$(A_BINDIR)/Limit: $(A_OBJDIR)/limit.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+
+$(A_OBJDIR)/limit.o: $(A_BINDIR)/limit.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+
+########################### Executable for plot limit ###########################
+
+$(A_BINDIR)/PlotLimit: $(A_OBJDIR)/plotlimit.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -lPlot -o $@ $^
+
+$(A_OBJDIR)/plotlimit.o: $(A_BINDIR)/plotlimit.cc
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
@@ -151,7 +187,7 @@ $(N_OBJDIR)/%.o: $(N_SRCDIR)/%.cc $(N_HDIR)/%.h
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ##Utility libary
-UTILSRC = utils.cc frame.cc
+UTILSRC = utils.cc frame.cc datacard.cc
 UTILOBJ = $(UTILSRC:%.cc=$(A_OBJDIR)/%.o)
 UTILH = $(UTILSRC:%.cc=$(A_HDIR)/%.h)
 
@@ -165,7 +201,7 @@ $(A_OBJDIR)/%.o: $(A_SRCDIR)/%.cc $(A_HDIR)/%.h
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<" 
-    $(CC) $(CFLAGS) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
 
 
 ##Clean function
