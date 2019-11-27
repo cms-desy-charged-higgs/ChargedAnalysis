@@ -298,7 +298,13 @@ class TaskManager(object):
                             logFile.seek(0)
 
                             if True in ["SYSTEM_PERIODIC_REMOVE" in line for line in logFile.readlines()]:
-                                 task["status"] = "VALID"
+                                task["status"] = "VALID"
+                                task["run-mode"] = "Local"
+                                self.localTask.append(task)
+                                localRuns.append(pool.apply_async(task))
+                                self.condorTask.remove(task)
+                                
+                                 
 
                     except:
                         pass
