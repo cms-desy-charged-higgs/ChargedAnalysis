@@ -169,14 +169,14 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
         canvas->SaveAs((scorePath + "/score.pdf").c_str());
  
         //Check for early stopping
-        if(minLoss >= averagedLoss){
+        if(minLoss > averagedLoss){
             minLoss = averagedLoss;
             nPatience=0;
         } 
 
         else nPatience++;
 
-        if(nPatience == 10){
+        if(nPatience == 3){
             std::cout << "Training will be closed due to early stopping" << std::endl;
             break;
         }
@@ -205,10 +205,17 @@ int main(int argc, char** argv){
     bool optimize = std::atoi(argv[1]);
 
     //File names and channels for training
-    std::map<std::string, int> fileNames = {
-                            {std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_200_100/merged/HPlusAndH_ToWHH_ToL4B_200_100.root", 1},
+    std::vector<std::string> sigFiles = {
+                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_200_100/merged/HPlusAndH_ToWHH_ToL4B_200_100.root",
+                           // std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_300_100/merged/HPlusAndH_ToWHH_ToL4B_300_100.root",
+                          //  std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_400_100/merged/HPlusAndH_ToWHH_ToL4B_400_100.root",
+                           // std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_500_100/merged/HPlusAndH_ToWHH_ToL4B_500_100.root",
+                          //  std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_600_100/merged/HPlusAndH_ToWHH_ToL4B_600_100.root",
+    };
 
-                            {std::string(std::getenv("CHDIR")) + "/Skim/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root", 0}                    
+
+    std::vector<std::string> bkgFiles = {
+                std::string(std::getenv("CHDIR")) + "/Skim/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root",                   
     };
     
     std::vector<std::string> channels = {"mu2j1f", "e2j1f", "mu2f", "e2f"};
@@ -222,20 +229,20 @@ int main(int argc, char** argv){
     std::vector<torch::Tensor> phiDown;
 
     std::vector<int> nMax(3, 0);
-    int nTotal = 0;
 
     std::vector<torch::Tensor> tagValues;
 
     for(std::string& channel: channels){
         int nEvents = !optimize ? 0 : 10000;
         int nFJ = channel.find("2j1f") != std::string::npos ? 1 : 2;
+        int nSig = 0;
 
-        for(const std::pair<std::string, int>& fileName: fileNames){
-            std::cout << "Readout data from file " << Utils::SplitString(fileName.first, "/").back() << " and channel " << channel << std::endl;
+        for(const std::string& fileName: sigFiles){
+            std::cout << "Readout data from file " << Utils::SplitString(fileName, "/").back() << " and channel " << channel << std::endl;
 
             //Get event count of signal and use this also in background
-            if(fileName.second and !optimize){
-                TFile* file = TFile::Open(fileName.first.c_str());
+            if(!optimize){
+                TFile* file = TFile::Open(fileName.c_str());
                 TTree* tree = (TTree*)file->Get(channel.c_str());
                 nEvents = tree->GetEntries();
 
@@ -243,10 +250,32 @@ int main(int argc, char** argv){
                 delete file;
             }
 
-            else if(!fileName.second and !optimize) nEvents *= 2;
+            for(int n = 0; n < nFJ; n++){
+                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, nEvents, n);
+                chargedTensors.push_back(input[0]);
+                neutralTensors.push_back(input[1]);
+                SVTensors.push_back(input[2]);
+
+                phiUp.push_back(input[3] + torch::full({input[3].size(0)}, nSig, torch::kLong));
+                phiDown.push_back(input[4] + torch::full({input[4].size(0)}, nSig, torch::kLong));
+
+                nMax[0] = input[0].size(1) > nMax[0] ? input[0].size(1) : nMax[0];
+                nMax[1] = input[1].size(1) > nMax[1] ? input[1].size(1) : nMax[1];
+                nMax[2] = input[2].size(1) > nMax[2] ? input[2].size(1) : nMax[2];
+
+                tagValues.push_back(torch::from_blob(std::vector<float>(nEvents, 1).data(), {nEvents}).clone());
+
+                nSig+= nEvents;
+            }
+        }
+
+        int nTotal = nSig;
+
+        for(const std::string& fileName: bkgFiles){
+            std::cout << "Readout data from file " << Utils::SplitString(fileName, "/").back() << " and channel " << channel << std::endl;
 
             for(int n = 0; n < nFJ; n++){
-                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName.first, channel, 0, nEvents, n);
+                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, nSig, n);
                 chargedTensors.push_back(input[0]);
                 neutralTensors.push_back(input[1]);
                 SVTensors.push_back(input[2]);
@@ -258,9 +287,9 @@ int main(int argc, char** argv){
                 nMax[1] = input[1].size(1) > nMax[1] ? input[1].size(1) : nMax[1];
                 nMax[2] = input[2].size(1) > nMax[2] ? input[2].size(1) : nMax[2];
 
-                tagValues.push_back(torch::from_blob(std::vector<float>(nEvents, fileName.second).data(), {nEvents}).clone());
+                tagValues.push_back(torch::from_blob(std::vector<float>(nSig, 0).data(), {nSig}).clone());
 
-                nTotal+= nEvents;
+                nTotal+= nSig;
             }
         }
     }
