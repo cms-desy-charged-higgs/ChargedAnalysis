@@ -2,46 +2,38 @@ from task import Task
 
 import os
 
-from ROOT import PlotterLimit, string, vector
-
-class LimitPlot(Task):
+class PlotLimit(Task):
     def __init__(self, config = {}):
-        Task.__init__(self, config)
-
-    def __toStd(self):
-        self._stdDir = {}
-
-        ##Translate string and list to std::string and std::vector
-        for key, value in self.iteritems():
-            if type(value) == str:
-                self._stdDir[key] = string(value)
-
-            elif type(value) == list:
-                if type(value[0]) == str:
-                    self._stdDir[key] = vector("string")()
-
-                elif type(value[0]) == float:   
-                    self._stdDir[key] = vector("float")()
-
-                elif type(value[0]) == int:   
-                    self._stdDir[key] = vector("int")()
-                
-                for v in value:
-                   self._stdDir[key].push_back(v) 
-
-            else:
-                pass
-
-    def status(self):
-        if os.path.isfile(self["output"]):
-            self["status"] = "FINISHED"
+        super().__init__(config)
 
     def run(self):
-        self.__toStd()
+        self["executable"] = "PlotLimit"
 
-        plotter = PlotterLimit(self._stdDir["limit-dir"], self._stdDir["masses"])
-        plotter.ConfigureHists(vector("string")())
-        plotter.Draw(vector("string")(1, self._stdDir["dir"]))
+        self["arguments"] = [
+                "{}".format(" ".join(self["masses"])),
+                self["limit-dir"],
+                self["dir"], 
+        ]
+
+        super()._run()
 
     def output(self):
         self["output"] = self["dir"] + "/limit.pdf"
+
+    @staticmethod
+    def configure(config):
+        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
+        
+        tasks = []
+
+        plotConf = {"name": "PlotLimit", 
+                    "limit-dir": "{}/{}".format(os.environ["CHDIR"], config[list(config.keys())[1:][0]]["dir"][:-1]), 
+                    "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/Limits", 
+                    "display-name": "Plot: Limit", 
+                    "dependencies": ["Limit_{}".format(str(mass)) for mass in config["masses"]],
+                    "masses": [str(mass) for mass in config["masses"]],
+        }
+
+        tasks.append(PlotLimit(plotConf))
+
+        return tasks
