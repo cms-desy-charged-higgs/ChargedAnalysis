@@ -8,6 +8,7 @@
 #include <iostream>
 #include <chrono>
 #include <algorithm>
+#include <map>
 
 namespace Utils{
     //Function for splitting string delimited by white space
@@ -28,6 +29,10 @@ namespace Utils{
             float Time();
     };
 
+    //channel name to dir name
+    std::string ChanPaths(const std::string& channel);
+
+    //Find string in vector
     int FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind);
 
     int Ratio(const float& num, const float& dem);
