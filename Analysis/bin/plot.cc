@@ -1,3 +1,6 @@
+#include <string>
+#include <vector>
+
 #include <ChargedAnalysis/Analysis/include/utils.h>
 #include <ChargedAnalysis/Analysis/include/plotter1D.h>
 #include <ChargedAnalysis/Analysis/include/plotter2D.h>
