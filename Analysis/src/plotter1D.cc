@@ -48,7 +48,8 @@ void Plotter1D::ConfigureHists(){
                       massStrings.push_back(massString);
                 }
 
-                hist->SetName(("H^{#pm}_{" + massStrings[1] + "}+h_{" + massStrings[2] + "}").c_str());
+                hist->SetName(("H^{#pm}_{" + massStrings[0].substr(5,7)
+ + "}+h_{" + massStrings[1].substr(1,3) + "}").c_str());
 
                 signalHists.push_back(hist);
 

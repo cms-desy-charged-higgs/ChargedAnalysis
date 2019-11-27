@@ -77,32 +77,29 @@ MET:
     - MET-Run2017E-Nano14Dec2018-v1
     - MET-Run2017F-Nano14Dec2018-v1
 
-L4B_150_75:
-    - Hc+hTol4b_MHc150_Mh75
-
-L4B_200_100:
+HPlus200_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_200_100
 
-L4B_250_100:
+HPlus250_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_250_100
 
-    - Hc+hTol4b_MHc250_Mh100
+HPlus300_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_300_100
 
-L4B_300_100:
-    - Hc+hTol4b_MHc300_Mh100
+HPlus350_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_350_100
 
-L4B_350_100:
-    - Hc+hTol4b_MHc350_Mh100
+HPlus400_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_400_100
 
-L4B_400_100:
-    - Hc+hTol4b_MHc400_Mh100
+HPlus450_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_450_100
 
-L4B_450_100:
-    - Hc+hTol4b_MHc450_Mh100
+HPlus500_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_500_100
 
-L4B_500_100:
-    - Hc+hTol4b_MHc500_Mh100
-L4B_550_100:
-    - Hc+hTol4b_MHc550_Mh100
+HPlus550_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_550_100
 
-L4B_600_100:
-    - Hc+hTol4b_MHc600_Mh100
+HPlus600_h100_4B:
+    - HPlusAndH_ToWHH_ToL4B_600_100
