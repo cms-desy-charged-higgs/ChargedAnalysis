@@ -32,6 +32,16 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
     outLayer = register_module("Output layer", torch::nn::Linear(nConvFilter*outConv, 1));
     outLayer->pretty_print(modelSummary); modelSummary << "\n";
 
+    modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";  
+}
+
+void HTagger::Print(){
+    //Print model summary
+    modelSummary << "----------------------------------------\n";
+    std::cout << modelSummary.str() << std::endl;
+}
+
+int HTagger::GetNWeights(){
     //Number of trainable parameters
     int nWeights = 0;
 
@@ -39,13 +49,7 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
         if(t.requires_grad()) nWeights += t.numel();
     }
 
-    modelSummary << "Number of trainable parameters: " << nWeights << "\n";  
-}
-
-void HTagger::Print(){
-    //Print model summary
-    modelSummary << "----------------------------------------\n";
-    std::cout << modelSummary.str() << std::endl;
+    return nWeights;
 }
 
 torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV, const bool& isTraining){
