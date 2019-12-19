@@ -4,6 +4,8 @@
 
 #include <TH1F.h>
 #include <TCanvas.h>
+#include <TGraph.h>
+#include <TLatex.h>
 
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Analysis/include/treereader.h>
@@ -29,41 +31,48 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
     torch::Tensor neutralTensor = neutral.to(device).index_select(0, randIndex);
     torch::Tensor SVTensor = SV.to(device).index_select(0, randIndex);
 
-    //Instance of htagger class
-    std::vector<float> hyperParam = {
-           0., //Place holder for Val loss
-           0., //Place holder for train loss
-           (float)std::experimental::randint(20, 150),  //Number of hidden features
-           (float)std::experimental::randint(1, 3),  //Number of LSTM layer
-           (float)std::experimental::randint(5, 50), //Number of Conv filter
-           (float)std::experimental::randint(2, 20),  //Kernel size of Conv filter
-            std::experimental::randint(0, 50)/100., //Dropout
-            std::pow(10, std::experimental::randint(-4, -2)), //Learning rate
-           (float)std::experimental::randint(32, 2048), //BatchSize
-    };
+    //Hyperparameter for tuning
+    int nHidden, nLSTM, nConvFilter, kernelSize, eventsInBatches;
+    float dropOut, learningRate;
+
+    //Output for tuning
+    float valLoss, trainLoss, AUC;
 
     std::shared_ptr<HTagger> tagger;
 
     if(!frame){
-        tagger = std::make_shared<HTagger>(7, 45, 2, 16, 10, 0.09);
+        tagger = std::make_shared<HTagger>(7, 112, 1, 41, 76, 0.31);
     }
 
     else{
-        tagger = std::make_shared<HTagger>(7, hyperParam[2], hyperParam[3], hyperParam[4], hyperParam[5], hyperParam[6]);
+        while(true){
+            nHidden = std::experimental::randint(20, 300);
+            nLSTM = std::experimental::randint(1, 1);
+            nConvFilter = std::experimental::randint(5, 200);
+            kernelSize = std::experimental::randint(2, nHidden);
+            eventsInBatches = std::experimental::randint(256, 4096);
+
+            dropOut = std::experimental::randint(0, 50)/100.;
+            learningRate = std::pow(10, std::experimental::randint(-3, -2));
+
+            tagger = std::make_shared<HTagger>(7, nHidden, nLSTM, nConvFilter, kernelSize, dropOut);
+
+            if(tagger->GetNWeights() < 300000) break;
+        }
     }
 
     tagger->Print();
     tagger->to(device);
 
     //Optimizer
-    float lr = !frame ? 0.001: hyperParam[7];
+    float lr = !frame ? 0.001: learningRate;
     torch::optim::Adam optimizer(tagger->parameters(), torch::optim::AdamOptions(lr).weight_decay(lr/10.));
 
     //Variables for number of batches and and batch size
     int nVali = 3000;
     int nTrain = tagValue.size(0) - nVali;
 
-    int batchSize = !frame ? 1024 : hyperParam[8];
+    int batchSize = !frame ? 4056 : eventsInBatches;
     int nEpochs = 1000;
     int nBatches = nTrain % batchSize == 0 ? nTrain/batchSize -1 : std::ceil(nTrain/batchSize);
 
@@ -87,6 +96,9 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
     topHist->SetFillColor(kRed);
     topHist->SetLineWidth(4);
 
+    TGraph* ROC;
+    TLatex* rocText;
+    
     Plotter::SetPad(canvas);
     Plotter::SetStyle();
     Plotter::SetHist(topHist);
@@ -111,6 +123,11 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
         torch::Tensor lossVali;
 
         float averagedLoss = 0;
+
+        if(nPatience >= 20){
+            std::cout << "Training will be closed due to early stopping" << std::endl;
+            break;
+        }
 
         for(int j=0; j <= nBatches; j++){
             //Set gradients to zero
@@ -154,11 +171,6 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
             }
         }
 
-        if(frame){
-            hyperParam[0] = lossVali.item<float>();
-            hyperParam[1] = lossTrain.item<float>();
-        }
-
         //Update canvas
         canvas->Clear();
         topHist->DrawNormalized("HIST");
@@ -167,7 +179,39 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
 
         canvas->SaveAs((scorePath + "/score_" + std::to_string(i) + ".pdf").c_str());
         canvas->SaveAs((scorePath + "/score.pdf").c_str());
- 
+
+        canvas->Clear();
+        ROC = Utils::GetROC(predictionVali, labelVali, 100);
+        ROC->SetMarkerStyle(21);
+        Plotter::SetHist(ROC->GetHistogram());
+        ROC->Draw("AP");
+
+        std::function<float(TGraph*)> integral = [](TGraph* graph){
+            float AUC = 0;
+            double x, y;
+
+            for(int i=0; i < 100; i++){
+                graph->GetPoint(i, x, y);
+                AUC += y* 1/100.;
+            }   
+
+            return AUC;        
+        };    
+        
+        rocText = new TLatex(0.5, 0.1, ("AUC: " + std::to_string(integral(ROC))).c_str());
+        rocText->Draw("SAME");
+        
+        Plotter::DrawHeader(false, "All channel", "Work in Progress");
+
+        canvas->SaveAs((scorePath + "/ROC_" + std::to_string(i) + ".pdf").c_str());
+        canvas->SaveAs((scorePath + "/ROC.pdf").c_str());
+
+        if(frame){
+            AUC = integral(ROC);
+            valLoss = lossVali.item<float>();
+            trainLoss = lossTrain.item<float>();
+        }
+  
         //Check for early stopping
         if(minLoss > averagedLoss){
             minLoss = averagedLoss;
@@ -175,17 +219,13 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
         } 
 
         else nPatience++;
-
-        if(nPatience == 3){
-            std::cout << "Training will be closed due to early stopping" << std::endl;
-            break;
-        }
     }
 
     //Clean up
     delete canvas;
     delete higgsHist;
     delete topHist;
+    delete ROC;
 
     //Save model
     if(!frame){
@@ -197,7 +237,7 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
         std::cout << "Model was saved: " << outName << std::endl;
     }
 
-    else frame->AddColumn(hyperParam);
+    else frame->AddColumn({AUC, valLoss, trainLoss, nHidden, nLSTM, nConvFilter, kernelSize, dropOut, learningRate, eventsInBatches});
 }
 
 int main(int argc, char** argv){
@@ -275,7 +315,7 @@ int main(int argc, char** argv){
             std::cout << "Readout data from file " << Utils::SplitString(fileName, "/").back() << " and channel " << channel << std::endl;
 
             for(int n = 0; n < nFJ; n++){
-                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, nSig, n);
+                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, 0.5*nSig, n);
                 chargedTensors.push_back(input[0]);
                 neutralTensors.push_back(input[1]);
                 SVTensors.push_back(input[2]);
@@ -319,12 +359,12 @@ int main(int argc, char** argv){
 
     //Do hyperspace optimisation
     else{
-        Frame* frame = new Frame({"valLoss", "trainLoss", "nHidden", "nLayer", "nConv", "kernelSize", "dropOut", "lr", "batchSize"});
+        Frame* frame = new Frame({"AUC", "valLoss", "trainLoss", "nHidden", "nLayer", "nConv", "kernelSize", "dropOut", "lr", "batchSize"});
 
         for(int i=0; i < 1000; i++){
             Train(chargedTensor.index({Up}), neutralTensor.index({Up}), SVTensor.index({Up}), tagValue.index({Up}), true, frame); 
 
-            frame->Sort("valLoss", true);
+            frame->Sort("AUC", false);
             frame->ToCsv(std::string(std::getenv("CHDIR")) + "/DNN/HyperTuning/htagger.csv");
         }
 
