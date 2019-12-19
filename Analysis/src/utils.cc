@@ -67,3 +67,39 @@ int Utils::FindInVec(const std::vector<std::string>& vect, const std::string& it
 int Utils::Ratio(const float& num, const float& dem){
     return num/dem;
 }
+
+TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints){
+    TGraph* ROC = new TGraph();
+
+    std::vector<float> p(pred.size(0), 1);
+    std::vector<float> t(pred.size(0), 1);
+
+    for(int i = 0; i < pred.size(0); i++){
+        p[i] = pred[i].item<float>();
+        t[i] = target[i].item<float>();
+    }
+
+    for(int i = 1; i <= nPoints; i++){
+        int truePositive = 0;
+        int trueTotal = 0;
+        int falsePositive = 0;
+        int falseTotal = 0;
+        float thresHold = (float)i/nPoints;
+
+        for(int j = 0; j < pred.size(0); j++){
+            if(t[j] == 0){
+                falseTotal++;
+                if(p[j] > thresHold) falsePositive++;
+            } 
+
+            if(t[j] == 1){
+                trueTotal++;
+                if(p[j] > thresHold) truePositive++;
+            } 
+        }
+
+        ROC->SetPoint(i, (float)falsePositive/falseTotal, (float)truePositive/trueTotal);
+    }
+
+    return ROC;
+}

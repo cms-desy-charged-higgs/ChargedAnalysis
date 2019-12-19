@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <map>
 
+#include <TGraph.h>
+#include <torch/torch.h>
+
 namespace Utils{
     //Function for splitting string delimited by white space
     std::vector<std::string> SplitString(const std::string& splitString, const std::string& delimeter);
@@ -36,6 +39,9 @@ namespace Utils{
     int FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind);
 
     int Ratio(const float& num, const float& dem);
+
+    //Return TGraph with ROC curve
+    TGraph* GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints = 200);
 };
 
 #endif
