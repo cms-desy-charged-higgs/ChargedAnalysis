@@ -37,13 +37,13 @@ all:
 
 $(A_BINDIR)/Plot: $(A_OBJDIR)/plot.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lPlot -lUtils -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lPlot -lUtils -o $@ $^
 
 $(A_OBJDIR)/plot.o: $(A_BINDIR)/plot.cc 
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Executable for treeread ###########################
 
@@ -73,49 +73,49 @@ $(A_OBJDIR)/treeappend.o: $(A_BINDIR)/treeappend.cc
 
 $(A_BINDIR)/FileSkim: $(A_OBJDIR)/fileskim.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -o $@ $^
 
 $(A_OBJDIR)/fileskim.o: $(A_BINDIR)/fileskim.cc
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Executable for datacard ###########################
 
 $(A_BINDIR)/WriteCard: $(A_OBJDIR)/writecard.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -o $@ $^
 
 $(A_OBJDIR)/writecard.o: $(A_BINDIR)/writecard.cc
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Executable for limit ###########################
 
 $(A_BINDIR)/Limit: $(A_OBJDIR)/limit.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -o $@ $^
 
 $(A_OBJDIR)/limit.o: $(A_BINDIR)/limit.cc
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Executable for plot limit ###########################
 
 $(A_BINDIR)/PlotLimit: $(A_OBJDIR)/plotlimit.o
     echo "Create binary $@"
-    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) -lUtils -lPlot -o $@ $^
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lPlot -o $@ $^
 
 $(A_OBJDIR)/plotlimit.o: $(A_BINDIR)/plotlimit.cc
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Executable for htagger training ###########################
 
@@ -201,7 +201,7 @@ $(A_OBJDIR)/%.o: $(A_SRCDIR)/%.cc $(A_HDIR)/%.h
     mkdir -p $(A_OBJDIR)
 
     echo "Compiling file $<" 
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(PYTORCH_C) $(ROOTFLAGS_C) -o $@ -c $<
 
 
 ##Clean function
