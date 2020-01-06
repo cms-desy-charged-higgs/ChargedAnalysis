@@ -309,6 +309,9 @@ std::tuple<std::vector<TreeReader::Hist>, std::vector<std::vector<TreeReader::Hi
 }
 
 void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd){
+    //Print info
+    std::cout << "Reading out tree: " << channel << " from file: " << fileName << " with entry range from " << entryStart << " to " << entryEnd << std::endl;
+
     TH1::AddDirectory(kFALSE);
     gROOT->SetBatch(kTRUE);
     gPrintViaErrorHandler = kTRUE;  
@@ -631,6 +634,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
             }
         }
     }
+
+    //Print info
+    std::cout << "ROOT File for process " << process << " is created: " << outputFile->GetName() << std::endl;
 
     delete inputTree;
     delete outputTree;
