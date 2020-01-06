@@ -23,47 +23,34 @@ class Task(ABC, dict):
         return id(self)
 
     def __call__(self):
-        self.run()
+        return self.run()
 
     def _run(self):
+        logs = []
+        errors = []
+
         if self["run-mode"] == "Local":
             result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            if result.returncode == 0:
-                print(result.stdout.decode('utf-8'))
-            else:
-                print(result.stdout.decode('utf-8'))
-                print(result.stderr.decode('utf-8'))
-                result.check_returncode()
+            if result.returncode != 0:
+                for line in result.stderr.decode('utf-8').split("\n"):
+                    errors.append(line)
+
+                return errors
+
+            for line in result.stdout.decode('utf-8').split("\n"):
+                logs.append(line)
+
+            return logs
 
         if self["run-mode"] == "Condor":
-            self.createCondor()
-            result = subprocess.run(["condor_submit", "{}/condor.sub".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.runScript()
 
-    
-    def createCondor(self):
+    def runScript(self):
         ##Create directory with condor
         self["condor-dir"] = "{}/Condor/{}".format(self["dir"], self["name"])
         shutil.rmtree(self["condor-dir"], ignore_errors=True)
         os.makedirs(self["condor-dir"], exist_ok=True)
-
-        ##Dic which will be written into submit file
-        condorDic = {
-            "universe": "vanilla",
-            "executable": "{}/condor.sh".format(self["condor-dir"]),
-            "transfer_executable": "True",
-            "getenv": "True",
-            "log": "{}/condor.log".format(self["condor-dir"]),
-            "error": "{}/condor.err".format(self["condor-dir"]),
-            "output":"{}/condor.out".format(self["condor-dir"]),
-        }
-
-        ##Write submit file
-        with open("{}/condor.sub".format(self["condor-dir"]), "w") as condFile:
-            for key, value in condorDic.items():
-                condFile.write("{} = {}\n".format(key, value))
-
-            condFile.write("queue 1")
 
         ##Write executable
         fileContent = [
@@ -75,11 +62,11 @@ class Task(ABC, dict):
                         "{} {}".format(self["executable"], " ".join("'{}'".format(i) for i in self["arguments"]))
         ]
 
-        with open("{}/condor.sh".format(self["condor-dir"]), "w") as condExe:
+        with open("{}/run.sh".format(self["condor-dir"]), "w") as condExe:
             for line in fileContent:
                 condExe.write(line)
 
-        os.system("chmod a+x {}/condor.sh".format(self["condor-dir"]))
+        os.system("chmod a+x {}/run.sh".format(self["condor-dir"]))
 
     def getDependentFiles(self, depGraph):
         if self["tasklayer"] == 0:
@@ -114,7 +101,6 @@ class Task(ABC, dict):
 
             return True                
         
-
     ##Abstract functions which has to be overwritten
     @abstractmethod
     def run(self):
