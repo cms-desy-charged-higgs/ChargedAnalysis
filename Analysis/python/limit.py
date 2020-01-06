@@ -15,7 +15,7 @@ class Limit(Task):
                 "{}".format(" ".join(self["channels"])),
         ]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = self["dir"] + "/limit.root"

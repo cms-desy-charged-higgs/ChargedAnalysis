@@ -10,12 +10,10 @@ class HaddPlot(Task):
         self["executable"] = "hadd"
         self["arguments"] =  [
                                 "-f",
-                                "-v", 
-                                "0",
                                 self["output"],   
         ] + self["dependent-files"]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["process"])
@@ -50,12 +48,10 @@ class HaddAppend(Task):
         self["executable"] = "hadd"
         self["arguments"] =  [
                                 "-f",
-                                "-v", 
-                                "0",
                                 self["output"],   
         ] + self["dependent-files"]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["out-file"])
@@ -76,5 +72,3 @@ class HaddAppend(Task):
 
             tasks.append(HaddAppend(haddConf))
         return tasks
-
-        

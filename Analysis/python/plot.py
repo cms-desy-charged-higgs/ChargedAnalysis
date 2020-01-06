@@ -21,7 +21,7 @@ class Plot(Task):
                 self["dir"], 
         ]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = ["{}/{}.pdf".format(self["dir"], x) for x in self["x-parameter"]]

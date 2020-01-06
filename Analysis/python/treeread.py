@@ -31,7 +31,7 @@ class TreeRead(Task):
                 "{}".format(' '.join(self["interval"]))
         ]
 
-        super()._run()
+        return super()._run()
         
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["name"])

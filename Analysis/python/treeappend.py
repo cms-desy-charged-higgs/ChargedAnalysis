@@ -22,7 +22,7 @@ class TreeAppend(Task):
                 self["entry-end"],
         ]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = "{}/{}_{}.root".format(self["dir"], self["input-file"].split("/")[-1][:-5], self["entry-start"])
@@ -76,5 +76,4 @@ class TreeAppend(Task):
                     tasks.append(TreeAppend(config))
                     nJobs+=1
 
-        return tasks
-        
+        return tasks       

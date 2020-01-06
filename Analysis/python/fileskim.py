@@ -15,7 +15,7 @@ class FileSkim(Task):
                 "{}".format(" ".join(self["exclude"])),
         ]
 
-        super()._run()
+        return super()._run()
 
     def output(self):
         self["output"] = "{}/{}_skimmed.root".format(self["dir"], self["input-file"].split("/")[-1][:-5])
