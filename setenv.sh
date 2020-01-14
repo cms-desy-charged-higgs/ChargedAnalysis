@@ -7,18 +7,18 @@ export LD_LIBRARY_PATH="/cvmfs/grid.cern.ch/emi-ui-3.17.1-1.el6umd4v5/usr/lib64/
 CHDIR=$(readlink -f $BASH_SOURCE)
 export CHDIR=${CHDIR/"/ChargedAnalysis/setenv.sh"}
 
-##Set actual CMSSW version
-export CMSSW_VERSION=CMSSW_9_4_13
+##Set actual CMSSW version https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVAnalysisSummaryTable
+export CMSSW_VERSION=CMSSW_10_2_18
 
 case $1 in
     "CMSSW")
          ##CMSSW related enviroment
-        export SCRAM_ARCH="slc6_amd64_gcc700"
+        export SCRAM_ARCH="slc7_amd64_gcc700"
 
         cd $CHDIR/$CMSSW_VERSION/src
         source /cvmfs/cms.cern.ch/cmsset_default.sh
         eval `scramv1 runtime -sh`
-        source /cvmfs/cms.cern.ch/crab3/crab_slc6.sh
+        source /cvmfs/cms.cern.ch/crab3/crab.sh
 
         alias scramb="scram b -j 20"
 

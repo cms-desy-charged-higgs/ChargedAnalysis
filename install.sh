@@ -46,10 +46,10 @@ conda deactivate
 ##Install CMSSW 
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 source /cvmfs/cms.cern.ch/crab3/crab.sh
-export SCRAM_ARCH=slc6_amd64_gcc700
+export SCRAM_ARCH=slc7_amd64_gcc700
 
-eval `scramv1 project CMSSW CMSSW_9_4_13`
-cd CMSSW_9_4_13/src/
+eval `scramv1 project CMSSW CMSSW_10_2_18`
+cd CMSSW_10_2_18/src/
 eval `scramv1 runtime -sh`
 git cms-init
 
