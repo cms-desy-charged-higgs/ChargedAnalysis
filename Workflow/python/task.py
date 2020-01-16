@@ -56,7 +56,7 @@ class Task(ABC, dict):
         fileContent = [
                         "#!/bin/bash\n", 
                         "cd $CHDIR\n",
-                        "echo 'You are in directory: $(pwd)'\n"
+                        "echo 'You are in directory: $PWD'\n"
                         "source ChargedAnalysis/setenv.sh StandAlone\n",
                         "echo 'Exetubale is called: {}'\n".format(self["executable"]),
                         "{} {}".format(self["executable"], " ".join("'{}'".format(i) for i in self["arguments"]))

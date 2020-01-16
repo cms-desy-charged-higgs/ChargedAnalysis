@@ -97,9 +97,10 @@ class TaskManager(object):
             "executable": "$(DIR)/run.sh",
             "transfer_executable": "True",
             "getenv": "True",
-            "log": "$(DIR)/condor.log",
-            "error": "$(DIR)/condor.err",
-            "output":"$(DIR)/condor.out",
+            "requirements": 'OpSysAndVer =?= "CentOS7"'
+            "log": "$(DIR)/log.txt",
+            "error": "$(DIR)/err.txt",
+            "output":"$(DIR)/out.txt",
         }
 
         ##Write submit file
