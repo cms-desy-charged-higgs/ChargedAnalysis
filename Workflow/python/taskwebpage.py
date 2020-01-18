@@ -1,4 +1,5 @@
 import yaml
+import os
 
 class TaskWebpage(object):
     def __init__(self):
@@ -76,7 +77,7 @@ class TaskWebpage(object):
 
         return newDic
 
-    def createWebpage(self, graph):
+    def createWebpage(self, graph, outDir):
         divPos = {}
         maxheight = 0.
 
@@ -86,7 +87,7 @@ class TaskWebpage(object):
 
         statusToColor = {
                         "VALID": "linear-gradient(to bottom right, #f4ff00, #e8fb15, #dcf821, #d1f42a, #c6f032)",
-                        "SUBMITTED": "linear-gradient(to bottom right, #ff8500, #f38900, #e68c00, #da8f00, #cf9106)",
+                        "SUBMITTED": "linear-gradient(57deg, rgba(182,38,173,1) 34%, rgba(163,0,195,0.968207351299895) 100%)",
                         "RUNNING": "linear-gradient(to bottom right, #00ccff 0%, #3333cc 111%)",
                         "FINISHED": "linear-gradient(to bottom right, #00ff00 0%, #009933 111%)",
                         "FAILED": "linear-gradient(to bottom right, #ff0000 0%, #cc0066 111%)",
@@ -111,5 +112,5 @@ class TaskWebpage(object):
                     lines.append(self._lineTmp.format(x1=x, y1=y+12.5, x2=divPos[dependency][4]+250, y2=divPos[dependency][5]+12.5))
 
         ##Write workflow html
-        with open("workflow.html", "w") as f:
+        with open("{}/workflow.html".format(outDir), "w") as f:
             f.write(self._htmlHead + self._htmlBody.format(divs="\n".join(divs), lines = "\n".join(lines),maxheight=maxheight) + self._javascript)
