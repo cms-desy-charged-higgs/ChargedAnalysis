@@ -84,7 +84,7 @@ class TaskMonitor(object):
             
     def updateMainMonitor(self, layer, time, localStats, condorStats):
         ##Frame Head line
-        heading = "TASK LAYER {}".format(layer)
+        heading = "TASK LAYER {} (see http://localhost:2000/workflow.html)".format(layer)
         self._mainWindow.addstr(0, self.centeredMain(heading), heading)
 
         ##Frame
@@ -126,8 +126,8 @@ class TaskMonitor(object):
         colors = [self._colors[stat] | curses.A_BOLD for stat in status]
         values = [condorStats[stat] for stat in status]
 
-        self.multistringLine(12, status, values, colors)          
-
+        self.multistringLine(12, status, values, colors)   
+    
         self._mainWindow.refresh()
 
     def updateLogMonitor(self, logs, errors):

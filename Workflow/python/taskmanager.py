@@ -5,8 +5,9 @@ import time
 import sys
 import subprocess
 import shutil
-
-from multiprocessing import Pool, cpu_count
+import http.server
+import threading
+from multiprocessing import Process, Pool, cpu_count
 
 from taskmonitor import TaskMonitor
 from taskwebpage import TaskWebpage
@@ -15,6 +16,21 @@ class TaskManager(object):
     def __init__(self, checkOutput=False):
         self.checkOutput = checkOutput
         self._graph = []
+
+        self.workDir = "{}/Tmp/Workflow/{}/".format(os.environ["CHDIR"], time.asctime().replace(" ", "_").replace(":", "_"))
+        os.makedirs(self.workDir, exist_ok=True)
+
+        http.server.SimpleHTTPRequestHandler.log_message = lambda self, format, *args: None
+        os.chdir(self.workDir)
+
+        self.httpd = http.server.HTTPServer(("localhost", 2000), http.server.SimpleHTTPRequestHandler)
+        self.server = Process(target=TaskManager.runServer, args=(self.httpd,))
+        self.server.daemon = True
+        self.server.start()
+   
+    @staticmethod
+    def runServer(server):
+        server.serve_forever()
 
     @property
     def tasks(self):
@@ -92,25 +108,25 @@ class TaskManager(object):
 
     def __submitCondor(self, dirs):
         ##Dic which will be written into submit file
-        condorDic = {
-            "universe": "vanilla",
-            "executable": "$(DIR)/run.sh",
-            "transfer_executable": "True",
-            "getenv": "True",
-            "requirements": 'OpSysAndVer =?= "CentOS7"'
-            "log": "$(DIR)/log.txt",
-            "error": "$(DIR)/err.txt",
-            "output":"$(DIR)/out.txt",
-        }
+        condorSub = [
+            "universe = vanilla",
+            "executable = $(DIR)/run.sh",
+            "transfer_executable = True",
+            "getenv = True",
+            'requirements = (OpSysAndVer =?= "CentOS7")',
+            "log = $(DIR)/log.txt",
+            "error = $(DIR)/err.txt",
+            "output = $(DIR)/out.txt",
+        ]
 
         ##Write submit file
-        with open("{}/jobs.sub".format(os.environ["CHDIR"]), "w") as condFile:
-            for key, value in condorDic.items():
-                condFile.write("{} = {}\n".format(key, value))
+        with open("{}/jobs.sub".format(self.workDir), "w") as condFile:
+            for line in condorSub:
+                condFile.write(line + "\n")
 
             condFile.write("queue DIR in ({})".format(" ".join(dirs)))
 
-        result = subprocess.run(["condor_submit", "{}/jobs.sub".format(os.environ["CHDIR"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(["condor_submit", "{}/jobs.sub".format(self.workDir)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
     def runTasks(self):
         ##Helper function:
@@ -164,7 +180,7 @@ class TaskManager(object):
             while(True):
                 logs = []
                 errors = []
-                self.webpage.createWebpage(self._graph) 
+                self.webpage.createWebpage(self._graph, self.workDir) 
 
                 ##Track local jobs
                 for task in self.localTask:
@@ -181,7 +197,7 @@ class TaskManager(object):
                             errors.extend(job.get())
                             task["status"] = "FAILED"
                             self.__printRunStatus(layer, time.time() - startTime, logs, errors)
-                            self.webpage.createWebpage(self._graph)
+                            self.webpage.createWebpage(self._graph, self.workDir)
 
                             raise RuntimeError("Local job failed!")
                             
@@ -199,7 +215,7 @@ class TaskManager(object):
                     if task["status"] in ["VALID", "FINISHED", "FAILED"]:
                         continue
 
-                    with open("{}/condor.log".format(task["condor-dir"])) as logFile:
+                    with open("{}/log.txt".format(task["condor-dir"])) as logFile:
                         if True in ["Job executing" in line for line in logFile.readlines()]:
                             task["status"] = "RUNNING"
 
@@ -211,14 +227,14 @@ class TaskManager(object):
                             if True in ["(return value 0)" in line for line in logFile.readlines()]:
                                 task["status"] = "FINISHED"
 
-                                with open("{}/condor.out".format(task["condor-dir"])) as outFile:
+                                with open("{}/out.txt".format(task["condor-dir"])) as outFile:
                                     for line in outFile:
                                         logs.append(line)
 
                             else:
                                 task["status"] = "FAILED"
 
-                                with open("{}/condor.err".format(task["condor-dir"])) as errFile:
+                                with open("{}/err.txt".format(task["condor-dir"])) as errFile:
                                     for line in errFile:
                                         errors.append(line)
 
@@ -250,7 +266,7 @@ class TaskManager(object):
                 self.__printRunStatus(layer, time.time() - startTime, logs, errors)
 
                 ##Draw graph
-                self.webpage.createWebpage(self._graph)
+                self.webpage.createWebpage(self._graph, self.workDir)
 
                 if nStatus(self.localTask, "FINISHED") == len(self.localTask) and nStatus(self.condorTask, "FINISHED") == len(self.condorTask):
                     break
