@@ -28,9 +28,9 @@ case $1 in
         ;;
             
     "StandAlone")
-        export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedNetwork/python:$CHDIR/HiggsAnalysis/CombinedLimit/lib/python
+        export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedAnalysis/Utility/python:$CHDIR/HiggsAnalysis/CombinedLimit/lib/python
         export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/Analysis/bin:$CHDIR/ChargedAnalysis/Workflow/bin:$CHDIR/ChargedAnalysis/Network/bin:$CHDIR/HiggsAnalysis/CombinedLimit/exe:$CHDIR/HiggsAnalysis/CombinedLimit/scripts:$PATH
-        export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib:$CHDIR/ChargedAnalysis/Network/lib:$CHDIR/Anaconda3/lib/python3.7/site-packages/torch/lib:$CHDIR/HiggsAnalysis/CombinedLimit/lib:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib:$CHDIR/ChargedAnalysis/Network/lib:$CHDIR/ChargedAnalysis/Utility/lib:$CHDIR/Anaconda3/lib/python3.7/site-packages/torch/lib:$CHDIR/HiggsAnalysis/CombinedLimit/lib:$LD_LIBRARY_PATH
 
         alias make="make -j 20"
 
