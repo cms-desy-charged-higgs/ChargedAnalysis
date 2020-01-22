@@ -30,7 +30,7 @@ class Task(ABC, dict):
         errors = []
 
         if self["run-mode"] == "Local":
-            result = subprocess.run([self["executable"]] + self["arguments"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run([self["executable"], *self["arguments"]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode != 0:
                 for line in result.stderr.decode('utf-8').split("\n"):
@@ -56,10 +56,8 @@ class Task(ABC, dict):
         fileContent = [
                         "#!/bin/bash\n", 
                         "cd $CHDIR\n",
-                        "echo 'You are in directory: $PWD'\n"
                         "source ChargedAnalysis/setenv.sh StandAlone\n",
-                        "echo 'Exetubale is called: {}'\n".format(self["executable"]),
-                        "{} {}".format(self["executable"], " ".join("'{}'".format(i) for i in self["arguments"]))
+                        " ".join([self["executable"], *self["arguments"]])
         ]
 
         with open("{}/run.sh".format(self["condor-dir"]), "w") as condExe:
