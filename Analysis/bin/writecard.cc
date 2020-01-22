@@ -1,16 +1,18 @@
-#include <ChargedAnalysis/Analysis/include/utils.h>
-#include <ChargedAnalysis/Analysis/include/datacard.h>
+#include <ChargedAnalysis/Utility/include/parser.h>
+#include <ChargedAnalysis/Utility/include/datacard.h>
 
 int main(int argc, char* argv[]){
-    //Extract informations of command line
-    std::vector<std::string> backgrounds = Utils::SplitString(std::string(argv[1]), " ");
-    std::string signal = std::string(argv[2]);
-    std::string data = std::string(argv[3]);
-    std::string channel = std::string(argv[4]);
-    std::string outDir = std::string(argv[5]);
-    bool useAsimov = std::string(argv[6]) == "true";
-    std::string histDir = std::string(argv[7]);
-    std::string discriminant = std::string(argv[8]);
+    //Parser arguments
+    Parser parser(argc, argv);
+
+    std::vector<std::string> backgrounds = parser.GetVector<std::string>("backgrounds");
+    std::string signal = parser.GetValue<std::string>("signal"); 
+    std::string data = parser.GetValue<std::string>("data"); 
+    std::string channel = parser.GetValue<std::string>("channel"); 
+    std::string outDir = parser.GetValue<std::string>("out-dir"); 
+    bool useAsimov = parser.GetValue<bool>("use-asimov"); 
+    std::string histDir = parser.GetValue<std::string>("hist-dir"); 
+    std::string discriminant = parser.GetValue<std::string>("discriminant"); 
 
     //Create datcard
     Datacard datacard(backgrounds, signal, data, channel, outDir, useAsimov);

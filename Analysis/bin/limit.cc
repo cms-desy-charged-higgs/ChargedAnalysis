@@ -1,13 +1,16 @@
 #include <string>
 #include <vector>
 
-#include <ChargedAnalysis/Analysis/include/utils.h>
+#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/parser.h>
 
 int main(int argc, char* argv[]){
-    //Extract informations of command line
-    std::string mass = std::string(argv[1]);
-    std::string limitDir = std::string(argv[2]);
-    std::vector<std::string> channels = Utils::SplitString(std::string(argv[3]), " ");
+    //Parser arguments
+    Parser parser(argc, argv);
+
+    std::string mass = parser.GetValue<std::string>("mass");
+    std::string limitDir = parser.GetValue<std::string>("limit-dir");
+    std::vector<std::string> channels = parser.GetVector<std::string>("channels");
     
     std::stringstream combineCard; combineCard << "combineCards.py ";
 

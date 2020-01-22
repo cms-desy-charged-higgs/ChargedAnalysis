@@ -1,18 +1,20 @@
 #include <string>
 #include <vector>
 
-#include <ChargedAnalysis/Analysis/include/utils.h>
+#include <ChargedAnalysis/Utility/include/parser.h>
 #include <ChargedAnalysis/Analysis/include/plotter1D.h>
 #include <ChargedAnalysis/Analysis/include/plotter2D.h>
 
 int main(int argc, char *argv[]){
-    //Extract informations of command line
-    std::string histDir = std::string(argv[1]);
-    std::vector<std::string> xParameters = Utils::SplitString(std::string(argv[2]), " ");
-    std::vector<std::string> yParameters = Utils::SplitString(std::string(argv[3]), " ");
-    std::string channel = std::string(argv[4]);
-    std::vector<std::string> processes = Utils::SplitString(std::string(argv[5]), " ");
-    std::vector<std::string> outDirs = Utils::SplitString(std::string(argv[6]), " ");
+    //Parser arguments
+    Parser parser(argc, argv);
+
+    std::string histDir =  parser.GetValue<std::string>("hist-dir");
+    std::vector<std::string> xParameters = parser.GetVector<std::string>("x-parameters");
+    std::vector<std::string> yParameters = parser.GetVector<std::string>("y-parameters");
+    std::string channel = parser.GetValue<std::string>("channel");
+    std::vector<std::string> processes = parser.GetVector<std::string>("processes");
+    std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
 
     //Call and run Plotter1D class
     Plotter1D plotter1D(histDir, xParameters, channel, processes);

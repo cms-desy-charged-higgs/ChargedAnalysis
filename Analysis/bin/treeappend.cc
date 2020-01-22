@@ -1,21 +1,23 @@
 #include <ChargedAnalysis/Analysis/include/treeappender.h>
-#include <ChargedAnalysis/Analysis/include/utils.h>
+#include <ChargedAnalysis/Utility/include/parser.h>
 
 #include <torch/torch.h>
 
 int main(int argc, char* argv[]){
-    //Extract informations of command line
-    std::string oldFile = std::string(argv[1]);
-    std::string oldTree = std::string(argv[2]);
-    std::string newFile = std::string(argv[3]);
-    std::vector<std::string> branchNames = Utils::SplitString(std::string(argv[4]), " ");
-    std::string entryStart = std::string(argv[5]);
-    std::string entryEnd = std::string(argv[6]);
+    //Parser arguments
+    Parser parser(argc, argv);
+
+    std::string oldFile = parser.GetValue<std::string>("old-file");
+    std::string oldTree = parser.GetValue<std::string>("old-tree");
+    std::string newFile = parser.GetValue<std::string>("new-file");
+    std::vector<std::string> branchNames = parser.GetVector<std::string>("branch-names");
+    int entryStart = parser.GetValue<int>("entry-start");
+    int entryEnd = parser.GetValue<int>("entry-end");
 
     at::set_num_interop_threads(1);
     at::set_num_threads(1);
 
-    TreeAppender appender(oldFile, oldTree, newFile, branchNames, std::stoi(entryStart), std::stoi(entryEnd));
+    TreeAppender appender(oldFile, oldTree, newFile, branchNames, entryStart, entryEnd);
     appender.Append();
 }
 
