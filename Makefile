@@ -3,7 +3,7 @@
 ##Compiler/Linking flags
 CC      = $(CHDIR)/Anaconda3/bin/g++
 CFLAGS  = -I$(CHDIR) -fPIC -g
-LDFLAGS = -L$(CHDIR)/Anaconda3/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib
+LDFLAGS = -L$(CHDIR)/Anaconda3/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib -L$(CHDIR)/ChargedAnalysis/Utility/lib
 
 ROOTFLAGS_C = $(shell root-config --cflags)
 ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lGX11 -lTMVA -lGenVector
@@ -11,23 +11,29 @@ ROOTFLAGS_LD = $(shell root-config --ldflags --glibs) -lGX11 -lTMVA -lGenVector
 PYTORCH_C = -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include
 PYTORCH_LD = -L$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -ltorch -lc10 -lcaffe2_detectron_ops_gpu -D_GLIBCXX_USE_CXX11_ABI=0
 
-##Source and target directories for ChargedAnalysis
+##Source and target directories for Analysis
 A_OBJDIR = $(CHDIR)/ChargedAnalysis/Analysis/obj
 A_SRCDIR = $(CHDIR)/ChargedAnalysis/Analysis/src
 A_HDIR = $(CHDIR)/ChargedAnalysis/Analysis/include
 A_LIBDIR = $(CHDIR)/ChargedAnalysis/Analysis/lib
 A_BINDIR = $(CHDIR)/ChargedAnalysis/Analysis/bin
 
-##Source and target directories for ChargedNetwork
+##Source and target directories for Network
 N_OBJDIR = $(CHDIR)/ChargedAnalysis/Network/obj
 N_SRCDIR = $(CHDIR)/ChargedAnalysis/Network/src
 N_HDIR = $(CHDIR)/ChargedAnalysis/Network/include
 N_LIBDIR = $(CHDIR)/ChargedAnalysis/Network/lib
 N_BINDIR = $(CHDIR)/ChargedAnalysis/Network/bin
 
+##Source and target directories for Network
+U_OBJDIR = $(CHDIR)/ChargedAnalysis/Utility/obj
+U_SRCDIR = $(CHDIR)/ChargedAnalysis/Utility/src
+U_HDIR = $(CHDIR)/ChargedAnalysis/Utility/include
+U_LIBDIR = $(CHDIR)/ChargedAnalysis/Utility/lib
+
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag
-LIBARIES = $(A_LIBDIR)/libPlot.so $(A_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
+BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag $(N_BINDIR)/BDT
+LIBARIES = $(A_LIBDIR)/libPlot.so $(U_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
     @+make --quiet $(LIBARIES)
@@ -129,6 +135,19 @@ $(N_OBJDIR)/htag.o: $(N_BINDIR)/htag.cc
     echo "Compiling file $<"
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
+
+########################### Executable for BDT training ###########################
+
+$(N_BINDIR)/BDT: $(N_OBJDIR)/boostedDT.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lML -o $@ $^
+
+$(N_OBJDIR)/boostedDT.o: $(N_BINDIR)/boostedDT.cc
+    mkdir -p $(N_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+
 ########################### Shared libaries ###########################
 
 TREESRC = treereader.cc treereaderfunction.cc treeappender.cc
@@ -187,22 +206,21 @@ $(N_OBJDIR)/%.o: $(N_SRCDIR)/%.cc $(N_HDIR)/%.h
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ##Utility libary
-UTILSRC = utils.cc frame.cc datacard.cc
-UTILOBJ = $(UTILSRC:%.cc=$(A_OBJDIR)/%.o)
-UTILH = $(UTILSRC:%.cc=$(A_HDIR)/%.h)
+UTILSRC = utils.cc frame.cc datacard.cc parser.cc
+UTILOBJ = $(UTILSRC:%.cc=$(U_OBJDIR)/%.o)
+UTILH = $(UTILSRC:%.cc=$(U_HDIR)/%.h)
 
-$(A_LIBDIR)/libUtils.so: $(UTILOBJ)
-    mkdir -p $(A_LIBDIR)    
+$(U_LIBDIR)/libUtils.so: $(UTILOBJ)
+    mkdir -p $(U_LIBDIR)    
 
     echo "Build shared libary $@"
     $(CC) -shared -o $@ $^
 
-$(A_OBJDIR)/%.o: $(A_SRCDIR)/%.cc $(A_HDIR)/%.h
-    mkdir -p $(A_OBJDIR)
+$(U_OBJDIR)/%.o: $(U_SRCDIR)/%.cc $(U_HDIR)/%.h
+    mkdir -p $(U_OBJDIR)
 
     echo "Compiling file $<" 
     $(CC) $(CFLAGS) $(PYTORCH_C) $(ROOTFLAGS_C) -o $@ -c $<
-
 
 ##Clean function
 clean:
@@ -210,11 +228,15 @@ clean:
     @echo "All object files in ChargedAnalysis/Analysis/obj are cleaned up"
     @rm -rf $(N_OBJDIR)
     @echo "All object files in ChargedAnalysis/Network/obj are cleaned up"
+    @rm -rf $(U_OBJDIR)
+    @echo "All object files in ChargedAnalysis/Utility/obj are cleaned up"
 
     @rm -rf $(A_LIBDIR)
     @echo "All shared libaries in ChargedAnalysis/Analysis/lib are cleaned up"
     @rm -rf $(N_LIBDIR)
     @echo "All shared libaries in ChargedAnalysis/Network/lib are cleaned up"
+    @rm -rf $(U_LIBDIR)
+    @echo "All shared libaries in ChargedAnalysis/Utility/lib are cleaned up"
 
     @rm -rf $(TARGETS)
     @echo "All executables in ChargedAnalysis/Analysis/bin are cleaned up"
