@@ -10,9 +10,9 @@ class PlotLimit(Task):
         self["executable"] = "PlotLimit"
 
         self["arguments"] = [
-                "{}".format(" ".join(self["masses"])),
-                self["limit-dir"],
-                self["dir"], 
+                "--masses", self["masses"],
+                "--limit-dir", self["limit-dir"],
+                "--out-dirs", self["dir"]
         ]
 
         return super()._run()

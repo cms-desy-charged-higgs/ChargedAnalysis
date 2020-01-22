@@ -14,25 +14,24 @@ class TreeAppend(Task):
         self["executable"] = "TreeAppend"
 
         self["arguments"] = [
-                self["input-file"], 
-                self["channel"],
-                self["output"],
-                "{}".format(" ".join(self["branch-names"])),
-                self["entry-start"],  
-                self["entry-end"],
+                "--old-file", self["input-file"], 
+                "--old-tree", self["channel"],
+                "--new-tree", self["output"],
+                "--branch-names", *self["branch-names"],
+                "--entry-start", self["entry-start"],  
+                "--entry-end", self["entry-end"],
         ]
 
         return super()._run()
 
     def output(self):
         self["output"] = "{}/{}_{}.root".format(self["dir"], self["input-file"].split("/")[-1][:-5], self["entry-start"])
-
-    
+   
     @staticmethod
     def configure(conf, channel):
         nEvents = 5*int(1e5) if not "number-events" in conf[channel] else conf[channel]["number-events"]
 
-        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
+        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1fj": "Muon2J1FJ", "e2j1fj": "Ele2J1FJ", "mu2fj": "Muon2FJ", "e2fj": "Ele2FJ"}
 
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)

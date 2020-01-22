@@ -10,9 +10,9 @@ class Limit(Task):
         self["executable"] = "Limit"
 
         self["arguments"] = [
-                self["mass"],
-                self["dir"],   
-                "{}".format(" ".join(self["channels"])),
+                "--mass", self["mass"],
+                "--limit-dir", self["dir"],   
+                "--channels", *self["channels"],
         ]
 
         return super()._run()

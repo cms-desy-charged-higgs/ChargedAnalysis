@@ -1,4 +1,5 @@
 from task import Task
+import utils
 
 import os
 
@@ -9,9 +10,10 @@ class HaddPlot(Task):
     def run(self):
         self["executable"] = "hadd"
         self["arguments"] =  [
-                                "-f",
-                                self["output"],   
-        ] + self["dependent-files"]
+                    "-f",
+                    self["output"],   
+                    *self["dependent-files"]
+        ]
 
         return super()._run()
 
@@ -20,13 +22,11 @@ class HaddPlot(Task):
 
     @staticmethod
     def configure(conf, treeTasks, channel):
-        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
-
         tasks = []
 
         for process in conf[channel]["processes"]:
-            outDir = os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel])
-            histDir = os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel])
+            outDir = os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel))
+            histDir = os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel))
                 
             haddConf = {"name": "Hadd_{}_{}".format(process, channel),  
                         "dir": outDir,
@@ -47,9 +47,10 @@ class HaddAppend(Task):
     def run(self):
         self["executable"] = "hadd"
         self["arguments"] =  [
-                                "-f",
-                                self["output"],   
-        ] + self["dependent-files"]
+                    "-f",
+                    self["output"],   
+                    *self["dependent-files"]
+        ]
 
         return super()._run()
 

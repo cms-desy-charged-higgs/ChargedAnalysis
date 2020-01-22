@@ -10,9 +10,9 @@ class FileSkim(Task):
         self["executable"] = "FileSkim"
 
         self["arguments"] = [
-                self["input-file"], 
-                self["output"],
-                "{}".format(" ".join(self["exclude"])),
+                "--old-file", self["input-file"], 
+                "--new-file", self["output"],
+                "--skip-objs", *self["exclude"],
         ]
 
         return super()._run()

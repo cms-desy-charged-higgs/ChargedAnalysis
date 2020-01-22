@@ -1,4 +1,5 @@
 from task import Task
+import utils
 
 from ROOT import TFile, TTree
 
@@ -20,15 +21,15 @@ class TreeRead(Task):
         self["executable"] = "TreeRead"
 
         self["arguments"] = [
-                self["process"], 
-                "{}".format(" ".join(self["x-parameter"])), 
-                "{}".format(" ".join(self["y-parameter"])), 
-                "{}".format(" ".join(self["cuts"])), 
-                self["output"],  
-                self["channel"],    
-                self["save-mode"],
-                self["filename"], 
-                "{}".format(' '.join(self["interval"]))
+                "--process", self["process"], 
+                "--x-parameters", *self["x-parameter"],
+                "--y-parameters", *self["y-parameter"],
+                "--cuts", *self["cuts"], 
+                "--out-name", self["output"],  
+                "--channel", self["channel"],    
+                "--save-mode", self["save-mode"],
+                "--filename", self["filename"], 
+                "--event-yield", *self["interval"]
         ]
 
         return super()._run()
@@ -39,8 +40,6 @@ class TreeRead(Task):
     @staticmethod
     def configure(conf, channel):
         nEvents = 5*int(1e5) if not "number-events" in conf[channel] else conf[channel]["number-events"]
-
-        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
 
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
@@ -55,17 +54,7 @@ class TreeRead(Task):
             filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = processFile) for processFile in processDic[process]]   
 
             for filename in filenames:
-                rootFile = TFile.Open(filename)
-                rootTree = rootFile.Get(channel)
-                entries = rootTree.GetEntries()
-                rootFile.Close()
-
-                ##Complicated way of calculating intervals
-                intervals = [["0", "0"]]
-
-                if entries != 0:
-                    nRange = np.arange(0, entries)
-                    intervals = [[str(i[0]), str(i[-1])] for i in np.array_split(nRange, round(entries/nEvents+0.5))]
+                intervals = utils.SplitEventRange(filename, channel, nEvents)
 
                 for interval in intervals:
                     ##Configuration for treeread Task
@@ -73,7 +62,7 @@ class TreeRead(Task):
                               "display-name": "Hist: {} ({})".format(process, channel),
                               "channel": channel, 
                               "cuts": conf[channel]["cuts"], 
-                              "dir":  os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
+                              "dir":  os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel)), 
                               "process": process, 
                               "x-parameter": conf[channel]["x-parameter"],
                               "filename": filename,

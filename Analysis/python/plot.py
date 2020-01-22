@@ -1,4 +1,5 @@
 from task import Task
+import utils
 
 import os
 
@@ -13,12 +14,12 @@ class Plot(Task):
         self["executable"] = "Plot"
 
         self["arguments"] = [
-                self["hist-dir"], 
-                "{}".format(" ".join(self["x-parameter"])),
-                "{}".format(" ".join(self["y-parameter"])),
-                self["channel"], 
-                "{}".format(" ".join(self["processes"])), 
-                self["dir"], 
+                "--hist-dir", self["hist-dir"], 
+                "--x-parameters", *self["x-parameter"],
+                "--y-parameters", *self["y-parameter"],
+                "--channel", self["channel"], 
+                "--processes", *self["processes"], 
+                "--out-dirs", self["dir"], 
         ]
 
         return super()._run()
@@ -27,15 +28,13 @@ class Plot(Task):
         self["output"] = ["{}/{}.pdf".format(self["dir"], x) for x in self["x-parameter"]]
 
     @staticmethod
-    def configure(conf, haddTasks, channel):
-        chanToDir = {"mu4j": "Muon4J", "e4j": "Ele4J", "mu2j1f": "Muon2J1F", "e2j1f": "Ele2J1F", "mu2f": "Muon2F", "e2f": "Ele2F"}
-        
+    def configure(conf, haddTasks, channel):        
         tasks = []
 
         plotConf = {"name": "Plot_{}".format(channel), 
                     "channel": channel, 
-                    "hist-dir": os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
-                    "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(conf[channel]["dir"], chanToDir[channel]), 
+                    "hist-dir": os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel)), 
+                    "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel)), 
                     "display-name": "Plots: {}".format(channel), 
                     "x-parameter": conf[channel]["x-parameter"], 
                     "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 

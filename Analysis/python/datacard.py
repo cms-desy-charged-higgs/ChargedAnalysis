@@ -10,14 +10,14 @@ class Datacard(Task):
         self["executable"] = "WriteCard"
 
         self["arguments"] = [
-                "{}".format(" ".join(self["backgrounds"])),
-                self["signal"],
-                self["data"],
-                self["channel"],
-                self["dir"],
-                "true", #True in ["Single" in proc for proc in self["processes"]],
-                self["hist-dir"], 
-                self["discriminant"], 
+                "--backgrounds", *self["backgrounds"],
+                "--signal", self["signal"],
+                "--data", self["data"],
+                "--channel", self["channel"],
+                "out-dir", self["dir"],
+                "--use-asimov" if not True in ["Single" in proc for proc in self["processes"]] else "",
+                "--hist-dir", self["hist-dir"], 
+                "--discriminant", self["discriminant"], 
         ]
 
         return super()._run()
