@@ -131,7 +131,6 @@ class TaskMonitor(object):
         self._mainWindow.refresh()
 
     def updateLogMonitor(self, logs, errors):
-        logs = [s for s in logs if s != ""]
         logs = self.__flattenList(logs)
 
         ##Frame Head line
