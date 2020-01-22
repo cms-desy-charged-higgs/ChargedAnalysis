@@ -17,9 +17,11 @@ class TaskManager(object):
         self.checkOutput = checkOutput
         self._graph = []
 
+        ##Make working directory for all output of taskmanager handling
         self.workDir = "{}/Tmp/Workflow/{}/".format(os.environ["CHDIR"], time.asctime().replace(" ", "_").replace(":", "_"))
         os.makedirs(self.workDir, exist_ok=True)
 
+        ##Make HTTP local server for workflow
         http.server.SimpleHTTPRequestHandler.log_message = lambda self, format, *args: None
         os.chdir(self.workDir)
 
@@ -27,6 +29,19 @@ class TaskManager(object):
         self.server = Process(target=TaskManager.runServer, args=(self.httpd,))
         self.server.daemon = True
         self.server.start()
+
+        ##Logging of output
+        self.allLogs = []
+        self.allErrs = []
+
+    def __del__(self):
+        with open("{}/log.txt".format(self.workDir), "w") as log:
+            for line in self.allLogs:
+                log.write(line + "\n")
+
+        with open("{}/err.txt".format(self.workDir), "w") as err:
+            for line in self.allErrs:
+                err.write(line + "\n")
    
     @staticmethod
     def runServer(server):
@@ -133,13 +148,17 @@ class TaskManager(object):
         nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
 
         ##Create dependency graph
-        self.__createGraph()   
+        self.__createGraph() 
 
         ##Task monitor instance
         self.monitor = TaskMonitor(True)
         self.webpage = TaskWebpage()
 
         for layer, taskLayer in enumerate(self._graph):
+            ##Indicate in log task layer
+            self.allLogs.append("#"*40 + " TASK LAYER {} ".format(layer) + "#"*40)
+            self.allErrs.append("#"*40 + " TASK LAYER {} ".format(layer) + "#"*40)
+
             self.localTask = []
             self.condorTask = []
             startTime = time.time()
@@ -196,6 +215,8 @@ class TaskManager(object):
                         else:
                             errors.extend(job.get())
                             task["status"] = "FAILED"
+                            self.allLogs.extend(logs)
+                            self.allErrs.extend(errors)
                             self.__printRunStatus(layer, time.time() - startTime, logs, errors)
                             self.webpage.createWebpage(self._graph, self.workDir)
 
@@ -263,6 +284,8 @@ class TaskManager(object):
                 self.__submitCondor(dirs)
 
                 ##Print status
+                self.allLogs.extend(logs)
+                self.allErrs.extend(errors)
                 self.__printRunStatus(layer, time.time() - startTime, logs, errors)
 
                 ##Draw graph
