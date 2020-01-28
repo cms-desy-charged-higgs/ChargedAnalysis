@@ -62,7 +62,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
                 {DR, {30., 0., 6.}},
                 {HT, {30., 0., 500.}},
                 {NPART, {6., 0., 6.}},
-                {BDTSCORE, {30., -0.5, 0.3}},
+                {BDTSCORE, {30., -1., 1.}},
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
@@ -95,8 +95,10 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     };
 
     SF = [&](int WP, RecoParticle part){
-        if(part.IDSF[(int)WP]*part.otherSF == 0) return float(1.); 
-        return part.IDSF[(int)WP]*part.otherSF;
+        float pSF = part.IDSF[(int)WP] != 0 ? part.IDSF[(int)WP] : 1; 
+        float otherSF = part.otherSF != 0 ? part.otherSF : 1;
+
+        return pSF*otherSF;
     };
 
     //Cut configuration
@@ -123,10 +125,10 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
 
     //BDT intialization
     if(isBDT){
-        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/" + Utils::ChanPaths(channel); 
+        std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/"; 
 
-        std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/");
-        oddClassifier.SetEvaluation(bdtPath + "/Odd/");
+        std::vector<std::string> bdtVar = evenClassifier.SetEvaluation(bdtPath + "/Even/" + Utils::ChanPaths(channel));
+        oddClassifier.SetEvaluation(bdtPath + "/Odd/" + Utils::ChanPaths(channel));
 
         //Remove mass
         bdtVar.pop_back();
@@ -142,18 +144,18 @@ TreeReader::Hist TreeReader::ConvertStringToEnums(const std::string &input, cons
     bool modifiedBins = false;
     std::vector<float> bins = {};
 
-    std::vector<std::string> splittedInput = Utils::SplitString(input, "-");
+    std::vector<std::string> splittedInput = Utils::SplitString<std::string>(input, "-");
     if(splittedInput.size() > 1){
         modifiedBins = true;
 
         //Read out bins (e.g. 30_0_200) and turn to ints
-        for(std::string& binValue: Utils::SplitString(splittedInput[1], "_")){
-            bins.push_back(std::stof(binValue));
+        for(int& binValue: Utils::SplitString<int>(splittedInput[1], "_")){
+            bins.push_back(binValue);
         }
     }
 
     //Function which handles splitting of string input
-    std::vector<std::string> splittedString = Utils::SplitString(modifiedBins ? splittedInput[0] : input, "_");
+    std::vector<std::string> splittedString = Utils::SplitString<std::string>(modifiedBins ? splittedInput[0] : input, "_");
 
     //Translate strings into enumeration
     Function func = strToFunc[splittedString[0]];
@@ -414,14 +416,16 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     float htagFJ1 = -1.; float htagFJ2 = -1.;
 
     //Read htag
-    inputTree->SetBranchAddress("ML_HTagFJ1", &htagFJ1); 
+    if(inputTree->GetListOfBranches()->Contains("ML_HTagFJ1")){
+        inputTree->SetBranchAddress("ML_HTagFJ1", &htagFJ1); 
+    }
 
     if(inputTree->GetListOfBranches()->Contains("ML_HTagFJ2")){
         inputTree->SetBranchAddress("ML_HTagFJ2", &htagFJ2); 
     }
     
     //Vector of  weights
-    std::vector<std::string> weightNames = {"lumi", "xsec"};
+    std::vector<std::string> weightNames = {"lumi", "xsec", "prefireWeight"};
     std::vector<float> weights(weightNames.size(), 0);
 
     for(unsigned int idx=0; idx < weightNames.size(); idx++){;
@@ -441,18 +445,21 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         delete genHist;
     }
 
-
     //Calculate pile up weight histogram
-    TH1F* puMC=NULL; TH1F* pileUpWeight=NULL;
+    TH1F* puMC=NULL; TH1F* puReal=NULL; TH1F* pileUpWeight=NULL;
 
     if(inputFile->GetListOfKeys()->Contains("puMC")){
         puMC = (TH1F*)inputFile->Get("puMC");
-        pileUpWeight = (TH1F*)puMC->Clone(); pileUpWeight->Clear();
+        puReal = (TH1F*)inputFile->Get("pileUp");
+
+        pileUpWeight = (TH1F*)puReal->Clone();
+        pileUpWeight->Scale(1./pileUpWeight->Integral());
+        puMC->Scale(1./puMC->Integral());
 
         pileUpWeight->SetName("pileUpWeight");
-        inputTree->Draw("Misc_TrueInteraction>>pileUpWeight", "Misc_TrueInteraction > 1 && Misc_TrueInteraction < 200");
         pileUpWeight->Divide(puMC);
         delete puMC;
+        delete puReal;
     }
 
     //Cutflow
@@ -562,7 +569,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         event.weight *= 1./nGen;
 
         if(pileUpWeight!=NULL){
-            //event.weight *= nTrue/pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
+            event.weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
         }
 
         if(isHPlus){
@@ -578,7 +585,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
             //Fill Cutflow if event passes selection
             if(passedCut){
-                cutflow->Fill(cutNames[k].c_str(), event.weight);
+            //    cutflow->Fill(cutNames[k].c_str(), event.weight);
             }
 
             else{break;}
@@ -586,8 +593,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
         if(passedCut){
             valuesX.clear();
-            std::string csvString; 
-
+            std::string csvString;
 
             for(unsigned int l = 0; l < histograms1D.size(); l++){
                 valuesX.push_back((this->*funcDir[histograms1D[l].func])(event, histograms1D[l]));
@@ -621,7 +627,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     outputFile->cd();
         
     if(writeCutFlow) cutflow->Write();
-    if(toSave==CSV) outputTree->Write();
+    if(toSave==TREE) outputTree->Write();
     
     else{
         for(unsigned int l = 0; l < histograms1D.size(); l++){
