@@ -17,8 +17,6 @@ class PostfitPlot(Task):
                 "--channel", self["channel"]
         ]
 
-        return super()._run()
-
         plotter = PlotterPostfit(self._stdDir["limit-dir"], self._stdDir["mass"], self._stdDir["channel"])
         plotter.ConfigureHists(vector("string")())
         plotter.Draw(vector("string")(1, self._stdDir["dir"]))

@@ -22,8 +22,6 @@ class TreeAppend(Task):
                 "--entry-end", self["entry-end"],
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = "{}/{}_{}.root".format(self["dir"], self["input-file"].split("/")[-1][:-5], self["entry-start"])
    

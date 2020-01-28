@@ -15,8 +15,6 @@ class PlotLimit(Task):
                 "--out-dirs", self["dir"]
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = self["dir"] + "/limit.pdf"
 

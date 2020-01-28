@@ -15,8 +15,6 @@ class Limit(Task):
                 "--channels", *self["channels"],
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = self["dir"] + "/limit.root"
 

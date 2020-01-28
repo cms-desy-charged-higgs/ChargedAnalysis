@@ -20,8 +20,6 @@ class Datacard(Task):
                 "--discriminant", self["discriminant"], 
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = [self["dir"] + "/datacard.txt", self["dir"] + "/shapes.root"]
 

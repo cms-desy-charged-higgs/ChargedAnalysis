@@ -1,5 +1,4 @@
 from task import Task
-import utils
 
 import os
 
@@ -15,28 +14,27 @@ class HaddPlot(Task):
                     *self["dependent-files"]
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["process"])
 
     @staticmethod
-    def configure(conf, treeTasks, channel):
+    def configure(config, treeTasks, channel, prefix=""):
         tasks = []
 
-        for process in conf[channel]["processes"]:
-            outDir = os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel))
-            histDir = os.environ["CHDIR"] + "/Tmp/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel))
+        for process in config["processes"] + config["data"].get(channel, []):
+            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["save-mode"], config["dir"], config["chan-dir"][channel])
+            histDir = os.environ["CHDIR"] + "/Tmp/{}/{}/{}".format(config["save-mode"], config["dir"], config["chan-dir"][channel])
                 
-            haddConf = {"name": "Hadd_{}_{}".format(process, channel),  
-                        "dir": outDir,
-                        "process": process,
-                        "channel": channel,
-                        "display-name": "Hadd: {} ({})".format(process, channel),
-                        "dependencies": [t["name"] for t in treeTasks if t["dir"] == histDir and t["process"] == process]
+            task = {
+                    "name": "Hadd_{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  
+                    "dir": outDir,
+                    "process": process,
+                    "channel": channel,
+                    "display-name": "Hadd: {} ({})".format(process, channel),
+                    "dependencies": [t["name"] for t in treeTasks if t["dir"] == histDir and t["process"] == process]
             }
 
-            tasks.append(HaddPlot(haddConf))
+            tasks.append(HaddPlot(task))
         return tasks
 
 
@@ -51,8 +49,6 @@ class HaddAppend(Task):
                     self["output"],   
                     *self["dependent-files"]
         ]
-
-        return super()._run()
 
     def output(self):
         self["output"] = "{}/{}.root".format(self["dir"], self["out-file"])

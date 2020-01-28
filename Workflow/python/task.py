@@ -23,14 +23,18 @@ class Task(ABC, dict):
         return id(self)
 
     def __call__(self):
-        return self.run()
+        if self["run-mode"] == "Local":
+            return self.runJob()
 
-    def _run(self):
+        if self["run-mode"] == "Condor":
+            return self.runScript()
+
+    def runJob(self):
         logs = []
         errors = []
 
         if self["run-mode"] == "Local":
-            result = subprocess.run([self["executable"], *self["arguments"]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run([self["executable"], *[str(s) for s in self["arguments"]]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             if result.returncode != 0:
                 for line in result.stderr.decode('utf-8').split("\n"):
@@ -43,9 +47,6 @@ class Task(ABC, dict):
 
             return logs
 
-        if self["run-mode"] == "Condor":
-            self.runScript()
-
     def runScript(self):
         ##Create directory with condor
         self["condor-dir"] = "{}/Condor/{}".format(self["dir"], self["name"])
@@ -57,14 +58,16 @@ class Task(ABC, dict):
                         "#!/bin/bash\n", 
                         "cd $CHDIR\n",
                         "source ChargedAnalysis/setenv.sh StandAlone\n",
-                        " ".join([self["executable"], *self["arguments"]])
+                        " ".join([self["executable"], *[str(s) for s in self["arguments"]]])
         ]
 
         with open("{}/run.sh".format(self["condor-dir"]), "w") as condExe:
             for line in fileContent:
                 condExe.write(line)
 
-        os.system("chmod a+x {}/run.sh".format(self["condor-dir"]))
+        result = subprocess.run(["chmod", "a+x", "{}/run.sh".format(self["condor-dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        return result.stdout.decode('utf-8').split("\n")
 
     def getDependentFiles(self, depGraph):
         if self["tasklayer"] == 0:
@@ -83,9 +86,7 @@ class Task(ABC, dict):
 
     def createDir(self):
         ##Create directory of this task
-        if(not os.path.exists(self["dir"])):
-            os.system("mkdir -p {}".format(self["dir"])) 
-            print("Created task dir: {}".format(self["dir"]))
+        os.system("mkdir -p {}".format(self["dir"]))
 
     def checkOutput(self):
         ##Check if output already exists

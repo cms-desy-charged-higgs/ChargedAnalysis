@@ -1,5 +1,4 @@
 from task import Task
-import utils
 
 import os
 
@@ -15,36 +14,28 @@ class Plot(Task):
 
         self["arguments"] = [
                 "--hist-dir", self["hist-dir"], 
-                "--x-parameters", *self["x-parameter"],
-                "--y-parameters", *self["y-parameter"],
+                "--x-parameters", *self["x-parameters"],
+                "--y-parameters", *self["y-parameters"],
                 "--channel", self["channel"], 
                 "--processes", *self["processes"], 
                 "--out-dirs", self["dir"], 
         ]
 
-        return super()._run()
-
     def output(self):
-        self["output"] = ["{}/{}.pdf".format(self["dir"], x) for x in self["x-parameter"]]
+        self["output"] = ["{}/{}.pdf".format(self["dir"], x) for x in self["x-parameters"]]
 
     @staticmethod
-    def configure(conf, haddTasks, channel):        
-        tasks = []
-
-        plotConf = {"name": "Plot_{}".format(channel), 
-                    "channel": channel, 
-                    "hist-dir": os.environ["CHDIR"] + "/Hist/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel)), 
-                    "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(conf[channel]["dir"], utils.ChannelToDir(channel)), 
-                    "display-name": "Plots: {}".format(channel), 
-                    "x-parameter": conf[channel]["x-parameter"], 
-                    "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 
-                    "processes": [t["process"] for t in haddTasks if t["channel"] == channel]
+    def configure(config, haddTasks, channel):        
+        task = {
+                "name": "Plot_{}".format(channel), 
+                "channel": channel, 
+                "hist-dir": os.environ["CHDIR"] + "/Hist/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
+                "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
+                "display-name": "Plots: {}".format(channel), 
+                "x-parameters": config["x-parameters"]["all"] + config["x-parameters"].get(channel, []),
+                "y-parameters": config["y-parameters"]["all"] + config["y-parameters"].get(channel, []),
+                "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 
+                "processes": [t["process"] for t in haddTasks if t["channel"] == channel]
         }
 
-        if "y-parameter" in conf[channel]:
-            plotConf["y-parameter"] = conf[channel]["y-parameter"]
-
-
-        tasks.append(Plot(plotConf))
-
-        return tasks
+        return [Plot(task)]

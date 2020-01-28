@@ -15,8 +15,6 @@ class FileSkim(Task):
                 "--skip-objs", *self["exclude"],
         ]
 
-        return super()._run()
-
     def output(self):
         self["output"] = "{}/{}_skimmed.root".format(self["dir"], self["input-file"].split("/")[-1][:-5])
 
