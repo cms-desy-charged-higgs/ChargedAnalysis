@@ -6,15 +6,15 @@ import sys
 import subprocess
 import shutil
 import http.server
-import threading
 from multiprocessing import Process, Pool, cpu_count
 
 from taskmonitor import TaskMonitor
 from taskwebpage import TaskWebpage
 
 class TaskManager(object):
-    def __init__(self, checkOutput=False):
+    def __init__(self, checkOutput=False, noMonitor=False):
         self.checkOutput = checkOutput
+        self.noMonitor = noMonitor
         self._graph = []
 
         ##Make working directory for all output of taskmanager handling
@@ -31,18 +31,32 @@ class TaskManager(object):
         self.server.start()
 
         ##Logging of output
+        self.commands = []
         self.allLogs = []
         self.allErrs = []
 
-    def __del__(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        ##Write log
         with open("{}/log.txt".format(self.workDir), "w") as log:
             for line in self.allLogs:
                 log.write(line + "\n")
 
+        ##Write error
         with open("{}/err.txt".format(self.workDir), "w") as err:
             for line in self.allErrs:
                 err.write(line + "\n")
-   
+
+        ##Write commands
+        with open("{}/commands.txt".format(self.workDir), "w") as command:
+            for line in self.commands:
+                command.write(line + "\n")
+
+        ##Close http server
+        self.httpd.server_close()
+
     @staticmethod
     def runServer(server):
         server.serve_forever()
@@ -87,15 +101,12 @@ class TaskManager(object):
                 ##Fill task in layer    
                 if isCorrectLayer:
                     task["tasklayer"] = len(self._graph)
-                    task.createDir()
-                    task.output()
                     nextLayer.append(task)
                  
             self._graph.append(nextLayer)
 
             for task in nextLayer:
                 allTask.remove(task)   
-
 
     def __printRunStatus(self, layer, time, logs, errors):
         ##Helper function:
@@ -118,11 +129,12 @@ class TaskManager(object):
             "TOTAL": len(self.condorTask),
         }
 
-        self.monitor.updateMainMonitor(layer, time, localStats, condorStats)
-        self.monitor.updateLogMonitor(logs, errors)
+        if not self.noMonitor:
+            self.monitor.updateMainMonitor(layer, time, localStats, condorStats)
+            self.monitor.updateLogMonitor(logs, errors)
 
     def __submitCondor(self, dirs):
-        ##Dic which will be written into submit file
+        ##List which will be written into submit file
         condorSub = [
             "universe = vanilla",
             "executable = $(DIR)/run.sh",
@@ -148,10 +160,11 @@ class TaskManager(object):
         nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
 
         ##Create dependency graph
-        self.__createGraph() 
-
+        self.__createGraph()
+                
         ##Task monitor instance
-        self.monitor = TaskMonitor(True)
+        if not self.noMonitor:
+            self.monitor = TaskMonitor(True)
         self.webpage = TaskWebpage()
 
         for layer, taskLayer in enumerate(self._graph):
@@ -164,25 +177,42 @@ class TaskManager(object):
             startTime = time.time()
 
             for task in taskLayer:
-                ##Skip task if already finished and you dont want to rerun
-                if self.checkOutput:
-                    if task.checkOutput():
-                        task["status"] = "FINISHED"
-
                 if task["run-mode"] == "Local":
                     task.getDependentFiles(self._graph)
+                    task.createDir()
+                    task.output()
+                    task.run()
+
+                    ##Skip task if already finished and you dont want to rerun
+                    if self.checkOutput:
+                        if task.checkOutput():
+                            task["status"] = "FINISHED"
+
                     self.localTask.append(task)
                   
                 if task["run-mode"] == "Condor":
                     task.getDependentFiles(self._graph)
+                    task.createDir()
+                    task.output()
+                    task.run()
+
+                    ##Skip task if already finished and you dont want to rerun
+                    if self.checkOutput:
+                        if task.checkOutput():
+                            task["status"] = "FINISHED"
+
                     self.condorTask.append(task)
+
+                ##Write execute commands down
+                self.commands.append(task["name"])
+                self.commands.append(" ".join([task["executable"], *[str(s) for s in task["arguments"]]]) + "\n")
 
             ##Submit condors jobs (Only 500 hundred at one time)
             dirs = []
 
             for index, task in enumerate(self.condorTask):
                 if(task["status"] != "FINISHED"):
-                    task.run()
+                    task()
                     dirs.append(task["condor-dir"])
                     task["status"] = "SUBMITTED"
 
@@ -213,8 +243,9 @@ class TaskManager(object):
                             localRuns.pop(task)
 
                         else:
-                            errors.extend(job.get())
+                            errors.extend(localRuns[task].get())
                             task["status"] = "FAILED"
+
                             self.allLogs.extend(logs)
                             self.allErrs.extend(errors)
                             self.__printRunStatus(layer, time.time() - startTime, logs, errors)
