@@ -69,6 +69,9 @@ class TaskWebpage(object):
     def __dicToNiceHtml(self, dic):
         newDic = {}
         for (key, value) in dic.items():
+            if key == "arguments":
+                continue
+
             if type(value) != dict:
                 newDic["<b style='color:brown'>{}</b>".format(key)] = value
 
