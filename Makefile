@@ -2,7 +2,7 @@
 
 ##Compiler/Linking flags
 CC      = $(CHDIR)/Anaconda3/bin/g++
-CFLAGS  = -I$(CHDIR) -fPIC -g
+CFLAGS  = -std=c++17 -I$(CHDIR) -fPIC -g
 LDFLAGS = -L$(CHDIR)/Anaconda3/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib -L$(CHDIR)/ChargedAnalysis/Utility/lib
 
 ROOTFLAGS_C = $(shell root-config --cflags)
@@ -30,9 +30,10 @@ U_OBJDIR = $(CHDIR)/ChargedAnalysis/Utility/obj
 U_SRCDIR = $(CHDIR)/ChargedAnalysis/Utility/src
 U_HDIR = $(CHDIR)/ChargedAnalysis/Utility/include
 U_LIBDIR = $(CHDIR)/ChargedAnalysis/Utility/lib
+U_BINDIR = $(CHDIR)/ChargedAnalysis/Utility/bin
 
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag $(N_BINDIR)/BDT
+BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag $(N_BINDIR)/BDT $(U_BINDIR)/MergeCSV
 LIBARIES = $(A_LIBDIR)/libPlot.so $(U_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
@@ -146,7 +147,19 @@ $(N_OBJDIR)/boostedDT.o: $(N_BINDIR)/boostedDT.cc
     mkdir -p $(N_OBJDIR)
 
     echo "Compiling file $<"
-    $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
+
+########################### Executable for merge csv ###########################
+
+$(U_BINDIR)/MergeCSV: $(U_OBJDIR)/mergeCSV.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lML -o $@ $^ -lstdc++fs
+
+$(U_OBJDIR)/mergeCSV.o: $(U_BINDIR)/mergeCSV.cc
+    mkdir -p $(U_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
 ########################### Shared libaries ###########################
 
