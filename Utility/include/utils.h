@@ -15,7 +15,8 @@
 
 namespace Utils{
     //Function for splitting string delimited by white space
-    std::vector<std::string> SplitString(const std::string& splitString, const std::string& delimeter);
+    template <typename T>
+    std::vector<T> SplitString(const std::string& splitString, const std::string& delimeter);
 
     //Function for displaying progress
     void ProgressBar(const int& progress, const std::string& process);

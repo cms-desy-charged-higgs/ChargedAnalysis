@@ -4,26 +4,42 @@ std::string Utils::ChanPaths(const std::string& channel){
     std::map<std::string, std::string> chanMap = {
             {"e4j", "Ele4J"},
             {"mu4j", "Muon4J"},
-            {"e2j1f", "Ele2J1F"},
-            {"mu2j1f", "Muon2J1F"},
-            {"e2f", "Ele2F"},
-            {"mu2f", "Muon2F"},
+            {"e2j1fj", "Ele2J1FJ"},
+            {"mu2j1fj", "Muon2J1FJ"},
+            {"e2fj", "Ele2FJ"},
+            {"mu2fj", "Muon2FJ"},
     };
 
     return chanMap[channel];
 };
 
-std::vector<std::string> Utils::SplitString(const std::string& splitString, const std::string& delimeter){
-    //Function which handles splitting of string input
-    std::vector<std::string> splittedString;
-    std::string string;
-    std::istringstream splittedStream(splitString);
-    while (std::getline(splittedStream, string, delimeter.c_str()[0])){
-        splittedString.push_back(string);
+template <typename T>
+std::vector<T> Utils::SplitString(const std::string& splitString, const std::string& delimeter){
+    T value;
+    std::vector<T> values;
+
+    std::size_t current, previous = 0;
+    current = splitString.find(delimeter);
+
+    while (current != std::string::npos){
+        std::istringstream iss(splitString.substr(previous, current - previous));
+        iss >> value;
+        values.push_back(value);
+
+        previous = current + 1;
+        current = splitString.find(delimeter, previous);
     }
 
-    return splittedString;
+    std::istringstream iss(splitString.substr(previous, current - previous));
+    iss >> value;
+    values.push_back(value);
+
+    return values;
 }
+
+template std::vector<std::string> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
+template std::vector<int> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
+template std::vector<float> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
 
 void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 
