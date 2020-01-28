@@ -6,13 +6,14 @@ BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate,
                                                     {"NTrees", std::to_string(nTrees)},
                                                     {"MinNodeSize", std::to_string(minNodeSize)},
                                                     {"AdaBoostBeta", std::to_string(learningRate)},
+                                                    {"Shrinkage", std::to_string(learningRate)},
                                                     {"nCuts", std::to_string(nCuts)},
                                                     {"MaxDepth", std::to_string(treeDepth)},
                                                     {"UseNvars", std::to_string(dropOut)},
                                                     {"SeparationType", sepType},
     };
 
-    trainString = "!H:BoostType=AdaBoost:UseBaggedBoost:BaggedSampleFraction=0.5:UseRandomisedTrees=True";  
+    trainString = "!H:BoostType=Grad:UseBaggedBoost:BaggedSampleFraction=0.5:UseRandomisedTrees=True";  
 
     for(std::pair<std::string, std::string> conf: config){
         trainString += ":" + conf.first + "=" + conf.second;
@@ -26,18 +27,19 @@ BDT::~BDT(){
     }
 }
 
-float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::vector<std::string> &signals, std::vector<std::string> &backgrounds, std::string &evType){
+float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize){
+    //Name of tmp dir    
+    std::ostringstream thisString;
+    thisString << (void*)this;
+    std::string tempDir = std::getenv("CHDIR")) + "Tmp/BDT/BDT_" + thisString.str();
+    std::system(("mkdir -p " + tempDir).c_str());
 
     //Open output file
-    TFile* outputFile = TFile::Open((resultDir + "/BDT.root").c_str(), "RECREATE");
+    TFile* outputFile = TFile::Open((tempDir + "/BDT.root").c_str(), "RECREATE");
 
     //Relevant TMVA instances
     TMVA::Tools::Instance();
     TMVA::Factory* factory = new TMVA::Factory("BDT", outputFile);
-
-    std::ostringstream thisString;
-    thisString << (void*)this;
-    std::string tempDir = "BDT_" + thisString.str();
     TMVA::DataLoader* loader = new TMVA::DataLoader(tempDir);
 
     (TMVA::gConfig().GetVariablePlotting()).fMaxNumOfAllowedVariablesForScatterPlots = 0.;
@@ -50,39 +52,46 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
     loader->AddVariable("mass");
 
     //Add bkg/sig training and test trees
-    std::string train = evType == "Even" ? "Odd": "Even";
-    int nSig = 0., nBkg = 0.;
+    int nSig = 0;
+    float train = 0.99;
+    float test = 0.01;
 
+    for(std::string &mass: masses){
+        std::string sigName = signal;
+        sigName.replace(sigName.find("{"), 2, mass);
 
-    for(std::string &signal: signals){
-        std::string massPoint = std::string(signal.begin()+4, signal.begin()+7);
+        TFile* sigFile = TFile::Open((treeDir + "/" + sigName + ".root").c_str());
+        TTree* sigTree = (TTree*)sigFile->Get(sigName.c_str());
 
-        TFile* sigFile = TFile::Open((treeDir + "/" + train + "/" + massPoint + "/" + signal + ".root").c_str());
+        sigTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
+        sigTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
 
-        TTree* sigTree = (TTree*)sigFile->Get(signal.c_str());
-
-        sigTree->GetBranch(("const_" + massPoint).c_str())->SetTitle("mass");
-        sigTree->GetBranch(("const_" + massPoint).c_str())->SetName("mass");
-
+        nSig += sigTree->GetEntries();
         loader->AddSignalTree(sigTree);
-
-        nSig+= ((TTree*)sigFile->Get(signal.c_str()))->GetEntries();
    
         for(std::string &background: backgrounds){
-            TFile* bkgFile = TFile::Open((treeDir + "/" + train + "/" + massPoint + "/" + background + ".root").c_str());
+            TFile* bkgFile = TFile::Open((treeDir + "/" + background + ".root").c_str());
 
             TTree* bkgTree = (TTree*)bkgFile->Get(background.c_str());
-            bkgTree->GetBranch(("const_" + massPoint).c_str())->SetTitle("mass");
-            bkgTree->GetBranch(("const_" + massPoint).c_str())->SetName("mass");
+            bkgTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
+            bkgTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
 
+            gROOT->cd();
+         
+            if(sigTree->GetEntries() >= bkgTree->GetEntries()){
+                TTree* bkgTreeSlimmed = bkgTree->CloneTree(sigTree->GetEntries());
+                loader->AddBackgroundTree(bkgTreeSlimmed);
+            }
+         
             loader->AddBackgroundTree(bkgTree);
-
-            nBkg+= ((TTree*)bkgFile->Get(background.c_str()))->GetEntries();
         }
     }
 
+    //Change to lower amount of events for hyperopt
+    if(optimize) nSig = 50000;
+
     //Configure BDT training
-    loader->PrepareTrainingAndTestTree("", 0.8*nSig, 0.8*nBkg, 0.2*nSig, 0.2*nBkg);
+    loader->PrepareTrainingAndTestTree("", train*nSig, train*nSig, test*nSig, test*nSig);
     factory->BookMethod(loader, TMVA::Types::kBDT, "BDT", trainString);
     
     //Do the training and testing
@@ -96,10 +105,9 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
     delete factory;
     delete loader;
 
-    std::system(std::string("rsync -a --delete-after " + tempDir + "/weights " + resultDir).c_str());
+    if(!optimize) std::system(std::string("rsync -a --delete-after " + tempDir + "/* " + resultDir).c_str());
     std::system(std::string("command rm -r " + tempDir).c_str());
 
-   
     return ROCCurve;
 }
 
