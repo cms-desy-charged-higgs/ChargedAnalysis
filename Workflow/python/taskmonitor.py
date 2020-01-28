@@ -153,9 +153,15 @@ class TaskMonitor(object):
         maxLines = self.rowMax-19
 
         while(True):
+            if(len(logs) == 0):
+                break
+
+            if(len(self._printOut) != 0):  
+                self._printOut.pop(0)
+
             while(len(self._printOut) != maxLines):
                 self._printOut.append(logs.pop(0))
-        
+
                 if(len(logs) == 0):
                     break
 
@@ -166,8 +172,3 @@ class TaskMonitor(object):
                 self._logWindow.addstr(i+2, 2, " "*(self.columns-3)) 
                 self._logWindow.addstr(i+2, 2, self._printOut[i])    
                 self._logWindow.refresh()
-             
-            if(len(logs) == 0):
-                break
-
-            self._printOut.pop(0)
