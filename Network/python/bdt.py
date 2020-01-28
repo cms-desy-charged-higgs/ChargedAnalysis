@@ -2,38 +2,51 @@ from task import Task
 
 import os
 
-from ROOT import BDT, vector, string
-
-class BDTTask(Task):
+class BDT(Task):
     def __init__(self, config = {}):
-        Task.__init__(self, config)  
-
-    def __toStd(self):
-        self._stdDir = {}
-
-        ##Translate string and list to std::string and std::vector
-        for key, value in self.iteritems():
-            if type(value) == str:
-                self._stdDir[key] = string(value)
-
-            elif type(value) == list:
-                self._stdDir[key] = vector("string")()
-                
-                for v in value:
-                   self._stdDir[key].push_back(v) 
-
-            else:
-                pass
+        super().__init__(config)
 
     def run(self):
-        self.__toStd()
+        self["executable"] = "BDT"
 
-        bdt = BDT(1560, 1.1005293101958564, 0.49858931820896, 34, 5, 11, "CrossEntropy")
-        bdt.Train(self._stdDir["x-parameter"], self._stdDir["tree-dir"], self._stdDir["dir"], self._stdDir["signal"], self._stdDir["background"], self._stdDir["event-type"]) 
+        self["arguments"] = [
+                "--n-trees", self["n-trees"],
+                "--min-node-size", self["min-node-size"],
+                "--lr", self["lr"], 
+                "--n-cuts", self["n-cuts"],
+                "--tree-depth", self["tree-depth"],
+                "--drop-out", self["drop-out"],
+                "--sep-type", self["sep-type"],
+    
+                "--x-parameters", self["x-parameters"],
+                "--tree-dir", *self["tree-dir"],
+                "--result-dir", self["dir"],
+                "--signal", self["signal"],
+                "--backgrounds", *self["backgrounds"],
+                "--masses", *self["masses"],
+                "--event-type", self["event-type"],
+        ]
+
+        return super()._run()
 
     def output(self):
         self["output"] = self["dir"] + "/BDT.root"
 
-    def status(self):
-        if os.path.isfile(self["output"]):
-            self["status"] = "FINISHED"
+    @staticmethod
+    def configure(config, channel, evType):
+        task = {
+                "name": "BDT_{}_{}".format(channel, evType)
+                "dir": "{}/{}".format(os.environ["CHDIR"], config["dir"])
+                "signal": config["signal"]
+                "backgrounds": config["backgrounds"]
+                "x-parameters": config["x-parameters"].get("all", []) + config["x-parameters"].get(channel, []),
+                "tree-dir": "{}/Tree/{}/{}".format(os.environ["CHDIR"], config["dir"], config["channel-dirs"][channel]), 
+                "masses": config["masses"],
+                "event-type": evType,       
+            }
+
+        task.update(config["hyper-parameter"])
+
+    return [BDT(task)]
+                    
+        
