@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <functional>
 #include <fstream>
+#include <exception>
+
+#include <ChargedAnalysis/Utility/include/utils.h>
 
 class Frame{
     private:
@@ -22,7 +25,8 @@ class Frame{
         bool AddRow(const std::string& label, const std::vector<float>& row);
         bool AddColumn(const std::vector<float>& column); 
         void Sort(const std::string& label, const bool& ascending=false);
-        void ToCsv(const std::string& fileName);
+        void ReadCSV(const std::string& fileName);
+        void WriteCSV(const std::string& fileName);
 };
 
 #endif

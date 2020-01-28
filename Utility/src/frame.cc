@@ -49,7 +49,7 @@ void Frame::Sort(const std::string& label, const bool& ascending){
     std::sort(columns.begin(), columns.end(), std::bind(DoSort, std::placeholders::_1, std::placeholders::_2, rowIndex, ascending));
 }
 
-void Frame::ToCsv(const std::string& fileName){
+void Frame::WriteCSV(const std::string& fileName){
     std::ofstream myFile;
     myFile.open(fileName);
 
@@ -71,6 +71,42 @@ void Frame::ToCsv(const std::string& fileName){
 
         columnLine.replace(columnLine.end()-1, columnLine.end(), "\n");
         myFile << columnLine;
+    }
+    
+    myFile.close();
+}
+
+void Frame::ReadCSV(const std::string& fileName){
+    //Read file
+    std::ifstream myFile(fileName, std::ifstream::in);
+    std::string line;
+
+    if(!myFile.is_open()){
+        throw std::runtime_error("File can not be opened: " + fileName);
+    }
+
+    //Get header
+    std::getline(myFile, line);
+    std::vector<std::string> inLabels = Utils::SplitString<std::string>(line, "\t");
+
+    std::cout << inLabels.size() << std::endl;
+
+    if(inLabels.size() != labels.size()){
+        myFile.close();
+        throw std::runtime_error("Number of labels in file does not correspond initialized label size");
+    }
+    
+    for(std::string& label: inLabels){
+        if(std::find(labels.begin(), labels.end(), label) == labels.end()){
+            myFile.close();
+            throw std::runtime_error("Initialized label " + label + " not found in file.");
+        }
+    }
+
+    //Read other columns
+    while(std::getline(myFile, line)){
+        std::vector<float> column = Utils::SplitString<float>(line, "\t");
+        this->AddColumn(column);
     }
     
     myFile.close();
