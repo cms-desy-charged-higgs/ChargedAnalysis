@@ -10,8 +10,8 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Analysis/include/treereader.h>
 #include <ChargedAnalysis/Analysis/include/plotter.h>
-#include <ChargedAnalysis/Analysis/include/utils.h>
-#include <ChargedAnalysis/Analysis/include/frame.h>
+#include <ChargedAnalysis/Utility/include/parser.h>
+#include <ChargedAnalysis/Utility/include/frame.h>
 
 
 void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const torch::Tensor& SV, const torch::Tensor& tagValue, const bool& isPhiUp, Frame* frame=NULL){
@@ -41,7 +41,7 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
     std::shared_ptr<HTagger> tagger;
 
     if(!frame){
-        tagger = std::make_shared<HTagger>(7, 112, 1, 41, 76, 0.31);
+        tagger = std::make_shared<HTagger>(7, 95, 1, 104, 10, 0.18);
     }
 
     else{
@@ -72,7 +72,7 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
     int nVali = 3000;
     int nTrain = tagValue.size(0) - nVali;
 
-    int batchSize = !frame ? 4056 : eventsInBatches;
+    int batchSize = !frame ? 1024 : eventsInBatches;
     int nEpochs = 1000;
     int nBatches = nTrain % batchSize == 0 ? nTrain/batchSize -1 : std::ceil(nTrain/batchSize);
 
@@ -242,23 +242,24 @@ void Train(const torch::Tensor& charged, const torch::Tensor& neutral, const tor
 
 int main(int argc, char** argv){
     //Parser arguments
-    bool optimize = std::atoi(argv[1]);
+    Parser parser(argc, argv);
+    bool optimize = parser.GetValue<bool>("optimize");
+    int nEvents = parser.GetValue<int>("nEvents");
 
     //File names and channels for training
     std::vector<std::string> sigFiles = {
                             std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_200_100/merged/HPlusAndH_ToWHH_ToL4B_200_100.root",
-                           // std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_300_100/merged/HPlusAndH_ToWHH_ToL4B_300_100.root",
-                          //  std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_400_100/merged/HPlusAndH_ToWHH_ToL4B_400_100.root",
-                           // std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_500_100/merged/HPlusAndH_ToWHH_ToL4B_500_100.root",
-                          //  std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_600_100/merged/HPlusAndH_ToWHH_ToL4B_600_100.root",
+                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_300_100/merged/HPlusAndH_ToWHH_ToL4B_300_100.root",
+                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_400_100/merged/HPlusAndH_ToWHH_ToL4B_400_100.root",
+                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_500_100/merged/HPlusAndH_ToWHH_ToL4B_500_100.root",
+                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_600_100/merged/HPlusAndH_ToWHH_ToL4B_600_100.root",
     };
-
 
     std::vector<std::string> bkgFiles = {
                 std::string(std::getenv("CHDIR")) + "/Skim/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root",                   
     };
     
-    std::vector<std::string> channels = {"mu2j1f", "e2j1f", "mu2f", "e2f"};
+    std::vector<std::string> channels = {"mu2j1fj", "e2j1fj", "mu2fj", "e2fj"};
 
     //Extract data from TTrees with Treereader class
     std::vector<torch::Tensor> chargedTensors;
@@ -273,22 +274,12 @@ int main(int argc, char** argv){
     std::vector<torch::Tensor> tagValues;
 
     for(std::string& channel: channels){
-        int nEvents = !optimize ? 0 : 10000;
-        int nFJ = channel.find("2j1f") != std::string::npos ? 1 : 2;
+        int nFJ = channel.find("2j1fj") != std::string::npos ? 1 : 2;
         int nSig = 0;
 
         for(const std::string& fileName: sigFiles){
-            std::cout << "Readout data from file " << Utils::SplitString(fileName, "/").back() << " and channel " << channel << std::endl;
+            std::cout << "Readout data from file " << Utils::SplitString<std::string>(fileName, "/").back() << " and channel " << channel << std::endl;
 
-            //Get event count of signal and use this also in background
-            if(!optimize){
-                TFile* file = TFile::Open(fileName.c_str());
-                TTree* tree = (TTree*)file->Get(channel.c_str());
-                nEvents = tree->GetEntries();
-
-                delete tree;
-                delete file;
-            }
 
             for(int n = 0; n < nFJ; n++){
                 std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, nEvents, n);
@@ -312,10 +303,10 @@ int main(int argc, char** argv){
         int nTotal = nSig;
 
         for(const std::string& fileName: bkgFiles){
-            std::cout << "Readout data from file " << Utils::SplitString(fileName, "/").back() << " and channel " << channel << std::endl;
+            std::cout << "Readout data from file " << Utils::SplitString<std::string>(fileName, "/").back() << " and channel " << channel << std::endl;
 
             for(int n = 0; n < nFJ; n++){
-                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, 0.5*nSig, n);
+                std::vector<torch::Tensor> input = HTagger::GatherInput(fileName, channel, 0, nSig, n);
                 chargedTensors.push_back(input[0]);
                 neutralTensors.push_back(input[1]);
                 SVTensors.push_back(input[2]);
@@ -365,7 +356,7 @@ int main(int argc, char** argv){
             Train(chargedTensor.index({Up}), neutralTensor.index({Up}), SVTensor.index({Up}), tagValue.index({Up}), true, frame); 
 
             frame->Sort("AUC", false);
-            frame->ToCsv(std::string(std::getenv("CHDIR")) + "/DNN/HyperTuning/htagger.csv");
+            frame->WriteCSV(std::string(std::getenv("CHDIR")) + "/DNN/HyperTuning/htagger.csv");
         }
 
         delete frame;
