@@ -19,11 +19,11 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
 
     //Tagger
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 38, 2, 35, 17, 0.04));
+    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 95, 1, 104, 10, 0.18));
 
-    torch::Tensor chargedTensor = input[0];
-    torch::Tensor neutralTensor = input[1];
-    torch::Tensor SVTensor = input[2];
+    torch::Tensor chargedTensor = input[0].to(device);
+    torch::Tensor neutralTensor = input[1].to(device);
+    torch::Tensor SVTensor = input[2].to(device);
 
     //Loop for PhiUp/PhiDown
     for(int n = 0; n < 2; n++){
