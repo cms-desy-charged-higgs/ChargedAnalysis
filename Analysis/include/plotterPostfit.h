@@ -19,7 +19,7 @@ class PlotterPostfit : public Plotter{
     private:
         std::string limitDir;
         int mass; 
-        std::vector<std::string> channel;
+        std::vector<std::string> channels;
         int max = 0;
 
         std::map<std::string, TH1F*> errorBand;
@@ -30,7 +30,7 @@ class PlotterPostfit : public Plotter{
 
     public:
         PlotterPostfit();
-        PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channel);
+        PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channels);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
 };

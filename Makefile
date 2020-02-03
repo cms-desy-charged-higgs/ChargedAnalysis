@@ -2,7 +2,7 @@
 
 ##Compiler/Linking flags
 CC      = $(CHDIR)/Anaconda3/bin/g++
-CFLAGS  = -std=c++17 -I$(CHDIR) -fPIC -g
+CFLAGS  = -w -std=c++17 -I$(CHDIR) -fPIC -g
 LDFLAGS = -L$(CHDIR)/Anaconda3/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib -L$(CHDIR)/ChargedAnalysis/Utility/lib
 
 ROOTFLAGS_C = $(shell root-config --cflags)
@@ -33,7 +33,7 @@ U_LIBDIR = $(CHDIR)/ChargedAnalysis/Utility/lib
 U_BINDIR = $(CHDIR)/ChargedAnalysis/Utility/bin
 
 ##Target executbales
-BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag $(N_BINDIR)/BDT $(U_BINDIR)/MergeCSV
+BINARIES = $(A_BINDIR)/Plot $(A_BINDIR)/TreeRead $(A_BINDIR)/TreeAppend $(A_BINDIR)/FileSkim $(A_BINDIR)/WriteCard $(A_BINDIR)/Limit $(A_BINDIR)/PlotLimit $(N_BINDIR)/HTag $(N_BINDIR)/BDT $(U_BINDIR)/MergeCSV $(A_BINDIR)/PlotPostfit
 LIBARIES = $(A_LIBDIR)/libPlot.so $(U_LIBDIR)/libUtils.so $(N_LIBDIR)/libML.so $(A_LIBDIR)/libTrees.so
 
 all:
@@ -124,6 +124,18 @@ $(A_OBJDIR)/plotlimit.o: $(A_BINDIR)/plotlimit.cc
     echo "Compiling file $<"
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
 
+########################### Executable for plot postfit ###########################
+
+$(A_BINDIR)/PlotPostfit: $(A_OBJDIR)/plotpostfit.o
+    echo "Create binary $@"
+    $(CC) $(LDFLAGS) $(ROOTFLAGS_LD) $(PYTORCH_LD) -lUtils -lPlot -o $@ $^
+
+$(A_OBJDIR)/plotpostfit.o: $(A_BINDIR)/plotpostfit.cc
+    mkdir -p $(A_OBJDIR)
+
+    echo "Compiling file $<"
+    $(CC) $(CFLAGS) $(ROOTFLAGS_C) $(PYTORCH_C) -o $@ -c $<
+
 ########################### Executable for htagger training ###########################
 
 $(N_BINDIR)/HTag: $(N_OBJDIR)/htag.o
@@ -202,7 +214,7 @@ $(A_OBJDIR)/plot%.o: $(A_SRCDIR)/plot%.cc $(A_HDIR)/plot%.h
     $(CC) $(CFLAGS) $(ROOTFLAGS_C) -o $@ -c $<
 
 ##Machine learning libary
-MLSRC = bdt.cc htagger.cc
+MLSRC = bdt.cc htagger.cc htagdataset.cc
 MLOBJ = $(MLSRC:%.cc=$(N_OBJDIR)/%.o)
 MLH = $(MLSRC:%.cc=$(N_HDIR)/%.h)
 

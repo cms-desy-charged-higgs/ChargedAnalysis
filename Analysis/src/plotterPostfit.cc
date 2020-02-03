@@ -2,15 +2,15 @@
 
 PlotterPostfit::PlotterPostfit() : Plotter(){}
 
-PlotterPostfit::PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channel) : 
+PlotterPostfit::PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channels) : 
     Plotter(),
     limitDir(limitDir),
     mass(mass),
-    channel(channel){
+    channels(channels){
 
     chanToDir = {{"mu4j", "Muon4J"}, {"mu2j1f", "Muon2J1F"}, {"mu2f", "Muon2F"}, {"e4j", "Ele4J"}, {"e2j1f", "Ele2J1F"}, {"e2f", "Ele2F"}};
 
-    for(std::string chan: channel){
+    for(std::string chan: channels){
         backgrounds[chan] = std::vector<TH1F*>();
     }
 
@@ -20,7 +20,7 @@ void PlotterPostfit::ConfigureHists(){
     //Lambda function for sorting Histograms
     std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
 
-    for(std::string chan: channel){
+    for(std::string chan: channels){
         //Open file with Postfit shapes
         TFile* file = TFile::Open((limitDir + "/" + std::to_string(mass) + "/fitshapes.root").c_str());
         TDirectory* dir = (TDirectory*)file->Get((chan + "_postfit").c_str());
@@ -74,14 +74,14 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     TPad* legendpad = new TPad("legendpad", "legendpad", 0.91, 0.25, 1., 0.9);
     TLegend* legend = new TLegend(0.15, 0.2, 0.75, 0.8);
 
-    for(unsigned int i=0; i < channel.size(); i++){    
+    for(unsigned int i=0; i < channels.size(); i++){    
         canvas->cd();
 
         float padStart = i == 0 ? 0.05 - 0.3*(0.85/6.) + 0.85/6.*i: 0.05 + 0.85/6.*i;
         float padEnd= 0.05 + 0.85/6.*(i+1);
         
         //Draw Tpad
-        TPad* pad = new TPad(("pad_" + channel[i]).c_str(), ("pad_" + channel[i]).c_str(), padStart, .2 , padEnd, 1.);
+        TPad* pad = new TPad(("pad_" + channels[i]).c_str(), ("pad_" + channels[i]).c_str(), padStart, .2 , padEnd, 1.);
         TPad* pullpad = new TPad("pullpad", "pullpad", padStart, 0.0 , padEnd, .2);
 
 
@@ -102,9 +102,9 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
         pad->SetLogy(1);
 
         //Fill THStack;
-        THStack* stack = new THStack(("channel_" + channel[i]).c_str(), ("stack_" + channel[i]).c_str());
+        THStack* stack = new THStack(("channel_" + channels[i]).c_str(), ("stack_" + channels[i]).c_str());
 
-        for(TH1F* hist: backgrounds[channel[i]]){      
+        for(TH1F* hist: backgrounds[channels[i]]){      
             if(i==0){      
                 legend->AddEntry(hist, hist->GetName(), "F");
             }
@@ -134,30 +134,30 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
             stack->GetYaxis()->SetAxisColor(0,0);
         }
 
-        if(i+1==channel.size()){
+        if(i+1==channels.size()){
             stack->GetXaxis()->SetTitleSize(0.12);
-            stack->GetXaxis()->SetTitle(signals[channel[i]]->GetXaxis()->GetTitle());
+            stack->GetXaxis()->SetTitle(signals[channels[i]]->GetXaxis()->GetTitle());
             stack->GetXaxis()->SetTitleOffset(0.35);
         }
 
-        errorBand[channel[i]]->Draw("SAME E2"); 
-        signals[channel[i]]->Draw("HIST SAME");
+        errorBand[channels[i]]->Draw("SAME E2"); 
+        signals[channels[i]]->Draw("HIST SAME");
 
         if(i==0){      
-            legend->AddEntry(signals[channel[i]], signals[channel[i]]->GetName(), "L");
-            legend->AddEntry(errorBand[channel[i]], errorBand[channel[i]]->GetName(), "F");
+            legend->AddEntry(signals[channels[i]], signals[channels[i]]->GetName(), "L");
+            legend->AddEntry(errorBand[channels[i]], errorBand[channels[i]]->GetName(), "F");
         }
 
         TLatex* chanHeader = new TLatex();
         chanHeader->SetTextSize(i==0? 0.089 : 0.11);
-        chanHeader->DrawLatexNDC(i ==0? 0.33 : 0.05, 0.87, channelHeader[channel[i]].c_str());
+        chanHeader->DrawLatexNDC(i ==0? 0.33 : 0.05, 0.87, channelHeader[channels[i]].c_str());
 
         canvas->cd();
         pullpad->Draw();
         pullpad->cd();
 
-        TH1F* pullErrorband = (TH1F*)errorBand[channel[i]]->Clone();
-        pullErrorband->Divide(errorBand[channel[i]]);
+        TH1F* pullErrorband = (TH1F*)errorBand[channels[i]]->Clone();
+        pullErrorband->Divide(errorBand[channels[i]]);
 
         pullErrorband->GetXaxis()->SetNdivisions(5);
         pullErrorband->GetYaxis()->SetNdivisions(5);
