@@ -14,59 +14,63 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     //Vector with final score (FatJetIndex/Score per event)
     std::vector<float> tagValues(entryEnd-entryStart, -999.);
 
-    //
-    std::vector<torch::Tensor> input = HTagger::GatherInput(oldFile, oldTree, entryStart, entryEnd, FJindex);
-
     //Tagger
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
     std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 95, 1, 104, 10, 0.18));
 
-    torch::Tensor chargedTensor = input[0].to(device);
-    torch::Tensor neutralTensor = input[1].to(device);
-    torch::Tensor SVTensor = input[2].to(device);
+    torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Model/Even/htagger.pt");
+    torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
 
-    //Loop for PhiUp/PhiDown
-    for(int n = 0; n < 2; n++){
-        torch::Tensor tIndex = n == 0 ? input[3] : input[4];
+    //Get data set
+    HTagDataset data = HTagDataset({oldFile}, {oldTree}, FJindex, device, true);
 
-        //Skip if no events are there
-        if(tIndex.size(0) == 0) continue;
+    //Create dataloader
+    auto loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(data, 2500);
 
-        torch::Tensor charged = chargedTensor.index({tIndex});
-        torch::Tensor neutral = neutralTensor.index({tIndex});
-        torch::Tensor SV = SVTensor.index({tIndex});
+    //Iterator returning batched data
+    torch::data::Iterator<std::vector<HTensor>> batch = loader->begin();
 
-        //Load Model
-        std::string taggerName = n == 0 ? "ForPhiUp.pt" : "ForPhiDown.pt";
+    //For right indexing
+    std::vector<int> evenIndex, oddIndex;
+    int counter = 0;
+    
+    while(batch != loader->end()){
+        //Put signal + background in one vector and split by even or odd numbered event
+        std::vector<HTensor> evenTensors;
+        std::vector<HTensor> oddTensors;
 
-        torch::load(tagger[n], std::string(std::getenv("CHDIR")) + "/DNN/Model/htagger" + taggerName);
-        tagger[n]->to(device);
+        for(int i = 0; i < batch->size(); i++){
+            if((*batch)[i].isEven.item<bool>() == true){
+                evenTensors.push_back((*batch)[i]);
+                evenIndex.push_back(counter);
+            }
 
-        //Do the prediction
-        int batchSize = 1024;
-        int nBatches = tIndex.size(0) % batchSize == 0 ? tIndex.size(0)/batchSize -1 : std::ceil(tIndex.size(0)/batchSize);
+            else{
+                oddTensors.push_back((*batch)[i]);
+                evenIndex.push_back(counter);
+            }
 
-        std::vector<torch::Tensor> predictions;
-
-        for(int i=0; i <= nBatches; i++){
-            torch::NoGradGuard no_grad;
-
-            torch::Tensor prediction = tagger[n]->forward(
-                        charged.narrow(0, batchSize*i, i!=nBatches ? batchSize : tIndex.size(0) - i*batchSize),
-                        neutral.narrow(0, batchSize*i, i!=nBatches ? batchSize : tIndex.size(0) - i*batchSize),
-                        SV.narrow(0, batchSize*i, i!=nBatches ? batchSize : tIndex.size(0) - i*batchSize), 
-                        false);
-
-
-            predictions.push_back(prediction);
+            counter++;
         }
 
-        torch::Tensor allPrediction = torch::cat(predictions, 0);
+        HTensor even = HTagDataset::PadAndMerge(evenTensors);
+        HTensor odd = HTagDataset::PadAndMerge(oddTensors);
+    
+        //Prediction
+        torch::NoGradGuard no_grad;
+        torch::Tensor evenPredict = tagger[1]->forward(even.charged, even.neutral, even.SV, true);
+        torch::Tensor oddPredict = tagger[0]->forward(odd.charged, odd.neutral, odd.SV, true);
 
-        //Fill Up/Down prediction to right position in the event
-        for(int j=0; j < allPrediction.size(0); j++){
-            tagValues[tIndex[j].item<long>()] = allPrediction[j].item<float>();
+        //Put all predictions back in order again
+        for(int j = 0; j < evenPredict.size(0); j++){
+            tagValues[evenIndex[j]] = evenPredict[j].item<float>();
         }
+
+        for(int j = 0; j < oddPredict.size(0); j++){
+            tagValues[oddIndex[j]] = oddPredict[j].item<float>();
+        }
+
+        ++batch;
     }
 
     return tagValues;
