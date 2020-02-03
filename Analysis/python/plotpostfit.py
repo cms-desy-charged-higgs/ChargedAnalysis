@@ -1,25 +1,38 @@
 from task import Task
 
 import os
-import ctypes
 
-from ROOT import PlotterPostfit, string, vector
-
-class PostfitPlot(Task):
+class PlotPostfit(Task):
+    def __init__(self, config = {}):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "PlotLimit"
+        self["executable"] = "PlotPostfit"
 
         self["arguments"] = [
                 "--limit-dir", self["limit-dir"],
                 "--mass", self["mass"],
-                "--channel", self["channel"]
+                "--channels", *self["channels"],
+                "--out-dirs", self["dir"],
         ]
-
-        plotter = PlotterPostfit(self._stdDir["limit-dir"], self._stdDir["mass"], self._stdDir["channel"])
-        plotter.ConfigureHists(vector("string")())
-        plotter.Draw(vector("string")(1, self._stdDir["dir"]))
 
     def output(self):
         self["output"] = self["dir"] + "/postfit_{}.pdf".format(self["mass"])
+
+    @staticmethod
+    def configure(config, mass):
+        tasks = []
+
+        limitConf = {
+                    "name": "Postfitplot_{}".format(mass),
+                    "limit-dir": "{}/{}".format(os.environ["CHDIR"], config["dir"]), 
+                    "dir":  "{}/{}".format(os.environ["CHDIR"], config["dir"]), 
+                    "display-name": "Postfit: {}".format(mass), 
+                    "dependencies": ["Limit_{}".format(mass)],
+                    "channels": config["channels"],
+                    "mass": mass,
+        }
+
+        tasks.append(PlotPostfit(limitConf))
+
+        return tasks

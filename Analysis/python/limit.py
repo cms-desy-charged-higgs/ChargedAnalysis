@@ -22,12 +22,13 @@ class Limit(Task):
     def configure(config, mass, cardTasks):
         tasks = []
 
-        limitConf = {"name": "Limit_{}".format(mass), 
-                    "dir":  "{}/{}".format(os.environ["CHDIR"], config[list(config.keys())[1:][0]]["dir"]), 
+        limitConf = {
+                    "name": "Limit_{}".format(mass), 
+                    "dir":  "{}/{}".format(os.environ["CHDIR"], config["dir"]), 
                     "display-name": "Limit: {}".format(mass), 
-                    "dependencies": [t["name"] for t in cardTasks if str(mass) in t["dir"]],
-                    "channels": list(config.keys())[1:],
-                    "mass": str(mass),
+                    "dependencies": [t["name"] for t in cardTasks if str(mass) in t["name"]],
+                    "channels": config["channels"],
+                    "mass": mass,
         }
 
         tasks.append(Limit(limitConf))
