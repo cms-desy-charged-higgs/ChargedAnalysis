@@ -80,8 +80,13 @@ int Utils::FindInVec(const std::vector<std::string>& vect, const std::string& it
     return position;
 }
 
-int Utils::Ratio(const float& num, const float& dem){
-    return num/dem;
+unsigned int Utils::BitCount(unsigned int num){
+    unsigned int count = 0; 
+    while (num) { 
+        count += num & 1; 
+        num >>= 1; 
+    } 
+    return count; 
 }
 
 TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints){

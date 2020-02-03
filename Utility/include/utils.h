@@ -39,7 +39,7 @@ namespace Utils{
     //Find string in vector
     int FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind);
 
-    int Ratio(const float& num, const float& dem);
+    unsigned int BitCount(unsigned int num);
 
     //Return TGraph with ROC curve
     TGraph* GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints = 200);
