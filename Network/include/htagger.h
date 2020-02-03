@@ -38,9 +38,6 @@ struct HTagger : torch::nn::Module{
         torch::Tensor forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV, const bool& isTraining);
         void Print();
         int GetNWeights();
-
-        static std::vector<torch::Tensor> GatherInput(const std::string& fileName, const std::string& channel, const int& entryStart, const int& entryEnd, const int& FJindex);
-
 };
 
 #endif
