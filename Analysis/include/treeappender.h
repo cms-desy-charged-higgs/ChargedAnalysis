@@ -15,6 +15,7 @@
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Network/include/htagger.h>
+#include <ChargedAnalysis/Network/include/htagdataset.h>
 
 #include <torch/torch.h>
 
