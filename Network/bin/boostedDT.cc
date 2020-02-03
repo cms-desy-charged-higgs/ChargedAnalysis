@@ -28,11 +28,11 @@ int main(int argc, char* argv[]){
 
     //Check if this execute should do hyperparameter optimization or not
     if(optimize){
-        nTrees = std::experimental::randint(200, 2000);
-        minNodeSize = std::experimental::randint(2, 10);
+        nTrees = std::experimental::randint(200, 4000);
+        minNodeSize = std::experimental::randint(2, 20);
         lr = std::experimental::randint(10, 100)/100.;
-        nCuts = std::experimental::randint(20, 50);
-        treeDepth = std::experimental::randint(2, 6);
+        nCuts = std::experimental::randint(5, 100);
+        treeDepth = std::experimental::randint(2, 20);
         dropOut = std::experimental::randint(2, (int)xParameters.size());
     }
 
