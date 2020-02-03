@@ -207,7 +207,7 @@ class TaskManager(object):
                 self.commands.append(task["name"])
                 self.commands.append(" ".join([task["executable"], *[str(s) for s in task["arguments"]]]) + "\n")
 
-            ##Submit condors jobs (Only 500 hundred at one time)
+            ##Submit condors jobs
             dirs = []
 
             for index, task in enumerate(self.condorTask):
@@ -215,9 +215,6 @@ class TaskManager(object):
                     task()
                     dirs.append(task["condor-dir"])
                     task["status"] = "SUBMITTED"
-
-                if index > 499:
-                    break
 
             self.__submitCondor(dirs)
 
