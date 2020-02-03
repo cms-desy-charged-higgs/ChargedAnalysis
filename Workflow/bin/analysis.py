@@ -10,6 +10,7 @@ from fileskim import FileSkim
 from datacard import Datacard
 from limit import Limit
 from plotlimit import PlotLimit
+from plotpostfit import PlotPostfit
 from bdt import BDT
 from merge import MergeCSV
 
@@ -107,30 +108,40 @@ def bdt(config):
             
 def limit(config):
     allTasks = []
+    datacardTasks = []
+    limitTasks = []
+    postfitTasks = []
+
+    for channel in config["channels"]: 
+        histConfig = copy.deepcopy(config)
+
+        histConfig["dir"] = histConfig["dir"].format("")
+        histConfig["x-parameters"]["all"] = [histConfig["x-parameters"]["all"][0].format(mass) for mass in histConfig["masses"]]
+        histConfig["processes"] = histConfig["backgrounds"] + [histConfig["signal"].format(mass) for mass in histConfig["masses"]]
+
+        if histConfig["data"]:
+            histConfig["processes"] += [histConfig["data"]["channel"]]
+
+        treeTasks = TreeRead.configure(histConfig, channel) 
+        haddTasks = HaddPlot.configure(histConfig, treeTasks, channel)
+
+        allTasks.extend(treeTasks+haddTasks)
+
+        for mass in config["masses"]:
+            cardConfig = copy.deepcopy(config)
+            cardConfig["dir"] = cardConfig["dir"].format(mass)
+            cardConfig["discriminant"] = config["x-parameters"]["all"][0].format(mass)
+            cardConfig["signal"] = cardConfig["signal"].format(mass)
+
+            datacardTasks.extend(Datacard.configure(cardConfig, channel, mass, haddTasks))
 
     for mass in config["masses"]:
-        datacardTasks = []
-        haddTasks = []
+        limitConfig = copy.deepcopy(config)
+        limitConfig["dir"] = limitConfig["dir"].format(mass)
+        limitTasks.extend(Limit.configure(limitConfig, mass, datacardTasks))
+        postfitTasks.extend(PlotPostfit.configure(limitConfig, mass))
 
-        tempConf = copy.deepcopy(config)
-
-        for channel in list(config.keys())[1:]:
-            for key in tempConf[channel].keys():
-                if type(tempConf[channel][key]) == str:
-                    tempConf[channel][key] = tempConf[channel][key].replace("@", str(mass))
-
-                elif type(tempConf[channel][key]) == list:
-                    tempConf[channel][key] = [i.replace("@", str(mass)) for i in tempConf[channel][key]]
- 
-            tempConf[channel]["processes"] = tempConf[channel]["backgrounds"] + [tempConf[channel]["signal"]] + [tempConf[channel]["data"]]
-
-            treeTasks = TreeRead.configure(tempConf, channel) 
-            haddTasks.extend(HaddPlot.configure(tempConf, treeTasks, channel))
-            datacardTasks.extend(Datacard.configure(tempConf, channel, mass, haddTasks))
-
-            allTasks.extend(treeTasks)
-        allTasks.extend(haddTasks+datacardTasks+Limit.configure(tempConf, mass, datacardTasks))
-    allTasks.extend(PlotLimit.configure(config))
+    allTasks.extend(datacardTasks+limitTasks+PlotLimit.configure(histConfig)+postfitTasks)
 
     return allTasks
 
