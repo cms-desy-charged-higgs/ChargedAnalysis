@@ -27,10 +27,12 @@ case $1 in
         cd $CHDIR
         ;;
             
-    "StandAlone")
+    "Analysis")
         export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedAnalysis/Utility/python:$CHDIR/ChargedAnalysis/Network/python:$CHDIR/HiggsAnalysis/CombinedLimit/lib/python
         export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/Analysis/bin:$CHDIR/ChargedAnalysis/Workflow/bin:$CHDIR/ChargedAnalysis/Network/bin:$CHDIR/ChargedAnalysis/Utility/bin:$CHDIR/HiggsAnalysis/CombinedLimit/exe:$CHDIR/HiggsAnalysis/CombinedLimit/scripts:$PATH
         export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib:$CHDIR/ChargedAnalysis/Network/lib:$CHDIR/ChargedAnalysis/Utility/lib:$CHDIR/Anaconda3/lib/python3.7/site-packages/torch/lib:$CHDIR/HiggsAnalysis/CombinedLimit/lib:$LD_LIBRARY_PATH
+
+        source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8binutils/x86_64-centos7/setup.sh
 
         alias make="make -j 20"
 
@@ -38,7 +40,7 @@ case $1 in
 
     *)    
         echo "Invalid option: $1"
-        echo "Please use this options: {CMSSW, StandAlone}"
+        echo "Please use this options: {CMSSW, Analysis}"
         return 1
         ;;
 esac
@@ -52,4 +54,4 @@ alias voms="voms-proxy-init --voms cms:/cms/dcms --valid 168:00"
 
 ##CERN stuff
 export CERN_USER="dbrunner"
-alias www="rsync -arvt --exclude '.*' --delete -e ssh $CHDIR/CernWebpage/ $CERN_USER@lxplus.cern.ch:/eos/home-${USER:0:1}/$CERN_USER/www/"
+alias www="rsync -art --exclude '.git*' --delete -e ssh $CHDIR/CernWebpage/ $CERN_USER@lxplus.cern.ch:/eos/home-${USER:0:1}/$CERN_USER/www/"

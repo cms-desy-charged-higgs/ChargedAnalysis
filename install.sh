@@ -6,19 +6,20 @@ export CHDIR=$(pwd)/ChargedHiggs
 cd $CHDIR
 
 ##Install Anaconda
-wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
-chmod +x Anaconda3-2019.07-Linux-x86_64.sh
-./Anaconda3-2019.07-Linux-x86_64.sh -b -p $CHDIR/Anaconda3
-command rm Anaconda3-2019.07-Linux-x86_64.sh
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod +x Miniconda3-latest-Linux-x86_64.sh
+./Miniconda3-latest-Linux-x86_64.sh -b -p $CHDIR/Anaconda3
+command rm Miniconda3-latest-Linux-x86_64.sh
 
 ##Install ROOT, python packages and g++ compiler with conda
 export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
-conda install anaconda -y
 
-conda install -c conda-forge root compilers boost vdt -y
-conda install -c anaconda pytorch-gpu git make -y
-pip install htcondor
+conda install -c conda-forge root boost vdt -y
+conda install -c anaconda git make pytorch-gpu -y
+
+##Source compiler from CERN software package
+source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8binutils/x86_64-centos7/setup.sh
 
 ##Git standalone analysis code and compile everything
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
