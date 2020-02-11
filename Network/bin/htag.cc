@@ -5,16 +5,10 @@
 
 #include <torch/torch.h>
 
-#include <TH1F.h>
-#include <TCanvas.h>
-#include <TGraph.h>
-#include <TLatex.h>
-
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
-#include <ChargedAnalysis/Analysis/include/plotter.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
-#include <ChargedAnalysis/Utility/include/frame.h>
+#include <ChargedAnalysis/Utility/include/utils.h>
 
 void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bkgSet, torch::Device& device, int batchSize, bool trainEven){
     //Create directories
@@ -26,13 +20,16 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
     int nBatches = nSig+nBkg % batchSize == 0 ? (nSig+nBkg)/batchSize -1 : std::ceil((nSig+nBkg)/batchSize);
     float forTest = 0.05;
 
+    float wSig = (nSig+nBkg)/float(nSig);
+    float wBkg = (nSig+nBkg)/float(nBkg);
+
     //Optimizer
-    float lr = 0.0001;
+    float lr = 0.001;
     torch::optim::Adam optimizer(tagger->parameters(), torch::optim::AdamOptions(lr).weight_decay(lr/10.));
 
     //Create dataloader for sig and bkg
-    auto sigLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(sigSet, float(nSig)/(nSig+nBkg)*batchSize);
-    auto bkgLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, float(nBkg)/(nSig+nBkg)*batchSize);
+    auto sigLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(sigSet, 1./wSig*batchSize);
+    auto bkgLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, 1./wBkg*batchSize);
 
     //Initial best loss for later early stopping
     float bestLoss = 1e7;
@@ -68,18 +65,35 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
 
             //Split to train and test data
             std::vector<HTensor> trainData = {batch.begin(), batch.end()-forTest*batchSize};
-            std::vector<HTensor> testData = {batch.end()-forTest*batchSize, batch.end()};
+            std::vector<HTensor> testData = {batch.end()+1-forTest*batchSize, batch.end()};
 
             //Do padding
             HTensor train = HTagDataset::PadAndMerge(trainData);
             HTensor test = HTagDataset::PadAndMerge(testData);
-    
-            //Prediction
-            torch::Tensor predictionTrain = tagger->forward(train.charged, train.neutral, train.SV, true);
-            torch::Tensor lossTrain = torch::binary_cross_entropy(predictionTrain, train.label);
 
-            torch::Tensor predictionTest = tagger->forward(test.charged, test.neutral, test.SV, true);
-            torch::Tensor lossTest = torch::binary_cross_entropy(predictionTest, test.label);
+            //Weight
+            std::vector<float> weightsTrain;
+            std::vector<float> weightsTest;
+            
+            for(int i = 0; i < train.label.size(0); i++){
+                weightsTrain.push_back(train.label[i].item<float>() == 1 ? wSig : wBkg);
+            }
+
+            for(int i = 0; i < test.label.size(0); i++){
+                weightsTest.push_back(test.label[i].item<float>() == 1 ? wSig : wBkg);
+            }
+
+            torch::Tensor weightTrain = torch::from_blob(weightsTrain.data(), {weightsTrain.size()}).clone().to(device);
+            torch::Tensor weightTest = torch::from_blob(weightsTest.data(), {weightsTest.size()}).clone().to(device);
+
+            //Prediction
+            torch::Tensor predictionTrain = tagger->forward(train.charged, train.neutral, train.SV);
+            torch::Tensor lossTrain = torch::binary_cross_entropy(predictionTrain, train.label, weightTrain);
+
+            torch::Tensor predictionTest = tagger->forward(test.charged, test.neutral, test.SV);
+            torch::Tensor lossTest = torch::binary_cross_entropy(predictionTest, test.label, weightTest);
+
+            if(j % 20 == 0) Utils::DrawScore(predictionTrain, train.label, scorePath);
 
             meanTrainLoss = (meanTrainLoss*j + lossTrain.item<float>())/(j+1);
             meanTestLoss = (meanTestLoss*j + lossTest.item<float>())/(j+1);
@@ -98,20 +112,20 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
                                     " | Batch size: " + std::to_string(train.charged.size(0)) +
                                     " | Mean Loss: " + std::to_string(meanTrainLoss).substr(0, 5) +
                                     "/" + std::to_string(meanTestLoss).substr(0, 5) 
-                                    + std::to_string(timer.Time()).substr(0, 4) + " s";
+                                    + " | Time: " + std::to_string(timer.Time()).substr(0, 4) + " s";
 
             Utils::ProgressBar(float(j)/nBatches*100, barString);
         }
 
         //Early stopping
-        if(meanTrainLoss > bestLoss){
-            //Save model
-            tagger->to(torch::kCPU);
-            torch::save(tagger, scorePath + "/htagger.pt");
-            std::cout << "Model was saved: " + scorePath + "/htagger.pt" << std::endl;
-        }
-
+        if(meanTrainLoss > bestLoss) break;
         else bestLoss = meanTrainLoss;
+
+        //Save model
+        tagger->to(torch::kCPU);
+        torch::save(tagger, scorePath + "/htagger.pt");
+        std::cout << "Model was saved: " + scorePath + "/htagger.pt" << std::endl;
+        tagger->to(device);
     }
 }
 
@@ -146,7 +160,7 @@ int main(int argc, char** argv){
     HTagDataset bkgSet = HTagDataset(bkgFiles, channels, 0, device, false);
 
     //Model for Htaggers
-    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 95, 1, 104, 10, 0.18);
+    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06);
     tagger->to(device);
     tagger->Print();
 
