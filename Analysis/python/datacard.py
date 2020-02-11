@@ -7,7 +7,7 @@ class Datacard(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "WriteCard"
+        self["executable"] = "writecard"
 
         self["arguments"] = [
                 "--backgrounds", *self["backgrounds"],

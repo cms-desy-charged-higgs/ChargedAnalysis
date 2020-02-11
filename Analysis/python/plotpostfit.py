@@ -7,7 +7,7 @@ class PlotPostfit(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "PlotPostfit"
+        self["executable"] = "plotpostfit"
 
         self["arguments"] = [
                 "--limit-dir", self["limit-dir"],

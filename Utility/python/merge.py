@@ -7,7 +7,7 @@ class MergeCSV(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "MergeCSV"
+        self["executable"] = "mergeCSV"
 
         self["arguments"] = [
                 "--labels", *self["labels"],

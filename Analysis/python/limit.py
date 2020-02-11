@@ -7,7 +7,7 @@ class Limit(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "Limit"
+        self["executable"] = "limit"
 
         self["arguments"] = [
                 "--mass", self["mass"],

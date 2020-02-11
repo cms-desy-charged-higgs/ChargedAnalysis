@@ -7,7 +7,7 @@ class PlotLimit(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "PlotLimit"
+        self["executable"] = "plotlimit"
 
         self["arguments"] = [
                 "--masses", *self["masses"],

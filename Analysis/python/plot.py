@@ -10,7 +10,7 @@ class Plot(Task):
             self["y-parameter"] = []
 
     def run(self):
-        self["executable"] = "Plot"
+        self["executable"] = "plot"
 
         self["arguments"] = [
                 "--hist-dir", self["hist-dir"], 

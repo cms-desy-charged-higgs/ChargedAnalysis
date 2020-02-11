@@ -9,7 +9,7 @@ class TreeAppend(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "TreeAppend"
+        self["executable"] = "treeappend"
 
         self["arguments"] = [
                 "--old-file", self["input-file"], 

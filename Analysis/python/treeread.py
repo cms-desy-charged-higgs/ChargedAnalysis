@@ -3,14 +3,13 @@ import utils
 
 import os
 import yaml
-import numpy as np
 
 class TreeRead(Task):
     def __init__(self, config = {}):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "TreeRead"
+        self["executable"] = "treeread"
 
         self["arguments"] = [
                 "--process", self["process"], 
@@ -29,8 +28,6 @@ class TreeRead(Task):
 
     @staticmethod
     def configure(config, channel, prefix=""):
-        nEvents = config["number-events"]
-
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
@@ -42,7 +39,7 @@ class TreeRead(Task):
             filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = f) for f in processDic[process]]
 
             for filename in filenames:
-                intervals = utils.SplitEventRange(filename, channel, nEvents)
+                intervals = utils.SplitEventRange(filename, channel, config["number-events"])
 
                 for interval in intervals:
                     ##Configuration for treeread Task

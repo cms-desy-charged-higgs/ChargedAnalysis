@@ -8,7 +8,7 @@ class FileSkim(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "FileSkim"
+        self["executable"] = "fileskim"
 
         self["arguments"] = [
                 "--old-file", self["input-file"], 

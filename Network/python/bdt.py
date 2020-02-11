@@ -7,7 +7,7 @@ class BDT(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "BDT"
+        self["executable"] = "boostedDT"
 
         self["arguments"] = [
                 "--sep-type", self["sep-type"],

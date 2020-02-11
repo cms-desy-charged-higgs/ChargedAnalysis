@@ -1,18 +1,6 @@
 import numpy as np
 from ROOT import TFile, TTree
 
-def ChannelToDir(channel):
-    chanToDir = {
-            "mu4j": "Muon4J", 
-            "e4j": "Ele4J", 
-            "mu2j1fj": "Muon2J1FJ", 
-            "e2j1fj": "Ele2J1FJ", 
-            "mu2fj": "Muon2FJ", 
-            "e2fj": "Ele2FJ"
-    }
-
-    return chanToDir[channel]
-
 def SplitEventRange(fileName, channel, nEvents):
     rootFile = TFile.Open(fileName)
     rootTree = rootFile.Get(channel)
