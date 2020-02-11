@@ -11,7 +11,13 @@
 #include <map>
 
 #include <TGraph.h>
+#include <TH1F.h>
+#include <TCanvas.h>
+#include <TLatex.h>
+
 #include <torch/torch.h>
+
+#include <ChargedAnalysis/Analysis/include/plotter.h>
 
 namespace Utils{
     //Function for splitting string delimited by white space
@@ -43,6 +49,7 @@ namespace Utils{
 
     //Return TGraph with ROC curve
     TGraph* GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints = 200);
+    void DrawScore(const torch::Tensor pred, const torch::Tensor truth, const std::string& scorePath);
 };
 
 #endif

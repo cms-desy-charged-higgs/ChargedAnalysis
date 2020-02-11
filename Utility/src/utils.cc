@@ -124,3 +124,45 @@ TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, cons
 
     return ROC;
 }
+
+void Utils::DrawScore(const torch::Tensor pred, const torch::Tensor truth, const std::string& scorePath){
+    TCanvas* canvas = new TCanvas("canvas", "canvas", 1000, 800);
+    canvas->Draw();
+
+    TH1F* higgsHist = new TH1F("Higgs", "Higgs", 30, 0, 1);
+    higgsHist->SetLineColor(kBlue+1);
+    higgsHist->SetFillStyle(3335);
+    higgsHist->SetFillColor(kBlue);
+    higgsHist->SetLineWidth(4);
+
+    TH1F* topHist = new TH1F("Top", "Top", 30, 0, 1);
+    topHist->SetLineColor(kRed+1);
+    topHist->SetFillStyle(3353);
+    topHist->SetFillColor(kRed);
+    topHist->SetLineWidth(4);
+
+    TGraph* ROC;
+    TLatex* rocText;
+    
+    Plotter::SetPad(canvas);
+    Plotter::SetStyle();
+    Plotter::SetHist(topHist);
+
+    for(unsigned int k=0; k < pred.size(0); k++){
+        if(truth[k].item<float>() == 0){
+            topHist->Fill(pred[k].item<float>());
+        }
+
+        else{
+            higgsHist->Fill(pred[k].item<float>());
+        }
+    }
+
+    topHist->DrawNormalized("HIST");
+    higgsHist->DrawNormalized("HIST SAME");
+    Plotter::DrawHeader(false, "All channel", "Work in Progress");
+
+    canvas->SaveAs((scorePath + "/score.pdf").c_str());
+
+    delete canvas; delete topHist; delete higgsHist;
+}
