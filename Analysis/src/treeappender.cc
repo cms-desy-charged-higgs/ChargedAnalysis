@@ -16,61 +16,72 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
 
     //Tagger
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 95, 1, 104, 10, 0.18));
+    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06));
 
     torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Model/Even/htagger.pt");
     torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
 
+    tagger[0]->to(device);
+    tagger[1]->to(device);
+
     //Get data set
     HTagDataset data = HTagDataset({oldFile}, {oldTree}, FJindex, device, true);
+    std::vector<int> entries;
 
-    //Create dataloader
-    auto loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(data, 2500);
-
-    //Iterator returning batched data
-    torch::data::Iterator<std::vector<HTensor>> batch = loader->begin();
+    for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
+    std::vector<int>::iterator entry = entries.begin();
+    int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
 
     //For right indexing
     std::vector<int> evenIndex, oddIndex;
     int counter = 0;
     
-    while(batch != loader->end()){
+    while(entry != entries.end()){
         //Put signal + background in one vector and split by even or odd numbered event
         std::vector<HTensor> evenTensors;
         std::vector<HTensor> oddTensors;
 
-        for(int i = 0; i < batch->size(); i++){
-            if((*batch)[i].isEven.item<bool>() == true){
-                evenTensors.push_back((*batch)[i]);
+        for(int i = 0; i < batchSize; i++){
+            HTensor tensor = data.get(*entry);
+
+            if(tensor.isEven.item<bool>() == true){
+                evenTensors.push_back(tensor);
                 evenIndex.push_back(counter);
             }
 
             else{
-                oddTensors.push_back((*batch)[i]);
-                evenIndex.push_back(counter);
+                oddTensors.push_back(tensor);
+                oddIndex.push_back(counter);
             }
 
             counter++;
+            ++entry;
+            if(entry == entries.end()) break; 
         }
 
-        HTensor even = HTagDataset::PadAndMerge(evenTensors);
-        HTensor odd = HTagDataset::PadAndMerge(oddTensors);
-    
         //Prediction
         torch::NoGradGuard no_grad;
-        torch::Tensor evenPredict = tagger[1]->forward(even.charged, even.neutral, even.SV, true);
-        torch::Tensor oddPredict = tagger[0]->forward(odd.charged, odd.neutral, odd.SV, true);
+        HTensor even, odd; 
+        torch::Tensor evenPredict, oddPredict;        
+
+        if(evenTensors.size() != 0){    
+            even = HTagDataset::PadAndMerge(evenTensors);
+            evenPredict = tagger[1]->forward(even.charged, even.neutral, even.SV);
+        }  
+
+        if(oddTensors.size() != 0){    
+            odd = HTagDataset::PadAndMerge(oddTensors);
+            oddPredict = tagger[0]->forward(odd.charged, odd.neutral, odd.SV);
+        }     
 
         //Put all predictions back in order again
-        for(int j = 0; j < evenPredict.size(0); j++){
+        for(int j = 0; j < evenTensors.size(); j++){
             tagValues[evenIndex[j]] = evenPredict[j].item<float>();
         }
 
-        for(int j = 0; j < oddPredict.size(0); j++){
+        for(int j = 0; j < oddTensors.size(); j++){
             tagValues[oddIndex[j]] = oddPredict[j].item<float>();
         }
-
-        ++batch;
     }
 
     return tagValues;
@@ -128,6 +139,8 @@ void TreeAppender::Append(){
 
     newF->cd();
     newT->Write();
+
+    std::cout << "Sucessfully append branches " << branchNames << " in tree " << oldTree << " from range " << entryStart << " to " << entryEnd << " in file " << newFile << std::endl;    
     
     delete newT;
     delete newF;
