@@ -52,7 +52,7 @@ int HTagger::GetNWeights(){
     return nWeights;
 }
 
-torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV, const bool& isTraining){
+torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV){
     //Check device
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
 
@@ -84,12 +84,10 @@ torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNe
 
     //Convolution layer
     z = convLayer->forward(z);
-    z = torch::dropout(z, dropOut, isTraining);
     z = torch::relu(z).view({-1, z.size(1)*z.size(2)});
 
     //Output layer
     z = outLayer->forward(z);
-    z = torch::dropout(z, dropOut, isTraining);
     z = torch::sigmoid(z);
 
     return z;
