@@ -52,12 +52,12 @@ def taskReturner(taskName, **kwargs):
 def append(config):
     allTasks = []
 
-    for channel, conf in config.items():
+    for channel in config["channels"]:
         appendTasks = TreeAppend.configure(config, channel)
 
         allTasks.extend(appendTasks)
 
-    allTasks.extend(FileSkim.configure(allTasks, list(config.keys())))
+    allTasks.extend(FileSkim.configure(allTasks, config["channels"]))
     allTasks.extend(HaddAppend.configure(allTasks))
 
     return allTasks

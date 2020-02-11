@@ -1,4 +1,5 @@
 from task import Task
+import utils
 
 import os
 
@@ -12,7 +13,7 @@ class FileSkim(Task):
         self["arguments"] = [
                 "--old-file", self["input-file"], 
                 "--new-file", self["output"],
-                "--skip-objs", *self["exclude"],
+                "--skip-objs", *self["exclude"]
         ]
 
     def output(self):
@@ -25,13 +26,15 @@ class FileSkim(Task):
         fileNames = list(set([task["input-file"] for task in appendTask]))
 
         for fileName in fileNames:
-            config = {"name": "FileSkim_{}".format(fileName.split("/")[-1][:-5]), 
-                        "dir": os.environ["CHDIR"] + "/Tmp/FileSkim", 
-                        "input-file": fileName,
-                        "exclude": channels,
-                        "display-name": "FileSkim: {}".format(fileName.split("/")[-1][:-5])
+            task = {
+                    "name": "FileSkim_{}".format(fileName.split("/")[-1][:-5]), 
+                    "dir": os.environ["CHDIR"] + "/Tmp/FileSkim", 
+                    "input-file": fileName,
+                    "exclude": channels,
+                    "display-name": "FileSkim: {}".format(fileName.split("/")[-1][:-5])
             }
 
-            tasks.append(FileSkim(config))
+            tasks.append(FileSkim(task))
+
         return tasks
 
