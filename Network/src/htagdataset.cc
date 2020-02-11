@@ -17,16 +17,10 @@ HTagDataset::HTagDataset(const std::vector<std::string>& files, const std::vecto
     chain->LoadTree(0);
 
     //Variables names and vectors to set branch address to
-    std::vector<std::string> particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
+    particleVariables = {"E", "Px", "Py", "Pz", "Vx", "Vy", "Vz", "Charge", "FatJetIdx"};
 
     particleVec = std::vector<std::vector<float>*>(particleVariables.size(), NULL);
     secVtxVec = std::vector<std::vector<float>*>(particleVariables.size(), NULL);
-
-    //Set all addresses
-    for(unsigned int idx=0; idx < particleVariables.size(); idx++){
-        chain->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
-        chain->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
-    }
 }
 
 HTagDataset::~HTagDataset(){}
@@ -36,6 +30,12 @@ torch::optional<size_t> HTagDataset::size() const {
 }
         
 HTensor HTagDataset::get(size_t index){
+    //Set all addresses
+    for(unsigned int idx=0; idx < particleVec.size(); idx++){
+        chain->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
+        chain->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
+    }
+
     chain->SetBranchAddress("Misc_eventNumber", &eventNumber);
     chain->GetEntry(index);
 
@@ -67,7 +67,7 @@ HTensor HTagDataset::get(size_t index){
     //Do padding if no SV is there
     if(SV.empty()) SV = std::vector<float>(7, 0);
 
-    bool isEven = Utils::BitCount(int(eventNumber)) % 2 == 0;
+    int isEven = Utils::BitCount(int(eventNumber)) % 2 == 0;
 
     torch::Tensor chargedTensor = torch::from_blob(chargedParticles.data(), {1, chargedParticles.size()/7., 7}).clone().to(device); 
     torch::Tensor neutralTensor = torch::from_blob(neutralParticles.data(), {1, neutralParticles.size()/7., 7}).clone().to(device); 
@@ -78,6 +78,7 @@ HTensor HTagDataset::get(size_t index){
 
 HTensor HTagDataset::PadAndMerge(std::vector<HTensor>& tensors){
     int charMax = 0; int neutralMax = 0; int SVMax = 0;
+    std::vector<torch::Tensor> charged, neutral, SV, label, isEven; 
 
     for(HTensor& tensor: tensors){
         if(tensor.charged.size(1) > charMax) charMax = tensor.charged.size(1);
@@ -86,12 +87,26 @@ HTensor HTagDataset::PadAndMerge(std::vector<HTensor>& tensors){
     }
 
     for(HTensor& tensor: tensors){
-        tensor.charged = torch::constant_pad_nd(tensor.charged, {0,0, 0, charMax - tensor.charged.size(1)}, 0);
-        tensor.neutral = torch::constant_pad_nd(tensor.neutral, {0,0, 0, neutralMax - tensor.neutral.size(1)}, 0);
-        tensor.SV = torch::constant_pad_nd(tensor.SV, {0,0, 0, SVMax - tensor.SV.size(1)}, 0);
+        if(tensor.charged.size(1) < charMax){
+            tensor.charged = torch::constant_pad_nd(tensor.charged, {0,0, 0, charMax - tensor.charged.size(1)}, 0);
+        }
+        charged.push_back(tensor.charged);
+
+        if(tensor.neutral.size(1) < neutralMax){
+            tensor.neutral = torch::constant_pad_nd(tensor.neutral, {0,0, 0, neutralMax - tensor.neutral.size(1)}, 0);
+        }
+        neutral.push_back(tensor.neutral);
+
+        if(tensor.SV.size(1) < SVMax){
+            tensor.SV = torch::constant_pad_nd(tensor.SV, {0,0, 0, SVMax - tensor.SV.size(1)}, 0);
+        }
+        SV.push_back(tensor.SV);
+        label.push_back(tensor.label);
+        isEven.push_back(tensor.isEven);
     }
 
-    return HTensor::Merge(tensors);
+
+    return {torch::cat(charged, 0), torch::cat(neutral, 0), torch::cat(SV, 0), torch::cat(label, 0), torch::cat(isEven, 0)};
 }
 
 void HTagDataset::clear(){delete chain;}
