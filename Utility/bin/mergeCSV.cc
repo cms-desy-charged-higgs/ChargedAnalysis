@@ -1,4 +1,4 @@
-#include <experimental/filesystem>
+#include <filesystem>
 
 #include <ChargedAnalysis/Utility/include/parser.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
@@ -14,12 +14,12 @@ int main(int argc, char* argv[]){
 
     Frame frame(labels);
 
-    for (const std::experimental::filesystem::directory_entry& entry : std::experimental::filesystem::directory_iterator(dir)){
+    for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(dir)){
         frame.ReadCSV(entry.path());
 
         std::cout << "Read file: " << entry.path() << std::endl;
 
-        std::experimental::filesystem::remove(entry.path());
+        std::filesystem::remove(entry.path());
     }
 
     frame.Sort(sort, false);
