@@ -20,8 +20,15 @@ EXESRC=$(shell ls --color=never $(CHDIR)/ChargedAnalysis/*/bin/* | grep cc)
 EXE=$(EXESRC:%.cc=%)
 
 all:
+    @+make --quiet makedir
     @+make --quiet $(SO)
     @+make --quiet $(EXE)
+
+makedir:
+    for DIR in Analysis Network Utility; do \
+        mkdir -p $(CHDIR)/ChargedAnalysis/$$DIR/obj; \
+        mkdir -p $(CHDIR)/ChargedAnalysis/$$DIR/lib; \
+    done    
 
 #### Compile all executables ####
 #### Compile all executables ####
@@ -80,7 +87,7 @@ $(CHDIR)/ChargedAnalysis/Network/obj/%.o: $(CHDIR)/ChargedAnalysis/Network/*/%.c
 
 ##Clean function
 clean:
-    @rm -rf $(CHDIR)/ChargedAnalysis/*/obj/*.o
-    @rm -rf $(CHDIR)/ChargedAnalysis/*/lib/*.so
+    @rm -rf $(CHDIR)/ChargedAnalysis/*/obj
+    @rm -rf $(CHDIR)/ChargedAnalysis/*/lib
     @rm -rf $(EXE)
     @echo "All object files, shared libraries and executables are deleted"
