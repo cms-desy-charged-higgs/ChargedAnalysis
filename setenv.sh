@@ -32,7 +32,7 @@ case $1 in
         export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/Analysis/bin:$CHDIR/ChargedAnalysis/Workflow/bin:$CHDIR/ChargedAnalysis/Network/bin:$CHDIR/ChargedAnalysis/Utility/bin:$CHDIR/HiggsAnalysis/CombinedLimit/exe:$CHDIR/HiggsAnalysis/CombinedLimit/scripts:$PATH
         export LD_LIBRARY_PATH=$CHDIR/Anaconda3/lib:$CHDIR/ChargedAnalysis/Analysis/lib:$CHDIR/ChargedAnalysis/Network/lib:$CHDIR/ChargedAnalysis/Utility/lib:$CHDIR/Anaconda3/lib/python3.7/site-packages/torch/lib:$CHDIR/HiggsAnalysis/CombinedLimit/lib:$LD_LIBRARY_PATH
 
-        source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8binutils/x86_64-centos7/setup.sh
+        source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
 
         alias make="make -j 20"
 

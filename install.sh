@@ -16,10 +16,10 @@ export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
 
 conda install -c conda-forge root boost vdt -y
-conda install -c anaconda git make pytorch-gpu -y
+conda install -c anaconda git make pytorch-gpu pyyaml -y
 
 ##Source compiler from CERN software package
-source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8binutils/x86_64-centos7/setup.sh
+source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
 
 ##Git standalone analysis code and compile everything
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
