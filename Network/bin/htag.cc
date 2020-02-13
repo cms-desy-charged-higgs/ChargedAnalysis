@@ -42,7 +42,7 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
         torch::data::Iterator<std::vector<HTensor>> signal = sigLoader->begin();
         torch::data::Iterator<std::vector<HTensor>> background = bkgLoader->begin();
     
-        float meanTrainLoss, meanTestLoss;
+        float meanTrainLoss=0., meanTestLoss=0.;
 
         for(int j=0; j <= nBatches; j++){
             //Set gradients to zero
@@ -160,8 +160,7 @@ int main(int argc, char** argv){
     HTagDataset bkgSet = HTagDataset(bkgFiles, channels, 0, device, false);
 
     //Model for Htaggers
-    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06);
-    tagger->to(device);
+    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06, device);
     tagger->Print();
 
     Train(tagger, sigSet, bkgSet, device, batchSize, trainEven);
