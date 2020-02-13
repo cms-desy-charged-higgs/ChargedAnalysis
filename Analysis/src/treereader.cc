@@ -13,7 +13,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
     channel(channel){
 
     //Maps of all strings/enumeration
-    strToOp = {{">", BIGGER}, {">=", EQBIGGER}, {"==", EQUAL}, {"<=", EQSMALLER}, {"<", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
+    strToOp = {{"b", BIGGER}, {"beq", EQBIGGER}, {"==", EQUAL}, {"seq", EQSMALLER}, {"s", SMALLER},  {"%", DIVISIBLE}, {"%!", NOTDIVISIBLE}};
     strToPart = {{"e", ELECTRON}, {"mu", MUON}, {"j", JET}, {"sj", SUBJET}, {"bsj", BSUBJET}, {"bj", BJET}, {"fj", FATJET}, {"bfj", BFATJET}, {"h1j", H1JET}, {"h2j", H2JET}, {"met", MET}, {"W", W}, {"Hc", HC}, {"genHc", GENHC}, {"h", h}, {"genh", GENH}};
     partLabel = {{ELECTRON, "e_{@}"}, {MUON, "#mu_{@}"}, {JET, "j_{@}"}, {SUBJET, "j^{sub}_{@}"}, {FATJET, "j_{@}^{AK8}"}, {BJET, "b-tagged j_{@}"}, {H1JET, "j^{h_{1}}_{@}"}, {H2JET, "j^{h_{2}}_{@}"}, {MET, "#vec{p}^{miss}_{T}"}, {W, "W^{#pm}"}, {HC, "H^{#pm}"}, {GENHC, "H^{#pm}_{gen}"}, {h, "h_{@}"}, {GENH, "h_{@}^{gen}"}};
     nPartLabel = {{ELECTRON, "electrons"}, {MUON, "muons"}, {JET, "jets"}, {FATJET, "fat jets"}, {BJET, "b-tagged jets"}, {BFATJET, "b-tagged fat jets"}, {SUBJET, "sub jets"}, {BSUBJET, "b-tagged sub jets"}, {h, "Higgs"}};
@@ -62,7 +62,7 @@ TreeReader::TreeReader(const std::string &process, const std::vector<std::string
                 {DR, {30., 0., 6.}},
                 {HT, {30., 0., 500.}},
                 {NPART, {6., 0., 6.}},
-                {BDTSCORE, {4., -0.4, 0.4}},
+                {BDTSCORE, {30., -0.4, 0.4}},
                 {CONSTNUM, {3., 0., 2.}},
                 {NSIGPART, {5., 0., 5.}},
                 {SUBTINESS, {30., 0., 0.4}},
@@ -318,7 +318,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     gROOT->SetBatch(kTRUE);
     gPrintViaErrorHandler = kTRUE;  
     gErrorIgnoreLevel = kWarning;
-
+ 
     //Input ROOT TTree
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
     TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
