@@ -15,14 +15,11 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     std::vector<float> tagValues(entryEnd-entryStart, -999.);
 
     //Tagger
-    torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06));
+    torch::Device device(torch::kCPU);
+    std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06, device));
 
     torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Model/Even/htagger.pt");
     torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
-
-    tagger[0]->to(device);
-    tagger[1]->to(device);
 
     //Get data set
     HTagDataset data = HTagDataset({oldFile}, {oldTree}, FJindex, device, true);
@@ -31,12 +28,12 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
     std::vector<int>::iterator entry = entries.begin();
     int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
-
-    //For right indexing
-    std::vector<int> evenIndex, oddIndex;
     int counter = 0;
     
     while(entry != entries.end()){
+        //For right indexing
+        std::vector<int> evenIndex, oddIndex;
+
         //Put signal + background in one vector and split by even or odd numbered event
         std::vector<HTensor> evenTensors;
         std::vector<HTensor> oddTensors;
@@ -107,10 +104,6 @@ void TreeAppender::Append(){
     for(int i = entryStart; i < entryEnd; i++){
         oldT->GetEntry(i);
         newT->Fill();
-    }
-
-    if(false){
-        return;
     }
 
     delete oldT;
