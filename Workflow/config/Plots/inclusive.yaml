@@ -1,10 +1,14 @@
 channels:
     - mu4j
     - e4j
+    - mu2j1fj
+    - e2j1fj
+    - mu2fj
+    - e2fj
 
 dir: Inclusive
 
-run-mode: Local
+run-mode: Condor
 
 number-events: 300000
 
@@ -25,11 +29,26 @@ data:
     e4j: 
         - SingleE
 
+    mu2j1fj: 
+        - SingleMu
+    e2j1fj: 
+        - SingleE
+
+    mu2fj: 
+        - SingleMu
+    e2fj: 
+        - SingleE
+
 x-parameters:
     all:
         - pt_met
         - phi_met
         - N_j
+
+    mu4j:
+        - pt_mu1
+        - phi_mu1
+        - eta_mu1
         - pt_j1
         - phi_j1
         - eta_j1
@@ -37,23 +56,90 @@ x-parameters:
         - phi_j2
         - eta_j2
 
-    mu4j:
-        - pt_mu1
-        - phi_mu1
-        - eta_mu1
-
     e4j:
         - pt_e1
         - phi_e1
         - eta_e1
-    
+        - pt_j1
+        - phi_j1
+        - eta_j1
+        - pt_j2
+        - phi_j2
+        - eta_j2
+
+    e2j1fj:
+        - pt_e1
+        - phi_e1
+        - eta_e1
+        - pt_j1
+        - phi_j1
+        - eta_j1
+        - pt_j2
+        - phi_j2
+        - eta_j2
+        - pt_fj1
+        - phi_fj1
+        - eta_fj1
+
+    mu2j1fj:
+        - pt_mu1
+        - phi_mu1
+        - eta_mu1
+        - pt_j1
+        - phi_j1
+        - eta_j1
+        - pt_j2
+        - phi_j2
+        - eta_j2
+        - pt_fj1
+        - phi_fj1
+        - eta_fj1
+
+    e2fj:
+        - pt_e1
+        - phi_e1
+        - eta_e1
+        - pt_fj1
+        - phi_fj1
+        - eta_fj1
+        - pt_fj2
+        - phi_fj2
+        - eta_fj2
+
+
+    mu2fj:
+        - pt_fj1
+        - phi_fj1
+        - eta_fj1
+        - pt_fj2
+        - phi_fj2
+        - eta_fj2
+ 
 cuts:
     mu4j:
         - N_0_mu_==_1
         - N_1_e_==_0
-        - N_j_\>=_4
+        - N_j_beq_4
 
     e4j:
         - N_1_e_==_1
         - N_0_mu_==_0
-        - N_j_\>=_4
+        - N_j_beq_4
+
+    mu2j1fj:
+        - N_0_mu_==_1
+        - N_1_e_==_0
+        - N_j_beq_2
+
+    e2j1fj:
+        - N_1_e_==_1
+        - N_0_mu_==_0
+        - N_j_beq_2
+
+    mu2fj:
+        - N_0_mu_==_1
+        - N_1_e_==_0
+
+    e2fj:
+        - N_1_e_==_1
+        - N_0_mu_==_0
