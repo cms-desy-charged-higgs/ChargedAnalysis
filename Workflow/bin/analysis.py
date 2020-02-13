@@ -71,7 +71,7 @@ def bdt(config):
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
             bkgConfig["x-parameters"]["all"].extend(["const_{}".format(m) for m in bkgConfig["masses"]])
-            bkgConfig["cuts"]["all"].append("evNr_{}_2".format(operator))
+            bkgConfig["cuts"].setdefault("all", []).append("evNr_{}_2".format(operator))
             bkgConfig["dir"] = bkgConfig["dir"].format(evType)
 
             treeTasks = TreeRead.configure(bkgConfig, channel, prefix=evType)
@@ -83,7 +83,7 @@ def bdt(config):
 
                 sigConfig["processes"] = [config["signal"].format(mass)]
                 sigConfig["x-parameters"]["all"].append("const_{}".format(mass))
-                sigConfig["cuts"]["all"].append("evNr_{}_2".format(operator))
+                sigConfig["cuts"].setdefault("all", []).append("evNr_{}_2".format(operator))
                 sigConfig["dir"] = sigConfig["dir"].format(evType)
 
                 treeTasks = TreeRead.configure(sigConfig, channel, prefix=evType)
