@@ -86,17 +86,8 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
 
             gROOT->cd();
          
-            if(sigTree->GetEntries() < bkgTree->GetEntries()){
-                TTree* bkgTreeSlimmed = bkgTree->CloneTree(sigTree->GetEntries());
-                loader->AddBackgroundTree(bkgTreeSlimmed);
-                trees.push_back(bkgTreeSlimmed);
-                nBkg+=bkgTreeSlimmed->GetEntries();
-            }
-         
-            else{
-                loader->AddBackgroundTree(bkgTree);
-                nBkg+=bkgTree->GetEntries();
-            }
+            loader->AddBackgroundTree(bkgTree);
+            nBkg+=bkgTree->GetEntries();
 
             files.push_back(bkgFile);
             trees.push_back(bkgTree);
