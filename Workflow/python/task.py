@@ -57,7 +57,7 @@ class Task(ABC, dict):
         fileContent = [
                         "#!/bin/bash\n", 
                         "cd $CHDIR\n",
-                        "source ChargedAnalysis/setenv.sh StandAlone\n",
+                        "source ChargedAnalysis/setenv.sh Analysis\n",
                         " ".join([self["executable"], *[str(s) for s in self["arguments"]]])
         ]
 
