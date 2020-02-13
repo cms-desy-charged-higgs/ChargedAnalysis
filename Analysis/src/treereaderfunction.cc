@@ -34,7 +34,7 @@ float TreeReader::ConstantNumber(Event &event, Hist &hist){
 }
 
 float TreeReader::EventNumber(Event &event, Hist &hist){
-    return event.eventNumber;
+    return Utils::BitCount(int(event.eventNumber));
 }
 
 float TreeReader::Subtiness(Event &event, Hist &hist){
@@ -87,7 +87,7 @@ float TreeReader::NParticle(Event &event, Hist &hist){
 
     if(hist.parts[0] == ELECTRON or hist.parts[0] == MUON){
         for(const RecoParticle &part: event.particles[hist.parts[0]]){
-            if(ID(WP, part, false) && part.isTriggerMatched && part.LV.Pt() > 35.){
+            if(ID(WP, part, false) && part.LV.Pt() > 35.){
                 nPart++;
 
                 event.weight *= SF(WP, part);
