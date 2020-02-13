@@ -1,11 +1,10 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 
-HTagger::HTagger(){}
-
-HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const int& nConvFilter, const int& kernelSize, const float& dropOut):
+HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const int& nConvFilter, const int& kernelSize, const float& dropOut, torch::Device& device):
     nLSTM(nLSTM),
     nHidden(nHidden),
-    dropOut(dropOut)
+    dropOut(dropOut),
+    device(device)
     {
 
     //String for model summary
@@ -27,12 +26,16 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
     convLayer = register_module("Conv layer 1", torch::nn::Conv1d(3, nConvFilter, kernelSize));
     convLayer->pretty_print(modelSummary); modelSummary << "\n";
 
+
     //Output layer
     int outConv = nHidden + 2 - kernelSize -1;
     outLayer = register_module("Output layer", torch::nn::Linear(nConvFilter*outConv, 1));
     outLayer->pretty_print(modelSummary); modelSummary << "\n";
 
     modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";  
+
+    //Send model to device
+    this->to(device);
 }
 
 void HTagger::Print(){
@@ -53,9 +56,6 @@ int HTagger::GetNWeights(){
 }
 
 torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV){
-    //Check device
-    torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-
     //Pack into pytorch class so LSTM skipped padded values
     torch::Tensor chargedSeq = ((inputCharged.narrow(2, 0, 1) != 0).sum(1) - 1).squeeze(1);
     torch::Tensor neutralSeq = ((inputNeutral.narrow(2, 0, 1) != 0).sum(1) - 1).squeeze(1);
