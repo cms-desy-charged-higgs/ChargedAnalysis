@@ -24,6 +24,9 @@ namespace Utils{
     template <typename T>
     std::vector<T> SplitString(const std::string& splitString, const std::string& delimeter);
 
+    //Joins vector of strings together
+    std::string Join(const std::string& delimeter, const std::vector<std::string> strings);
+
     //Function for displaying progress
     void ProgressBar(const int& progress, const std::string& process);
 

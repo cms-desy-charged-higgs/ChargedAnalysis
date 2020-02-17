@@ -41,6 +41,19 @@ template std::vector<std::string> Utils::SplitString(const std::string& splitStr
 template std::vector<int> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
 template std::vector<float> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
 
+
+std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
+    std::string out;
+
+    for(std::vector<std::string>::const_iterator it = strings.begin(); it != strings.end(); ++it){
+        out += *it;
+
+        if(it != strings.end() - 1) out += delimeter;
+    }
+
+    return out;
+}
+
 void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 
 
