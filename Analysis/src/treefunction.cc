@@ -1,30 +1,47 @@
-#include <ChargedAnalysis/Analysis/include/treereader.h>
+#include <ChargedAnalysis/Analysis/include/treefunction.h>
+
+std::map<std::string, std::pair<float(*)(Event&, FuncArgs&), std::string>> TreeFunction::funcMap = {
+    {"mass", {&TreeFunction::Mass, "m(@) [GeV]"}},
+    {"pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
+    {"phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
+    {"eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
+    {"dPhi", {&TreeFunction::DeltaPhi, "#Delta#phi(@, @) [rad]"}},
+    {"dR", {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"}},
+};
+
+std::map<std::string, std::pair<Particle, std::string>> TreeFunction::partMap = {
+    {"e", {ELECTRON, "e_{@}"}},
+    {"mu", {MUON, "#mu_{@}"}},
+    {"j", {JET, "j_{@}"}},
+    {"fj", {FATJET, "j_{@}^{f}"}},
+};
 
 //Function for returning value of wished quantity
-float TreeReader::Mass(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]-1].LV.M();
+float TreeFunction::Mass(Event& event, FuncArgs& args){
+    return event.particles[args.parts[0]][args.index[0]].M();
 }
 
-float TreeReader::Pt(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]-1].LV.Pt();
+float TreeFunction::Pt(Event& event, FuncArgs& args){
+    return event.particles[args.parts[0]][args.index[0]].Pt();
 }
 
-float TreeReader::Phi(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]-1].LV.Phi();
+float TreeFunction::Phi(Event& event, FuncArgs& args){
+    return event.particles[args.parts[0]][args.index[0]].Phi();
 }
 
-float TreeReader::Eta(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]-1].LV.Eta();
+float TreeFunction::Eta(Event& event, FuncArgs& args){
+    return event.particles[args.parts[0]][args.index[0]].Eta();
 }
 
-float TreeReader::DeltaPhi(Event &event, Hist &hist){
-    return ROOT::Math::VectorUtil::DeltaPhi(event.particles[hist.parts[0]][hist.indeces[0]-1].LV, event.particles[hist.parts[1]][hist.indeces[1]-1].LV);
+float TreeFunction::DeltaPhi(Event& event, FuncArgs& args){
+    return ROOT::Math::VectorUtil::DeltaPhi(event.particles[args.parts[0]][args.index[0]], event.particles[args.parts[1]][args.index[1]]);
 }
 
-float TreeReader::DeltaR(Event &event, Hist &hist){
-    return ROOT::Math::VectorUtil::DeltaR(event.particles[hist.parts[0]][hist.indeces[0]-1].LV, event.particles[hist.parts[1]][hist.indeces[1]-1].LV);
+float TreeFunction::DeltaR(Event& event, FuncArgs& args){
+    return ROOT::Math::VectorUtil::DeltaR(event.particles[args.parts[0]][args.index[0]], event.particles[args.parts[1]][args.index[1]]);
 }
 
+/*
 float TreeReader::HadronicEnergy(Event &event, Hist &hist){
     return event.HT;
 }
@@ -278,3 +295,5 @@ void TreeReader::Higgs(Event &event){
         event.particles[HC].push_back(Hc2);
     }
 }
+
+*/
