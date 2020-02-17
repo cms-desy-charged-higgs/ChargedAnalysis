@@ -41,7 +41,6 @@ template std::vector<std::string> Utils::SplitString(const std::string& splitStr
 template std::vector<int> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
 template std::vector<float> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
 
-
 std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
     std::string out;
 
@@ -53,6 +52,28 @@ std::string Utils::Join(const std::string& delimeter, const std::vector<std::str
 
     return out;
 }
+
+template <typename T>
+std::string Utils::Format(const std::string& label, const std::string& initial, const T& replace){
+    std::string result = initial;
+
+    std::stringstream repl;
+    repl << replace;
+
+    if(result.find(label) != std::string::npos){
+        result.replace(result.find(label), 1, repl.str());
+    }
+
+    else{
+        throw std::out_of_range("Did not found '" + label + "' in string '" + result + "'");
+    }
+
+    return result;
+}
+
+template std::string Utils::Format(const std::string& label, const std::string& initial, const std::string& replace);
+template std::string Utils::Format(const std::string& label, const std::string& initial, const int& replace);
+template std::string Utils::Format(const std::string& label, const std::string& initial, const float& replace);
 
 void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 

@@ -27,6 +27,10 @@ namespace Utils{
     //Joins vector of strings together
     std::string Join(const std::string& delimeter, const std::vector<std::string> strings);
 
+    //Replaces symbol in string like python string format
+    template <typename T>
+    std::string Format(const std::string& label, const std::string& initial, const T& replace);
+
     //Function for displaying progress
     void ProgressBar(const int& progress, const std::string& process);
 
