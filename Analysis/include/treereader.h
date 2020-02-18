@@ -31,8 +31,11 @@ class TreeReader {
 
         //std::vector<Function> functions;
         std::vector<TH1F*> hists;
-        std::vector<FuncArgs> args;
-        std::vector<Function> functions;
+        std::vector<FuncArgs> histArgs;
+        std::vector<Function> histFunctions;
+
+        std::vector<FuncArgs> cutArgs;
+        std::vector<Function> cutFunctions;
 
     public:
         TreeReader();
