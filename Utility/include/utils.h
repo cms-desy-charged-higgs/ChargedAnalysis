@@ -31,6 +31,13 @@ namespace Utils{
     template <typename T>
     std::string Format(const std::string& label, const std::string& initial, const T& replace);
 
+    //Merge two vectors
+    template <typename T>
+    std::vector<T> Merge(const std::vector<T>& vec1, const std::vector<T>& vec2);
+
+    //Find string in bracktes in a string
+    std::string FindInBracket(const std::string& input);
+
     //Function for displaying progress
     void ProgressBar(const int& progress, const std::string& process);
 

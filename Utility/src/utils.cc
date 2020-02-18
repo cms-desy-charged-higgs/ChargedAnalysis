@@ -37,21 +37,9 @@ std::vector<T> Utils::SplitString(const std::string& splitString, const std::str
     return values;
 }
 
-template std::vector<std::string> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
-template std::vector<int> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
-template std::vector<float> Utils::SplitString(const std::string& splitString, const std::string& delimeter);
-
-std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
-    std::string out;
-
-    for(std::vector<std::string>::const_iterator it = strings.begin(); it != strings.end(); ++it){
-        out += *it;
-
-        if(it != strings.end() - 1) out += delimeter;
-    }
-
-    return out;
-}
+template std::vector<std::string> Utils::SplitString(const std::string&, const std::string&);
+template std::vector<int> Utils::SplitString(const std::string&, const std::string&);
+template std::vector<float> Utils::SplitString(const std::string&, const std::string&);
 
 template <typename T>
 std::string Utils::Format(const std::string& label, const std::string& initial, const T& replace){
@@ -71,9 +59,41 @@ std::string Utils::Format(const std::string& label, const std::string& initial, 
     return result;
 }
 
-template std::string Utils::Format(const std::string& label, const std::string& initial, const std::string& replace);
-template std::string Utils::Format(const std::string& label, const std::string& initial, const int& replace);
-template std::string Utils::Format(const std::string& label, const std::string& initial, const float& replace);
+template std::string Utils::Format(const std::string&, const std::string&, const std::string&);
+template std::string Utils::Format(const std::string&, const std::string&, const int&);
+template std::string Utils::Format(const std::string&, const std::string&, const float&);
+
+
+std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
+    std::string out;
+
+    for(std::vector<std::string>::const_iterator it = strings.begin(); it != strings.end(); ++it){
+        out += *it;
+
+        if(it != strings.end() - 1) out += delimeter;
+    }
+
+    return out;
+}
+
+std::string Utils::FindInBracket(const std::string& input){
+    size_t begin = input.find("[")+1;
+    size_t end = input.find("]") - begin;
+    
+    return input.substr(begin, end);
+}
+
+template <typename T>
+std::vector<T> Utils::Merge(const std::vector<T>& vec1, const std::vector<T>& vec2){
+    std::vector<T> vec = vec1;
+    vec.insert(vec.end(), vec2.begin(), vec2.end());
+
+    return vec;
+}
+
+template std::vector<std::string> Utils::Merge(const std::vector<std::string>&, const std::vector<std::string>&);
+template std::vector<int> Utils::Merge(const std::vector<int>&, const std::vector<int>&);
+template std::vector<float> Utils::Merge(const std::vector<float>&, const std::vector<float>&);
 
 void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 
