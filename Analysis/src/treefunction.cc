@@ -7,6 +7,8 @@ std::map<std::string, std::pair<float(*)(Event&, FuncArgs&), std::string>> TreeF
     {"eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
     {"dPhi", {&TreeFunction::DeltaPhi, "#Delta#phi(@, @) [rad]"}},
     {"dR", {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"}},
+    {"N", {&TreeFunction::NParticle, "N(@)"}},
+    {"const", {&TreeFunction::ConstantNumber, ""}},
 };
 
 std::map<std::string, std::pair<Particle, std::string>> TreeFunction::partMap = {
@@ -14,40 +16,63 @@ std::map<std::string, std::pair<Particle, std::string>> TreeFunction::partMap = 
     {"mu", {MUON, "#mu_{@}"}},
     {"j", {JET, "j_{@}"}},
     {"fj", {FATJET, "j_{@}^{f}"}},
+    {"bj", {FATJET, "b_{@}"}},
+};
+
+std::map<std::string, WP> TreeFunction::workingPointMap = {
+    {"l", LOOSE},
+    {"m", MEDIUM},
+    {"t", TIGHT},
+};
+
+std::map<std::string, Comparison> TreeFunction::comparisonMap = {
+    {"bigger", BIGGER},
+    {"smaller", SMALLER},
+    {"equal", EQUAL},
 };
 
 //Function for returning value of wished quantity
 float TreeFunction::Mass(Event& event, FuncArgs& args){
-    return event.particles[args.parts[0]][args.index[0]].M();
+    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).M();
 }
 
 float TreeFunction::Pt(Event& event, FuncArgs& args){
-    return event.particles[args.parts[0]][args.index[0]].Pt();
+    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Pt();
 }
 
 float TreeFunction::Phi(Event& event, FuncArgs& args){
-    return event.particles[args.parts[0]][args.index[0]].Phi();
+    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Phi();
 }
 
 float TreeFunction::Eta(Event& event, FuncArgs& args){
-    return event.particles[args.parts[0]][args.index[0]].Eta();
+    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Eta();
 }
 
 float TreeFunction::DeltaPhi(Event& event, FuncArgs& args){
-    return ROOT::Math::VectorUtil::DeltaPhi(event.particles[args.parts[0]][args.index[0]], event.particles[args.parts[1]][args.index[1]]);
+    return ROOT::Math::VectorUtil::DeltaPhi(event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]), event.particles.at(args.parts[1]).at(args.wp[1]).at(args.index[1]));
 }
 
 float TreeFunction::DeltaR(Event& event, FuncArgs& args){
-    return ROOT::Math::VectorUtil::DeltaR(event.particles[args.parts[0]][args.index[0]], event.particles[args.parts[1]][args.index[1]]);
+    return ROOT::Math::VectorUtil::DeltaR(event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]), event.particles.at(args.parts[1]).at(args.wp[1]).at(args.index[1]));
+}
+
+float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
+    return args.value;
+}
+
+float TreeFunction::NParticle(Event &event, FuncArgs& args){
+    try{
+        return event.particles.at(args.parts[0]).at(args.wp[0]).size();
+    }
+
+    catch(const std::exception& e) {
+        return 0;
+    }
 }
 
 /*
 float TreeReader::HadronicEnergy(Event &event, Hist &hist){
     return event.HT;
-}
-
-float TreeReader::ConstantNumber(Event &event, Hist &hist){
-    return hist.funcValue;
 }
 
 float TreeReader::EventNumber(Event &event, Hist &hist){
@@ -98,83 +123,6 @@ float TreeReader::NSigParticle(Event &event, Hist &hist){
     return nSigPart;
 }
 
-float TreeReader::NParticle(Event &event, Hist &hist){
-    int nPart = 0;
-    int WP = hist.funcValue == -999. ? 0 : hist.funcValue;
-
-    if(hist.parts[0] == ELECTRON or hist.parts[0] == MUON){
-        for(const RecoParticle &part: event.particles[hist.parts[0]]){
-            if(ID(WP, part, false) && part.LV.Pt() > 35.){
-                nPart++;
-
-                event.weight *= SF(WP, part);
-
-                for(unsigned int i = 0; i < event.particles[JET].size(); i++){
-                    if(ROOT::Math::VectorUtil::DeltaR(event.particles[JET][i].LV, part.LV) < 0.4){
-                        event.particles[JET].erase(event.particles[JET].begin()+i);
-                        break;
-                    }
-                }
-            }
-        } 
-
-        return nPart;
-    }
-
-    else if(hist.parts[0] == BJET){
-        for(const RecoParticle &part: event.particles[JET]){
-            if(ID(WP, part, true)){
-                nPart++;
-                event.weight *= part.IDSF[WP]; 
-            }
-        }
-    } 
-
-    else if(hist.parts[0] == BSUBJET){
-        for(const RecoParticle &part: event.particles[SUBJET]){
-            if(ID(WP, part, true)){
-                nPart++;
-                event.weight *= part.IDSF[WP]; 
-            }
-        }
-    } 
-
-    else if(hist.parts[0] == BFATJET){
-        for(const RecoParticle &part: event.particles[FATJET]){
-            if(ID(WP, part, true)){
-                nPart++;
-                event.weight *= part.IDSF[WP]; 
-            }
-        }
-    } 
-
-    else if(hist.parts[0] == h){
-        std::vector<float> higgsWP = {0.5, 0.7, 0.9};
-        for(float& tag: event.hTag){
-            if(tag > higgsWP[hist.funcValue]) nPart++;
-        }
-    }
-
-    else{
-        return event.particles[hist.parts[0]].size();
-    }
-
-    return nPart;
-}
-
-//Function evaluating cuts
-bool TreeReader::Cut(Event &event, Hist &hist){
-    switch(hist.cutValues.first){
-        case EQUAL: return (this->*funcDir[hist.func])(event, hist) == hist.cutValues.second;
-        case EQBIGGER: return (this->*funcDir[hist.func])(event, hist) >= hist.cutValues.second;
-        case EQSMALLER: return (this->*funcDir[hist.func])(event, hist) <= hist.cutValues.second;
-        case BIGGER: return (this->*funcDir[hist.func])(event, hist) > hist.cutValues.second;
-        case SMALLER: return (this->*funcDir[hist.func])(event, hist) < hist.cutValues.second;
-        case DIVISIBLE: return (int)(this->*funcDir[hist.func])(event, hist) % (int)hist.cutValues.second == 0;
-        case NOTDIVISIBLE: return (int)(this->*funcDir[hist.func])(event, hist) % (int)hist.cutValues.second != 0;
-        default: return true;
-    }
-}
 
 //Functions for reconstruct mother final state particles
 void TreeReader::WBoson(Event &event){
