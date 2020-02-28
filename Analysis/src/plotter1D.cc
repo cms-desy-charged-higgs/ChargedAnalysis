@@ -2,9 +2,8 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters, std::string &channel, std::vector<std::string>& processes) :
-    Plotter(histdir),
-    xParameters(xParameters),   
+Plotter1D::Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes) :
+    Plotter(histdir), 
     channel(channel),
     processes(processes),
     background({}),
@@ -13,32 +12,34 @@ Plotter1D::Plotter1D(std::string &histdir, std::vector<std::string> &xParameters
  {}
 
 void Plotter1D::ConfigureHists(){
-    //Lambda function for sorting Histograms
-    std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
+    for(std::string process: processes){
+        std::string fileName = histdir + "/" + process + ".root";
+        TFile* file = TFile::Open(fileName.c_str());
 
-    for(std::string parameter: xParameters){
-        //Define Vector for processes
-        std::vector<TH1F*> bkgHists;
-        std::vector<TH1F*> signalHists;
+        if(parameters.empty()){
+            for(int i = 0; i < file->GetListOfKeys()->GetSize(); i++){
+                parameters.push_back(file->GetListOfKeys()->At(i)->GetName());
+            }
+        }
 
-        for(std::string process: processes){
-            //Get Histogram for parameter
-            std::string filename = histdir + "/" + process + ".root";
+        for(std::string& param: parameters){
+            TH1F* hist = (TH1F*)file->Get(param.c_str());
 
-            TFile* file = TFile::Open(filename.c_str());
-            TH1F* hist = (TH1F*)file->Get(parameter.c_str());
+            if(hist == NULL){
+                throw std::runtime_error("Did not found histogram '" + param + "' in file '" + fileName + "'");
+            }
 
             //Data configuration
             if(procDic[process] == DATA){
                 hist->SetMarkerStyle(20);
                 hist->SetName("data");
 
-                data.push_back(hist);
+                data[param] = hist;
             }
 
             //Signal configuration
             else if(procDic[process] == SIGNAL){
-                hist->SetLineWidth(1 + 3*signalHists.size());
+                hist->SetLineWidth(1 + 3*signal[param].size());
                 hist->SetLineColor(kBlack);
 
                 std::vector<std::string> massStrings;
@@ -51,8 +52,7 @@ void Plotter1D::ConfigureHists(){
                 hist->SetName(("H^{#pm}_{" + massStrings[0].substr(5,7)
  + "}+h_{" + massStrings[1].substr(1,3) + "}").c_str());
 
-                signalHists.push_back(hist);
-
+                signal[param].push_back(hist);
             }
 
             //Background configuration
@@ -63,21 +63,16 @@ void Plotter1D::ConfigureHists(){
             
                 hist->SetName(process.c_str());            
 
-                bkgHists.push_back(hist);
+                background[param].push_back(hist);
             }
         }
-
-        //Sort hist by integral                
-        std::sort(bkgHists.begin(), bkgHists.end(), sortFunc);
-        std::sort(signalHists.begin(), signalHists.end(), sortFunc);
-
-        //Push back vector for each parameter to collection
-        background.push_back(bkgHists);
-        signal.push_back(signalHists);
     }
 }
 
 void Plotter1D::Draw(std::vector<std::string> &outdirs){
+    //Lambda function for sorting Histograms
+    std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
+
     //Set Style
     Plotter::SetStyle();
 
@@ -87,7 +82,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
     TPad* legendpad = new TPad("legendpad", "legendpad", 0.87, 0.3 , 1., 0.8);
     TPad* pullpad = new TPad("pullpad", "pullpad", 0., 0.0 , 0.95, .25);
 
-    for(unsigned int i = 0; i < xParameters.size(); i++){
+    for(std::string& param: parameters){
         canvas->cd();
 
         if(!data.empty()){
@@ -107,15 +102,17 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
         //Stack and sum of backgrounds hist
         THStack* stack = new THStack();
-        TH1F* sumbkg = (TH1F*)background[i][0]->Clone();
+        TH1F* sumbkg = (TH1F*)background[param][0]->Clone();
         sumbkg->Reset();
 
         //Draw main pad
         Plotter::SetPad(mainpad);
         mainpad->Draw();
         mainpad->cd();
+
+        std::sort(background[param].begin(), background[param].end(), sortFunc);
     
-        for(TH1F* hist: background[i]){            
+        for(TH1F* hist: background[param]){            
             std::string lentry = std::string(hist->GetName());
             legend->AddEntry(hist, lentry.c_str(), "F");
 
@@ -140,20 +137,20 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         legend->AddEntry(sumbkg, "Bkg. unc.", "F");
 
         //Maximum value for scaling axis
-        float maximum = data.size() != 0 ? std::max(stack->GetMaximum(), data[i]->GetMaximum()) : stack->GetMaximum();
+        float maximum = data.size() != 0 ? std::max(stack->GetMaximum(), data[param]->GetMaximum()) : stack->GetMaximum();
         stack->SetMaximum(maximum*1.25); 
 
         //Draw data
         if(!data.empty()){
-            std::string lentry = std::string(data[i]->GetName());
-            legend->AddEntry(data[i], lentry.c_str(), "P");
-            data[i]->Draw("SAME EP");
+            std::string lentry = std::string(data[param]->GetName());
+            legend->AddEntry(data[param], lentry.c_str(), "P");
+            data[param]->Draw("SAME EP");
 
         }
 
         //Draw signal
         if(!signal.empty()){
-            for(TH1F* hist: signal[i]){
+            for(TH1F* hist: signal[param]){
                 std::string lentry = std::string(hist->GetName());
                 legend->AddEntry(hist, lentry.c_str(), "L");
                 hist->Draw("SAME HIST");
@@ -184,7 +181,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
                 if(sumbkg->GetBinError(j) != 0){          
                    // pullvalue = (data[i]->GetBinContent(j) - sumbkg->GetBinContent(j))/sumbkg->GetBinError(j);
-                    pullvalue = sumbkg->GetBinContent(j) != 0 ? data[i]->GetBinContent(j)/sumbkg->GetBinContent(j) : 1;
+                    pullvalue = sumbkg->GetBinContent(j) != 0 ? data[param]->GetBinContent(j)/sumbkg->GetBinContent(j) : 1;
                 }
 
                 pull->SetBinContent(j, pullvalue);
@@ -219,8 +216,8 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         mainpad->SetLogy(0);
 
         for(std::string outdir: outdirs){
-            canvas->SaveAs((outdir + "/" + xParameters[i] + ".pdf").c_str());
-            canvas->SaveAs((outdir + "/" + xParameters[i] + ".png").c_str());
+            canvas->SaveAs((outdir + "/" + param + ".pdf").c_str());
+            canvas->SaveAs((outdir + "/" + param + ".png").c_str());
         }
         
         stack->SetMinimum(1e-1); 
@@ -228,12 +225,12 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         mainpad->SetLogy(1);
 
         for(std::string outdir: outdirs){
-            canvas->SaveAs((outdir + "/" + xParameters[i] + "_log.pdf").c_str());
-            canvas->SaveAs((outdir + "/" + xParameters[i] + "_log.png").c_str());
+            canvas->SaveAs((outdir + "/" + param + "_log.pdf").c_str());
+            canvas->SaveAs((outdir + "/" + param + "_log.png").c_str());
         }
 
         if(!signal.empty()){
-            for(TH1F* hist: signal[i]){
+            for(TH1F* hist: signal[param]){
                 //Clear pads
                 for(TPad* pad: {legendpad, mainpad}){
                     pad->cd();
@@ -292,13 +289,13 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 std::string massString = {hist->GetName()[9], hist->GetName()[10], hist->GetName()[11]};
 
                 for(std::string outdir: outdirs){
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_" + massString + "_shape.pdf").c_str());
-                    canvas->SaveAs((outdir + "/" + xParameters[i] + "_" + massString + "_shape.png").c_str());
+                    canvas->SaveAs((outdir + "/" + param + "_" + massString + "_shape.pdf").c_str());
+                    canvas->SaveAs((outdir + "/" + param + "_" + massString + "_shape.png").c_str());
                 }
             }
         }
 
-        std::cout << "Plot created for: " << xParameters[i] << std::endl;
+        std::cout << "Plot created for: " << param << std::endl;
 
         //Clear pads
         for(TPad* pad: {mainpad, pullpad, legendpad}){
