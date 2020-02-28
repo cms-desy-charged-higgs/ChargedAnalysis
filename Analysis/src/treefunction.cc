@@ -8,6 +8,7 @@ std::map<std::string, std::pair<float(*)(Event&, FuncArgs&), std::string>> TreeF
     {"dPhi", {&TreeFunction::DeltaPhi, "#Delta#phi(@, @) [rad]"}},
     {"dR", {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"}},
     {"N", {&TreeFunction::NParticle, "N(@)"}},
+    {"HT", {&TreeFunction::HadronicEnergy, "H_{T}"}},
     {"const", {&TreeFunction::ConstantNumber, ""}},
 };
 
@@ -15,8 +16,10 @@ std::map<std::string, std::pair<Particle, std::string>> TreeFunction::partMap = 
     {"e", {ELECTRON, "e_{@}"}},
     {"mu", {MUON, "#mu_{@}"}},
     {"j", {JET, "j_{@}"}},
-    {"fj", {FATJET, "j_{@}^{f}"}},
-    {"bj", {FATJET, "b_{@}"}},
+    {"fj", {FATJET, "j_{@}^{AK8}"}},
+    {"bj", {BJET, "b_{@}"}},
+    {"bsj", {BSUBJET, "b_{@}"}},
+    {"met", {MET, "#vec{p}_{T}^{miss}"}},
 };
 
 std::map<std::string, WP> TreeFunction::workingPointMap = {
@@ -62,6 +65,14 @@ float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
 
 float TreeFunction::NParticle(Event &event, FuncArgs& args){
     try{
+        for(float& SF: event.SF.at(args.parts[0]).at(args.wp[0])){
+            event.weight *= SF;
+        }
+    }
+
+    catch(const std::exception& e) {}
+    
+    try{
         return event.particles.at(args.parts[0]).at(args.wp[0]).size();
     }
 
@@ -70,10 +81,11 @@ float TreeFunction::NParticle(Event &event, FuncArgs& args){
     }
 }
 
-/*
-float TreeReader::HadronicEnergy(Event &event, Hist &hist){
+float TreeFunction::HadronicEnergy(Event &event, FuncArgs& args){
     return event.HT;
 }
+
+/*
 
 float TreeReader::EventNumber(Event &event, Hist &hist){
     return Utils::BitCount(int(event.eventNumber));

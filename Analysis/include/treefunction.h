@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <functional>
 
 #include <Math/GenVector/VectorUtil.h>
 #include <Math/Vector4Dfwd.h>
@@ -15,6 +14,8 @@ enum Comparison{BIGGER, SMALLER, EQUAL};
 
 struct Event{
     std::map<Particle, std::map<WP, std::vector<ROOT::Math::PxPyPzEVector>>> particles;
+    std::map<Particle, std::map<WP, std::vector<float>>> SF;
+    float weight;
     float HT;
 };
 
@@ -69,6 +70,7 @@ namespace TreeFunction{
     float DeltaR(Event& event, FuncArgs& args);
     float NParticle(Event &event, FuncArgs& args);
     float ConstantNumber(Event &event, FuncArgs& args);
+    float HadronicEnergy(Event &event, FuncArgs& args);
 };
 
 #endif
