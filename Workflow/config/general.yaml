@@ -10,8 +10,6 @@ number-events: 300000
 
 run-mode: Local
 
-save-mode: Hist
-
 cuts:
     all: []
 
