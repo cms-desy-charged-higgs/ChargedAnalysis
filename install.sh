@@ -60,7 +60,6 @@ git clone https://github.com/cms-desy-charged-higgs/ChargedProduction.git
 
 ##Other stuff neeeded
 git cms-merge-topic cms-egamma:EgammaPostRecoTools
-git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 
 ##Compile everthing
 scram b -j 20
