@@ -20,9 +20,7 @@
 
 class TreeReader {
     private:
-        std::string process;
-        std::vector<std::string> xParameters; 
-        std::vector<std::string> yParameters;
+        std::vector<std::string> parameters;
         std::vector<std::string> cutStrings;
         std::string outname;
         std::string channel;
@@ -39,9 +37,9 @@ class TreeReader {
 
     public:
         TreeReader();
-        TreeReader(const std::string &process, const std::vector<std::string> &xParameters, const std::vector<std::string> &yParameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel, const std::string &saveMode = "Hist");
+        TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel);
 
-        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd);
+        void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, const std::string& cleanJet);
 };
 
 #endif
