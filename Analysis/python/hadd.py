@@ -22,16 +22,16 @@ class HaddPlot(Task):
         tasks = []
 
         for process in config["processes"] + config["data"].get(channel, []):
-            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["save-mode"], config["dir"], config["chan-dir"][channel])
-            histDir = os.environ["CHDIR"] + "/Tmp/{}/{}/{}".format(config["save-mode"], config["dir"], config["chan-dir"][channel])
+            outDir = os.environ["CHDIR"] + "/{}/{}".format(config["dir"], config["chan-dir"][channel])
+            histDir = os.environ["CHDIR"] + "/Tmp/{}/{}".format(config["dir"], config["chan-dir"][channel])
                 
             task = {
                     "name": "Hadd_{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  
                     "dir": outDir,
-                    "process": process,
                     "channel": channel,
+                    "process": process,
                     "display-name": "Hadd: {} ({})".format(process, channel),
-                    "dependencies": [t["name"] for t in treeTasks if t["dir"] == histDir and t["process"] == process]
+                    "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"]]
             }
 
             tasks.append(HaddPlot(task))

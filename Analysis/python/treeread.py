@@ -12,14 +12,12 @@ class TreeRead(Task):
         self["executable"] = "treeread"
 
         self["arguments"] = [
-                "--process", self["process"], 
-                "--x-parameters", *self["x-parameters"],
-                "--y-parameters", *self["y-parameters"],
+                "--parameters", *self["parameters"],
                 "--cuts", *self["cuts"], 
                 "--out-name", self["output"],  
                 "--channel", self["channel"],    
-                "--save-mode", self["save-mode"],
                 "--filename", self["filename"], 
+                "--clean-jet", self["clean-jet"], 
                 "--event-yield", *self["interval"]
         ]
         
@@ -31,7 +29,7 @@ class TreeRead(Task):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
-        skimDir = os.environ["CHDIR"] + "/Skim"
+        skimDir = os.environ["CHDIR"] + "/OldSkim"
         tasks = []
  
         for process in config["processes"] + config["data"].get(channel, []):
@@ -44,18 +42,17 @@ class TreeRead(Task):
                 for interval in intervals:
                     ##Configuration for treeread Task
                     task = {
-                            "name": "{}_{}_{}_{}".format(config["save-mode"], channel, process, len(tasks)) + ("_{}".format(prefix) if prefix else ""), 
+                            "name": "{}_{}_{}".format(channel, process, len(tasks)) + ("_{}".format(prefix) if prefix else ""), 
                             "display-name": "Hist: {} ({})".format(process, channel),
                             "channel": channel, 
                             "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                            "dir":  os.environ["CHDIR"] + "/Tmp/{}/{}/{}".format(config["save-mode"], config["dir"], config["chan-dir"][channel]), 
+                            "dir":  os.environ["CHDIR"] + "/Tmp/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
                             "process": process, 
-                            "x-parameters": config["x-parameters"].get("all", []) + config["x-parameters"].get(channel, []),
-                            "y-parameters": config["y-parameters"].get("all", []) + config["y-parameters"].get(channel, []),
+                            "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
                             "filename": filename,
                             "interval": interval,
-                            "run-mode": config["run-mode"], 
-                            "save-mode": config["save-mode"], 
+                            "run-mode": config["run-mode"],
+                            "clean-jet": config.get("clean-jet", {}).get(channel, "")
                     }
 
                     tasks.append(TreeRead(task))
