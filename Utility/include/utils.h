@@ -29,7 +29,7 @@ namespace Utils{
 
     //Replaces symbol in string like python string format
     template <typename T>
-    std::string Format(const std::string& label, const std::string& initial, const T& replace);
+    std::string Format(const std::string& label, const std::string& initial, const T& replace, const bool& ignoreMissing=false);
 
     //Merge two vectors
     template <typename T>

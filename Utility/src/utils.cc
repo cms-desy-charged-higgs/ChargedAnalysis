@@ -42,7 +42,7 @@ template std::vector<int> Utils::SplitString(const std::string&, const std::stri
 template std::vector<float> Utils::SplitString(const std::string&, const std::string&);
 
 template <typename T>
-std::string Utils::Format(const std::string& label, const std::string& initial, const T& replace){
+std::string Utils::Format(const std::string& label, const std::string& initial, const T& replace, const bool& ignoreMissing){
     std::string result = initial;
 
     std::stringstream repl;
@@ -53,15 +53,15 @@ std::string Utils::Format(const std::string& label, const std::string& initial, 
     }
 
     else{
-        throw std::out_of_range("Did not found '" + label + "' in string '" + result + "'");
+        if(!ignoreMissing) throw std::out_of_range("Did not found '" + label + "' in string '" + result + "'");
     }
 
     return result;
 }
 
-template std::string Utils::Format(const std::string&, const std::string&, const std::string&);
-template std::string Utils::Format(const std::string&, const std::string&, const int&);
-template std::string Utils::Format(const std::string&, const std::string&, const float&);
+template std::string Utils::Format(const std::string&, const std::string&, const std::string&, const bool&);
+template std::string Utils::Format(const std::string&, const std::string&, const int&, const bool&);
+template std::string Utils::Format(const std::string&, const std::string&, const float&, const bool&);
 
 
 std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
