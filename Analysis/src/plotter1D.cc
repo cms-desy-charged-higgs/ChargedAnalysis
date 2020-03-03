@@ -13,7 +13,7 @@ Plotter1D::Plotter1D(std::string &histdir, std::string &channel, std::vector<std
 
 void Plotter1D::ConfigureHists(){
     for(std::string process: processes){
-        std::string fileName = histdir + "/" + process + ".root";
+        std::string fileName = histdir + "/" + process + "/" + process + ".root";
         TFile* file = TFile::Open(fileName.c_str());
 
         if(parameters.empty()){
