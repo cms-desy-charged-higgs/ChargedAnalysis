@@ -166,7 +166,7 @@ def main():
     ##Run the manager
     with TaskManager(args.check_output, args.no_monitor) as manager:
         manager.tasks = tasks
-        manager.runTasks()
+        manager.run()
 
 if __name__=="__main__":
     main()
