@@ -22,8 +22,7 @@ class HaddPlot(Task):
         tasks = []
 
         for process in config["processes"] + config["data"].get(channel, []):
-            outDir = os.environ["CHDIR"] + "/{}/{}".format(config["dir"], config["chan-dir"][channel])
-            histDir = os.environ["CHDIR"] + "/Tmp/{}/{}".format(config["dir"], config["chan-dir"][channel])
+            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"], config["chan-dir"][channel], process)
                 
             task = {
                     "name": "Hadd_{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  

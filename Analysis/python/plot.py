@@ -13,7 +13,7 @@ class Plot(Task):
                 "--hist-dir", self["hist-dir"], 
                 "--channel", self["channel"], 
                 "--processes", *self["processes"], 
-                "--out-dirs", self["dir"], 
+                "--out-dirs", self["dir"], self["web-dir"] 
         ]
 
     def output(self):
@@ -25,7 +25,8 @@ class Plot(Task):
                 "name": "Plot_{}".format(channel), 
                 "channel": channel, 
                 "hist-dir": os.environ["CHDIR"] + "/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
-                "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
+                "dir":  os.environ["CHDIR"] + "/Plots/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
+                "web-dir": os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(config["dir"], config["chan-dir"][channel]), 
                 "display-name": "Plots: {}".format(channel), 
                 "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 
                 "processes": [t["process"] for t in haddTasks if t["channel"] == channel]
