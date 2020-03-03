@@ -19,7 +19,16 @@ int main(int argc, char* argv[]){
     TList* keys = oldF->GetListOfKeys();
 
     for(int i=0; i < keys->GetSize(); i++){
-        if(Utils::FindInVec(skipObj, std::string(keys->At(i)->GetName())) != -1) continue;
+        bool skipKey = false;
+
+        for(std::string& skip: skipObj){
+            if(Utils::Find<std::string>(skip, std::string(keys->At(i)->GetName())) != -1){
+                skipKey = true;
+                break;
+            }
+        }
+
+        if(skipKey) continue;
 
         TObject* obj = oldF->Get(keys->At(i)->GetName());
 

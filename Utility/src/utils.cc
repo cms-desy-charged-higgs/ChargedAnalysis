@@ -63,7 +63,6 @@ template std::string Utils::Format(const std::string&, const std::string&, const
 template std::string Utils::Format(const std::string&, const std::string&, const int&, const bool&);
 template std::string Utils::Format(const std::string&, const std::string&, const float&, const bool&);
 
-
 std::string Utils::Join(const std::string& delimeter, const std::vector<std::string> strings){
     std::string out;
 
@@ -95,6 +94,24 @@ template std::vector<std::string> Utils::Merge(const std::vector<std::string>&, 
 template std::vector<int> Utils::Merge(const std::vector<int>&, const std::vector<int>&);
 template std::vector<float> Utils::Merge(const std::vector<float>&, const std::vector<float>&);
 
+template <typename T>
+int Utils::Find(const std::string& string, const T& itemToFind){
+    int position = -1.;
+
+    std::stringstream item;
+    item << itemToFind;
+
+    if(string.find(item.str()) != std::string::npos){
+        position=string.find(item.str());
+    }
+
+    return position;
+}
+
+template int Utils::Find(const std::string&, const int&);
+template int Utils::Find(const std::string&, const float&);
+template int Utils::Find(const std::string&, const std::string&);
+
 void Utils::ProgressBar(const int& progress, const std::string& addInfo){
     std::string progressBar = "["; 
 
@@ -120,18 +137,6 @@ Utils::RunTime::RunTime(){
 float Utils::RunTime::Time(){
     end = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-}
-
-int Utils::FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind){
-    int position = -1.;
-
-    for(unsigned int i=0; i < vect.size(); i++){
-        if(vect[i].find(itemToFind) != std::string::npos){
-            position=i;
-        }
-    }
-
-    return position;
 }
 
 unsigned int Utils::BitCount(unsigned int num){

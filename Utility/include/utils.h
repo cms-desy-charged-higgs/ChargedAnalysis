@@ -35,6 +35,10 @@ namespace Utils{
     template <typename T>
     std::vector<T> Merge(const std::vector<T>& vec1, const std::vector<T>& vec2);
 
+    //Find string in vector
+    template <typename T>
+    int Find(const std::string& string, const T& itemToFind);
+
     //Find string in bracktes in a string
     std::string FindInBracket(const std::string& input);
 
@@ -55,9 +59,6 @@ namespace Utils{
 
     //channel name to dir name
     std::string ChanPaths(const std::string& channel);
-
-    //Find string in vector
-    int FindInVec(const std::vector<std::string>& vect, const std::string& itemToFind);
 
     unsigned int BitCount(unsigned int num);
 
