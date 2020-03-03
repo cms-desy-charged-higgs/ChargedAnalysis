@@ -19,7 +19,6 @@ class TaskWebpage(object):
                         object {width: 200px; height: 1000px;}
 
                     </style>
-                    <script type="text/javascript" src="http://livejs.com/live.js"></script>
 
                 </head>
             """
@@ -80,7 +79,7 @@ class TaskWebpage(object):
 
         return newDic
 
-    def createWebpage(self, graph, outDir):
+    def createWebpage(self, tasks, outDir):
         divPos = {}
         maxheight = 0.
 
@@ -96,15 +95,20 @@ class TaskWebpage(object):
                         "FAILED": "linear-gradient(to bottom right, #ff0000 0%, #cc0066 111%)",
         }
 
-        for (layerIndex, taskLayer) in enumerate(graph):
-            for index, task in enumerate(taskLayer):
-                ##Translate task config into yaml like string
-                yamlInfo = yaml.dump(self.__dicToNiceHtml(task), default_flow_style=False, width=float("inf"), indent=4).replace("\n", "<br>").replace("\'", "").replace("    ", "&emsp;&emsp;")
+        depths = {}
 
-                divPos[task["name"]] = (task["dependencies"], yamlInfo, task["status"], task["display-name"], layerIndex*400, index*40)
+        for task in tasks:
+            depths.setdefault(task.depth, []).append(1)
+            xCoord = task.depth*400
+            yCoord = (len(depths[task.depth])-1)*40
 
-                if index*40 + 40 > maxheight:
-                    maxheight = index*40 + 40
+            ##Translate task config into yaml like string
+            yamlInfo = yaml.dump(self.__dicToNiceHtml(task), default_flow_style=False, width=float("inf"), indent=4).replace("\n", "<br>").replace("\'", "").replace("    ", "&emsp;&emsp;")
+
+            divPos[task["name"]] = (task["dependencies"], yamlInfo, task["status"], task["display-name"], xCoord, yCoord)
+
+            if yCoord + 40 > maxheight:
+                maxheight = yCoord + 40
 
         ##Fill div/lines templates with right information of the task into list
         for taskName, (dependencies, yamlInfo, status, display, x, y) in divPos.items():

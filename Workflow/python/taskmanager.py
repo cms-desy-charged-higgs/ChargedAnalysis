@@ -1,11 +1,10 @@
 import yaml
-import copy
 import os
 import time
 import sys
 import subprocess
-import shutil
 import http.server
+import pprint
 from multiprocessing import Process, Pool, cpu_count
 
 from taskmonitor import TaskMonitor
@@ -15,10 +14,9 @@ class TaskManager(object):
     def __init__(self, checkOutput=False, noMonitor=False):
         self.checkOutput = checkOutput
         self.noMonitor = noMonitor
-        self._graph = []
 
         ##Make working directory for all output of taskmanager handling
-        self.workDir = "{}/Tmp/Workflow/{}/".format(os.environ["CHDIR"], time.asctime().replace(" ", "_").replace(":", "_"))
+        self.workDir = "{}/Workflow/{}/".format(os.environ["CHDIR"], time.asctime().replace(" ", "_").replace(":", "_"))
         os.makedirs(self.workDir, exist_ok=True)
 
         ##Make HTTP local server for workflow
@@ -30,29 +28,20 @@ class TaskManager(object):
         self.server.daemon = True
         self.server.start()
 
-        ##Logging of output
-        self.commands = []
-        self.allLogs = []
-        self.allErrs = []
+        ##Task monitor instance
+        if not self.noMonitor:
+            self.monitor = TaskMonitor(True)
+        self.webpage = TaskWebpage()
+
+        ##Start time
+        self.startTime = time.time()
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        ##Write log
-        with open("{}/log.txt".format(self.workDir), "w") as log:
-            for line in self.allLogs:
-                log.write(line + "\n")
-
-        ##Write error
-        with open("{}/err.txt".format(self.workDir), "w") as err:
-            for line in self.allErrs:
-                err.write(line + "\n")
-
-        ##Write commands
-        with open("{}/commands.txt".format(self.workDir), "w") as command:
-            for line in self.commands:
-                command.write(line + "\n")
+        self.__printRunStatus(time.time() - self.startTime)   
+        self.webpage.createWebpage(self._tasks, self.workDir) 
 
         ##Close http server
         self.httpd.server_close()
@@ -69,71 +58,51 @@ class TaskManager(object):
     def tasks(self, taskList):
         self._tasks = taskList
                    
-    def __createGraph(self):
-        allTask = copy.deepcopy(self._tasks)
+    def __sortTasks(self):
+        ##Sort tasks by Kahn’s algorithm for topological sorting
+        in_degrees = [len(task["dependencies"]) for task in self._tasks]
+        queue = [task for task in self._tasks if len(task["dependencies"]) == 0]
 
-        ##Find first layer with Task without dependencies
-        firstLayer = []
+        sortedTasks = []
+        counter=0
 
-        for task in allTask:
-            if(task["dependencies"] == []):
-                task["tasklayer"] = 0
-                task.createDir()
-                task.output()
-                firstLayer.append(task)
-
-        for task in firstLayer:
-            allTask.remove(task)  
-
-        self._graph.append(firstLayer)
+        while queue:
+            t = queue.pop(0)
+            sortedTasks.append(t)
         
-        ##Loop over all other Task not in the first task layer
-        while(allTask != []):
-            nextLayer = []
-            for task in allTask:
-                isCorrectLayer = True
+            for i, task in enumerate(self._tasks):
+                if task["name"] in t["dependencies"]:
+                    t.depth = task.depth + 1
+                    t.dependencies.append(task)
 
-                ##Check if task has depencies in next layer or in other layer
-                for dep in task["dependencies"]:
-                    if dep not in [t["name"] for taskLayer in self._graph for t in taskLayer]:
-                        isCorrectLayer = False
+                in_degrees[i] -= 1
+                    
+                if in_degrees[i] == 0:
+                    queue.append(task)
+
+            counter+=1
                 
-                ##Fill task in layer    
-                if isCorrectLayer:
-                    task["tasklayer"] = len(self._graph)
-                    nextLayer.append(task)
-                 
-            self._graph.append(nextLayer)
-
-            for task in nextLayer:
-                allTask.remove(task)   
-
-    def __printRunStatus(self, layer, time, logs, errors):
+        if counter != len(self._tasks):
+            raise RuntimeError("There exists a cyclic dependency in your tasks!")
+    
+        else:
+            self._tasks = sortedTasks
+    
+    def __printRunStatus(self, time):
         ##Helper function:
-        nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
+        nStatus = lambda tasks, stat: len([1 for task in tasks if task["status"] == stat] if stat != "TOTAL" else tasks)
 
-        localStats = {
-            "RUNNING": nStatus(self.localTask, "RUNNING"),
-            "VALID": nStatus(self.localTask, "VALID"),
-            "FINISHED": nStatus(self.localTask, "FINISHED"),
-            "FAILED": nStatus(self.localTask, "FAILED"),
-            "TOTAL": len(self.localTask),
-        }
-
-        condorStats = {
-            "RUNNING": nStatus(self.condorTask, "RUNNING"),
-            "VALID": nStatus(self.condorTask, "VALID"),
-            "SUBMITTED": nStatus(self.condorTask, "SUBMITTED"),
-            "FINISHED": nStatus(self.condorTask, "FINISHED"),
-            "FAILED": nStatus(self.condorTask, "FAILED"),
-            "TOTAL": len(self.condorTask),
-        }
+        localStatus = ["RUNNING", "VALID", "FINISHED", "FAILED", "TOTAL"]
+        condorStatus = ["RUNNING", "VALID", "SUBMITTED", "FINISHED", "FAILED", "TOTAL"]
 
         if not self.noMonitor:
-            self.monitor.updateMainMonitor(layer, time, localStats, condorStats)
-            self.monitor.updateLogMonitor(logs, errors)
+            self.monitor.updateMonitor(
+                    time, 
+                    {stat: nStatus([t for t in self._tasks if t["run-mode"] == "Local"], stat) for stat in localStatus}, 
+                    {stat: nStatus([t for t in self._tasks if t["run-mode"] == "Condor"], stat) for stat in condorStatus}
+            )
 
-    def __submitCondor(self, dirs):
+    def __submitCondor(self, tasks):
         ##List which will be written into submit file
         condorSub = [
             "universe = vanilla",
@@ -146,178 +115,112 @@ class TaskManager(object):
             "output = $(DIR)/out.txt",
         ]
 
+        for task in tasks:
+            task()
+            task["status"] = "SUBMITTED"
+
         ##Write submit file
         with open("{}/jobs.sub".format(self.workDir), "w") as condFile:
             for line in condorSub:
                 condFile.write(line + "\n")
 
-            condFile.write("queue DIR in ({})".format(" ".join(dirs)))
+            condFile.write("queue DIR in ({})".format(" ".join([task["dir"] for task in tasks])))
 
-        result = subprocess.run(["condor_submit", "{}/jobs.sub".format(self.workDir)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(["condor_submit", "{}/jobs.sub".format(self.workDir)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
-    def runTasks(self):
-        ##Helper function:
-        nStatus = lambda l, status: len([1 for task in l if task["status"] == status])
+    def run(self):
+        ##Check if no name is given twice
+        outNames = set([task["name"] for task in self._tasks])
+
+        if len(outNames) != len(self._tasks):
+            print("List of task names")
+            pprint.pprint([task["name"] for task in self._tasks])
+
+            raise RuntimeError("Each job has to have a unique name! See list of name above.")
+
+        ##Check if no dir is given twice
+        outDirs = set([task["dir"] for task in self._tasks])
+
+        if len(outDirs) != len(self._tasks):
+            print("List of task directories")
+            pprint.pprint([task["dir"] for task in self._tasks])
+
+            raise RuntimeError("Each job has to have a unique directory! See list of dirs above.")
 
         ##Create dependency graph
-        self.__createGraph()
-                
-        ##Task monitor instance
-        if not self.noMonitor:
-            self.monitor = TaskMonitor(True)
-        self.webpage = TaskWebpage()
+        self.__sortTasks()
+               
+        nFinished = 0
 
-        for layer, taskLayer in enumerate(self._graph):
-            ##Indicate in log task layer
-            self.allLogs.append("#"*40 + " TASK LAYER {} ".format(layer) + "#"*40)
-            self.allErrs.append("#"*40 + " TASK LAYER {} ".format(layer) + "#"*40)
+        nCores = cpu_count()
+        pool = Pool(processes=nCores)
+        localJobs = {}
+        condorJobs = []
 
-            self.localTask = []
-            self.condorTask = []
-            startTime = time.time()
+        while nFinished != len(self._tasks):
+            self.__printRunStatus(time.time() - self.startTime)
+            self.webpage.createWebpage(self._tasks, self.workDir)
 
-            for task in taskLayer:
-                if task["run-mode"] == "Local":
-                    task.getDependentFiles(self._graph)
-                    task.createDir()
-                    task.output()
-                    task.run()
+            for task in self._tasks:
+                if task["status"] == "FINISHED":
+                    continue
 
-                    ##Skip task if already finished and you dont want to rerun
-                    if self.checkOutput:
-                        if task.checkOutput():
-                            task["status"] = "FINISHED"
-
-                    self.localTask.append(task)
-                  
-                if task["run-mode"] == "Condor":
-                    task.getDependentFiles(self._graph)
-                    task.createDir()
-                    task.output()
-                    task.run()
-
-                    ##Skip task if already finished and you dont want to rerun
-                    if self.checkOutput:
-                        if task.checkOutput():
-                            task["status"] = "FINISHED"
-
-                    self.condorTask.append(task)
-
-                ##Write execute commands down
-                self.commands.append(task["name"])
-                self.commands.append(" ".join([task["executable"], *[str(s) for s in task["arguments"]]]) + "\n")
-
-            ##Submit condors jobs
-            dirs = []
-
-            for index, task in enumerate(self.condorTask):
-                if(task["status"] != "FINISHED"):
-                    task()
-                    dirs.append(task["condor-dir"])
-                    task["status"] = "SUBMITTED"
-
-            self.__submitCondor(dirs)
-
-            ##Run all local task
-            nCores = cpu_count()
-            pool = Pool(processes=nCores)
-            localRuns = {task: pool.apply_async(task) for task in self.localTask if task["status"] != "FINISHED"}
-
-            while(True):
-                logs = []
-                errors = []
-                self.webpage.createWebpage(self._graph, self.workDir) 
-
-                ##Track local jobs
-                for task in self.localTask:
-                    if(task["status"] == "FINISHED"):
+                ##Skip task if already finished and you dont want to rerun
+                if self.checkOutput:
+                    if task.checkOutput():
+                        task["status"] = "FINISHED"
+                        nFinished+=1
                         continue
 
-                    if localRuns[task].ready():
-                        if localRuns[task].successful():
+                if True in [t["status"] != "FINISHED" for t in task.dependencies]:
+                    continue
+
+                if not task.isPrepared:
+                    task.prepare()
+
+                if task["run-mode"] == "Local":
+                    if len(localJobs) < nCores and task not in localJobs:
+                        task["status"] = "RUNNING"
+                        localJobs[task] = pool.apply_async(task)
+
+                    if task not in localJobs:
+                        continue
+
+                    if localJobs[task].ready():
+                        if localJobs[task].get() == 0:
                             task["status"] = "FINISHED"
-                            logs.extend(localRuns[task].get())
-                            localRuns.pop(task)
+                            localJobs.pop(task)
+                            nFinished+=1
 
                         else:
-                            errors.extend(localRuns[task].get())
                             task["status"] = "FAILED"
+                            raise RuntimeError("Local job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
 
-                            self.allLogs.extend(logs)
-                            self.allErrs.extend(errors)
-                            self.__printRunStatus(layer, time.time() - startTime, logs, errors)
-                            self.webpage.createWebpage(self._graph, self.workDir)
-
-                            raise RuntimeError("Local job failed!")
-                            
-                    else:
-                        nRuns = nStatus(self.localTask, "RUNNING")
-                        nFinished = nStatus(self.localTask, "FINISHED")
-                        nFailed = nStatus(self.localTask, "FAILED")
-       
-                        if nRuns < nCores and nRuns < len(self.localTask) - nFinished - nFailed:
-                            task["status"] = "RUNNING"
-                           
-                ##Track condor jobs
-                for task in self.condorTask:
-                    #If job not submitted yet, there is no condor.log file
-                    if task["status"] in ["VALID", "FINISHED", "FAILED"]:
+                if task["run-mode"] == "Condor":
+                    if task["status"] == "VALID":
+                        condorJobs.append(task)
                         continue
 
-                    with open("{}/log.txt".format(task["condor-dir"])) as logFile:
-                        if True in ["Job executing" in line for line in logFile.readlines()]:
-                            task["status"] = "RUNNING"
+                    with open("{}/log.txt".format(task["dir"])) as logFile:
+                        condorLog = logFile.readlines()
 
-                        logFile.seek(0)
+                    if True in ["Job executing" in line for line in condorLog]:
+                        task["status"] = "RUNNING"
 
-                        if True in ["Normal termination" in line for line in logFile.readlines()]:
-                            logFile.seek(0)
-                
-                            if True in ["(return value 0)" in line for line in logFile.readlines()]:
-                                task["status"] = "FINISHED"
+                    if True in ["Normal termination" in line for line in condorLog]:
+                        if True in ["(return value 0)" in line for line in condorLog]:
+                            task["status"] = "FINISHED"
+                            nFinished+=1
+                            continue
 
-                                with open("{}/out.txt".format(task["condor-dir"])) as outFile:
-                                    for line in outFile:
-                                        logs.append(line)
+                        else:
+                            task["status"] = "FAILED"
+                            raise RuntimeError("Condor job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
 
-                            else:
-                                task["status"] = "FAILED"
+                    if True in ["SYSTEM_PERIODIC_REMOVE" in line for line in condorLog]:
+                        task["status"] = "VALID"
+                        task["run-mode"] = "Local"
 
-                                with open("{}/err.txt".format(task["condor-dir"])) as errFile:
-                                    for line in errFile:
-                                        errors.append(line)
-
-                        logFile.seek(0)
-
-                        if True in ["SYSTEM_PERIODIC_REMOVE" in line for line in logFile.readlines()]:
-                            task["status"] = "VALID"
-                            task["run-mode"] = "Local"
-                            self.localTask.append(task)
-                            localRuns[task] = pool.apply_async(task)
-                            self.condorTask.remove(task)
-
-                nSubmitted = nStatus(self.condorTask, "SUBMITTED") + nStatus(self.condorTask, "RUNNING")
-
-                ##Submit more condors jobs up to 200 if jobs left
-                dirs = []
-
-                for task in self.condorTask:
-                    if task["status"] == "VALID":
-                        if nSubmitted < 200:
-                            task.run()
-                            dirs.append(task["condor-dir"])
-                            task["status"] = "SUBMITTED"
-                            nSubmitted+=1
-
-                self.__submitCondor(dirs)
-
-                ##Print status
-                self.allLogs.extend(logs)
-                self.allErrs.extend(errors)
-                self.__printRunStatus(layer, time.time() - startTime, logs, errors)
-
-                ##Draw graph
-                self.webpage.createWebpage(self._graph, self.workDir)
-
-                if nStatus(self.localTask, "FINISHED") == len(self.localTask) and nStatus(self.condorTask, "FINISHED") == len(self.condorTask):
-                    break
+            if condorJobs:
+                self.__submitCondor(condorJobs)
+                condorJobs = []
