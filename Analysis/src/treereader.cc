@@ -264,7 +264,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     std::vector<std::string> cleanInfo = Utils::SplitString<std::string>(cleanJet, "/");
     Particle partToClean; WP wpToClean = NONE;
 
-    if(cleanJet!=""){
+    if(cleanInfo.size() != 1){
         partToClean=TreeFunction::partMap.at(cleanInfo[0]).first;
         wpToClean=TreeFunction::workingPointMap.at(cleanInfo[1]);
     }
