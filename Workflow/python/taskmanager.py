@@ -172,12 +172,15 @@ class TaskManager(object):
                         nFinished+=1
                         continue
 
+                ##If not all dependencies are finished, skip this task
                 if True in [t["status"] != "FINISHED" for t in task.dependencies]:
                     continue
 
+                ##Prepare task (Dir created, etc.)
                 if not task.isPrepared:
                     task.prepare()
 
+                ##Handle local jobs
                 if task["run-mode"] == "Local":
                     if len(localJobs) < nCores and task not in localJobs:
                         task["status"] = "RUNNING"
@@ -196,6 +199,7 @@ class TaskManager(object):
                             task["status"] = "FAILED"
                             raise RuntimeError("Local job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
 
+                ##Handle condor jobs
                 if task["run-mode"] == "Condor":
                     if task["status"] == "VALID":
                         condorJobs.append(task)
@@ -221,6 +225,7 @@ class TaskManager(object):
                         task["status"] = "VALID"
                         task["run-mode"] = "Local"
 
+            ##Submit condor jobs if wished
             if condorJobs:
                 self.__submitCondor(condorJobs)
                 condorJobs = []
