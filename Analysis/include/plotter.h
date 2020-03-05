@@ -5,25 +5,19 @@
 #include <map>
 #include <vector>
 #include <iostream>
-#include <utility>
-#include <algorithm>
-#include <cmath>
-#include <functional>
 
 #include <TLatex.h>
 #include <TGaxis.h>
 #include <TError.h>
 #include <TROOT.h>
+#include <TLegend.h>
+#include <TCanvas.h>
 #include <TStyle.h>
 #include <TH1.h>
 #include <TPad.h>
-#include <TMath.h>
 
 class Plotter{
     protected:
-        enum Processes {BKG, DATA, SIGNAL};
-
-        std::map<std::string, Processes> procDic;
         std::map<std::string, std::string> channelHeader;
         std::map<std::string, int> colors;
 
@@ -33,10 +27,12 @@ class Plotter{
         Plotter();
         Plotter(const std::string& histdir);
 
-        static void DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText);
         static void SetStyle();
-        static void SetPad(TPad* pad);
-        static void SetHist(TH1* frameHist);
+        static void SetPad(TPad* pad, const bool& isRatio=false);
+        static void SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel="", const bool& isRatio=false);
+        static void DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText);
+        static void DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
+        static void DrawLegend(TLegend* legend, const int& nColumns);
 
         virtual void ConfigureHists() = 0;
         virtual void Draw(std::vector<std::string> &outdirs) = 0;

@@ -4,29 +4,6 @@ Plotter::Plotter() : Plotter("") {}
 
 Plotter::Plotter(const std::string& histdir):
     histdir(histdir),
-    procDic({
-            {"DY+j", BKG},
-            {"W+j", BKG},
-            {"SingleE", DATA},
-            {"SingleMu", DATA},
-            {"MET", DATA},
-            {"VV+VVV", BKG},
-            {"QCD", BKG},
-            {"TT+j-1L", BKG},
-            {"TT+j-2L", BKG},
-            {"TT+j-H", BKG},
-            {"TT+V", BKG},
-            {"T", BKG},
-            {"HPlus200_h100_4B", SIGNAL},
-            {"HPlus250_h100_4B", SIGNAL},
-            {"HPlus300_h100_4B", SIGNAL},
-            {"HPlus350_h100_4B", SIGNAL},
-            {"HPlus400_h100_4B", SIGNAL},
-            {"HPlus450_h100_4B", SIGNAL},
-            {"HPlus500_h100_4B", SIGNAL},
-            {"HPlus550_h100_4B", SIGNAL},
-            {"HPlus600_h100_4B", SIGNAL},
-    }),
     channelHeader({
             {"e4j", "e + 4j"},
             {"mu4j", "#mu + 4j"},
@@ -37,9 +14,9 @@ Plotter::Plotter(const std::string& histdir):
     }),
     colors({
         {"DY+j", kRed + -7}, 
-        {"TT+j-1L", kYellow -7}, 
-        {"TT+j-2L", kYellow +4}, 
-        {"TT+j-H", kYellow + 7},
+        {"TT-1L", kYellow -7}, 
+        {"TT-2L", kYellow +4}, 
+        {"TT-Had", kYellow + 7},
         {"TT+V", kOrange +2},            
         {"T", kGreen  + 2},             
         {"W+j", kCyan + 2},             
@@ -50,8 +27,7 @@ Plotter::Plotter(const std::string& histdir):
 
 void Plotter::SetStyle(){
     //Style options
-    TGaxis::SetExponentOffset(-0.05, 0.005, "y");
-    TGaxis::SetMaxDigits(3);
+    TGaxis::SetExponentOffset(-0.07, 0.0035, "y");
     gStyle->SetLegendBorderSize(0);
     gStyle->SetFillStyle(0);
     gStyle->SetOptStat(0);
@@ -60,42 +36,105 @@ void Plotter::SetStyle(){
     gErrorIgnoreLevel = kWarning;
 }
 
-void Plotter::SetPad(TPad* pad){
+void Plotter::SetPad(TPad* pad, const bool& isRatio){
+    float bottonMargin = 120./(pad->GetWw() * pad->GetWNDC());
+    float leftMargin = 160./(pad->GetWw() * pad->GetWNDC());
+    float rightMargin = 80./(pad->GetWw() * pad->GetWNDC());
+
     //Pad options
-    pad->SetLeftMargin(0.15);
-    pad->SetRightMargin(0.1);
-    pad->SetBottomMargin(0.12); 
+    pad->SetLeftMargin(leftMargin);
+    pad->SetRightMargin(rightMargin);
+    if(!isRatio) pad->SetBottomMargin(bottonMargin); 
 }
 
-void Plotter::SetHist(TH1* frameHist){
+void Plotter::SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel, const bool& isRatio){
+    float padWidth = pad->GetWw() * pad->GetWNDC();
+    float padHeight = pad->GetWh() * pad->GetHNDC();
+
+    float labelSize = 40.;
+    float labelDistance = 10.;
+    float tickSize = 40.;
+
     //Hist options
-    frameHist->GetXaxis()->SetTitleSize(0.05);
-    frameHist->GetYaxis()->SetTitleSize(0.05);
-    frameHist->GetXaxis()->SetTitleOffset(1.1);
-    frameHist->GetXaxis()->SetLabelSize(0.05);
-    frameHist->GetYaxis()->SetLabelSize(0.05);
+    frameHist->GetXaxis()->SetTitleSize(isRatio ? 0 : labelSize/padHeight);
+    frameHist->GetXaxis()->SetTitleOffset(1. + 0.25);
+    frameHist->GetXaxis()->SetLabelSize(isRatio ? 0 : labelSize/padHeight);
+    frameHist->GetXaxis()->SetLabelOffset(isRatio ? 0 : labelDistance/padHeight);
+    frameHist->GetXaxis()->SetTickLength(tickSize/padHeight);
+
+    frameHist->GetYaxis()->SetTitle(yLabel.c_str());
+    frameHist->GetYaxis()->SetTitleSize(labelSize/padHeight);
+    frameHist->GetYaxis()->SetLabelOffset(labelDistance/padWidth);
+    frameHist->GetYaxis()->SetLabelSize(labelSize/padHeight);
+    frameHist->GetYaxis()->SetTickLength(tickSize/padWidth);
+    frameHist->GetYaxis()->SetMaxDigits(3);
+    if(isRatio) frameHist->GetYaxis()->SetNdivisions(3, 6, 0);
+    if(isRatio) frameHist->GetYaxis()->SetTitleOffset(0.42);
 }
 
-void Plotter::DrawHeader(const bool &twoPads, const std::string &titleText, const std::string &cmsText){
+void Plotter::DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText){
+    float padWidth = pad->GetWw() * pad->GetWNDC();
+    float padHeight = pad->GetWh() * pad->GetHNDC();
+
+    float textSize = padHeight > padWidth ? 30./padWidth : 30./padHeight;
+
+    TLatex* channelLine = new TLatex();
+    channelLine->SetTextFont(42);
+    channelLine->SetTextSize(textSize);
+    channelLine->DrawLatexNDC(0.17, 0.91, titleText.c_str());
+
+    TLatex* cmsLine = new TLatex();
+    cmsLine->SetTextFont(62);
+    cmsLine->SetTextSize(textSize);
+    cmsLine->DrawLatexNDC(0.33, 0.91, "CMS");
+
+    TLatex* cmsTextLine = new TLatex();
+    cmsTextLine->SetTextFont(52);
+    cmsTextLine->SetTextSize(textSize);
+    cmsTextLine->DrawLatexNDC(0.4, 0.91, cmsText.c_str());
+
     //CMS Work in Progres and Lumi information
-    TLatex* channel_title = new TLatex();
-    channel_title->SetTextFont(42);
-    channel_title->SetTextSize(twoPads ? 0.045 : 0.035);
+    TLatex* lumiLine = new TLatex();
+    lumiLine->SetTextFont(42);
+    lumiLine->SetTextSize(textSize);
+    lumiLine->DrawLatexNDC(0.64, 0.91, "41.4 fb^{-1} (2017, 13 TeV)");
+}
 
-    TLatex* lumi = new TLatex();
-    lumi->SetTextFont(42);
-    lumi->SetTextSize(twoPads ? 0.045 : 0.035);
+void Plotter::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel){
+    //Resize Canvas
+    canvas->cd();
+    canvas->SetCanvasSize(canvas->GetWindowWidth(), 1.2*canvas->GetWindowHeight());
+    mainPad->SetPad(0., 0.2, 1., 1.);
 
-    TLatex* cms = new TLatex();
-    cms->SetTextFont(62);
-    cms->SetTextSize(twoPads ? 0.05 : 0.040);
+    //Set up ratio pad
+    TPad* ratioPad = new TPad("ratioPad", "ratioPad", 0., 0. , 1., 0.2);
+    Plotter::SetPad(ratioPad, true);
 
-    TLatex* work = new TLatex();
-    work->SetTextFont(52);
-    work->SetTextSize(twoPads ? 0.045 : 0.035);
+    ratioPad->Draw();
+    ratioPad->cd();
 
-    channel_title->DrawLatexNDC(0.17, 0.905, titleText.c_str());
-    cms->DrawLatexNDC(twoPads ? 0.32: 0.33, 0.905, "CMS");
-    work->DrawLatexNDC(twoPads ? 0.388 : 0.40, 0.905, cmsText.c_str());
-    lumi->DrawLatexNDC(twoPads ? 0.65: 0.63, 0.905, "41.4 fb^{-1} (2017, 13 TeV)");
+    //Draw ratio histogram
+    TH1F* ratio = (TH1F*)num->Clone();
+    Plotter::SetHist(ratioPad, ratio, yLabel, true);
+    ratio->Divide(dem);
+    ratio->SetMinimum(0.5);
+    ratio->SetMaximum(1.5);
+    ratio->Draw();
+
+    //Draw uncertainty band
+    TH1F* uncertainty = (TH1F*)dem->Clone();
+    uncertainty->Divide(dem);
+    uncertainty->SetFillStyle(3354);
+    uncertainty->SetFillColorAlpha(kBlack, 0.8);
+    uncertainty->SetMarkerColor(kBlack);
+    uncertainty->Draw("SAME E2");
+}
+
+void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
+    //Draw Legend and legend pad
+    TPad* legendPad = new TPad("legendPad", "legendPad", 0.18, 0.84, 0.91, 0.88);
+    legendPad->Draw();
+    legendPad->cd();
+    legend->SetNColumns(nColumns);
+    legend->Draw();
 }
