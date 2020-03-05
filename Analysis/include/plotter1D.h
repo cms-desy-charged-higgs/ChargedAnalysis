@@ -1,7 +1,9 @@
 #ifndef PLOTTER1D_H
 #define PLOTTER1D_H
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <map>
+#include <vector>
+#include <string>
 
 #include <TFile.h>
 #include <TH1F.h>
@@ -11,14 +13,9 @@
 #include <TCanvas.h>
 #include <TPad.h>
 #include <Rtypes.h>
-#include <TMath.h>
 
-#include <sstream>
-#include <iostream>
-#include <functional>
-#include <map>
-#include <vector>
-#include <string>
+#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/utils.h>
 
 class Plotter1D : public Plotter{
     
@@ -26,6 +23,7 @@ class Plotter1D : public Plotter{
         std::map<std::string, std::vector<TH1F*>> background;
         std::map<std::string, std::vector<TH1F*>> signal;
         std::map<std::string, TH1F*> data;
+        std::map<std::string, TH1F*> bkgSum;
 
         std::vector<std::string> parameters;
 
