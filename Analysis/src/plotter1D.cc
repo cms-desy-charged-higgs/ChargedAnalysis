@@ -151,6 +151,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             std::string extension = isLog ? "_log" : "";
 
             for(std::string outdir: outdirs){
+                std::system(("mkdir -p " + outdir).c_str());
                 canvas->SaveAs((outdir + "/" + param + extension + ".pdf").c_str());
                 canvas->SaveAs((outdir + "/" + param + extension + ".png").c_str());
 
