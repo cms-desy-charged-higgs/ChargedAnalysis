@@ -205,8 +205,12 @@ class TaskManager(object):
                         condorJobs.append(task)
                         continue
 
-                    with open("{}/log.txt".format(task["dir"])) as logFile:
-                        condorLog = logFile.readlines()
+                    if(os.path.exists("{}/log.txt".format(task["dir"]))):
+                        with open("{}/log.txt".format(task["dir"])) as logFile:
+                            condorLog = logFile.readlines()
+
+                    else:
+                        continue
 
                     if True in ["Job executing" in line for line in condorLog]:
                         task["status"] = "RUNNING"
