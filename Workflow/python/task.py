@@ -37,8 +37,7 @@ class Task(ABC, dict):
         ##Write shell exucutable with command
         fileContent = [
                         "#!/bin/bash\n", 
-                        "cd $CHDIR\n",
-                        "source ChargedAnalysis/setenv.sh Analysis\n",
+                        "source $CHDIR/ChargedAnalysis/setenv.sh Analysis\n",
                         " ".join([self["executable"], *[str(s) for s in self["arguments"]]])
         ]
 
