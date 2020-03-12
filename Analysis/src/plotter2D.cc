@@ -35,16 +35,16 @@ void Plotter2D::ConfigureHists(){
                 if(histNames->Contains((xParameters[i] + "_VS_" + yParameters[j]).c_str())){
                     TH2F* hist = (TH2F*)file->Get((xParameters[i] + "_VS_" + yParameters[j]).c_str());
 
-                    if(procDic[process] == BKG){
-                        hist->SetMarkerColor(kRed);
-                        hist->SetMarkerStyle(20);
-                        bkgHists.push_back(hist);
-                    }
-
-                    if(procDic[process] == SIGNAL){
+                    if(Utils::Find<std::string>(process, "HPlus") != -1.){
                         hist->SetMarkerColor(kBlue);
                         hist->SetMarkerStyle(20);
                         sigHists.push_back(hist);
+                    }
+
+                    else{
+                        hist->SetMarkerColor(kRed);
+                        hist->SetMarkerStyle(20);
+                        bkgHists.push_back(hist);
                     }
                 }
                 
@@ -62,7 +62,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
     Plotter::SetStyle();
 
     TCanvas *canvas = new TCanvas("canvas2D", "canvas2D", 1000, 800); 
-    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
+    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 1., 1.);
 
     //Save pairs of XY parameters to avoid redundant plots
    std::vector<std::string> parameterPairs;
@@ -86,9 +86,9 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 bkgSum->Add(hist);
             }
                        
-            Plotter::SetHist(bkgSum);
+            Plotter::SetHist(mainpad, bkgSum);
             bkgSum->DrawNormalized("colz");
-            Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
+            Plotter::DrawHeader(mainpad, channelHeader[channel], "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_bkg.pdf").c_str());
@@ -105,9 +105,9 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
 
             if(signal[i][j].size() == 0) continue;
 
-            Plotter::SetHist(signal[i][j][0]);
+            Plotter::SetHist(mainpad, signal[i][j][0]);
             signal[i][j][0]->DrawNormalized("colz");
-            Plotter::DrawHeader(false, channelHeader[channel], "Work in progress");
+            Plotter::DrawHeader(mainpad, channelHeader[channel], "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_sig.pdf").c_str());

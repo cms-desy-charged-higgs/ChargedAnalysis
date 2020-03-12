@@ -1,8 +1,6 @@
 #ifndef PLOTTERTRIGGEFF_H
 #define PLOTTERTRIGGEFF_H
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
-
 #include <TH1.h>
 #include <TH1F.h>
 #include <TH2F.h>
@@ -12,6 +10,9 @@
 #include <TLegend.h>
 #include <TGraphAsymmErrors.h>
 #include <TEfficiency.h>
+
+#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/utils.h>
 
 class PlotterTriggEff : public Plotter{
     private:

@@ -1,8 +1,6 @@
 #ifndef PLOTTERLIMIT_H
 #define PLOTTERLIMIT_H
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
-
 #include <vector>
 #include <map>
 
@@ -16,6 +14,8 @@
 #include <TPad.h>
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
+
+#include <ChargedAnalysis/Analysis/include/plotter.h>
 
 class PlotterLimit : public Plotter{
     private:

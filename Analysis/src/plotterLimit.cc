@@ -100,7 +100,7 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     legend->AddEntry(sigmaTwo, "95% expected", "F");
     
     //Configure labels
-    Plotter::SetHist(sigmaTwo->GetHistogram());
+    Plotter::SetHist(mainpad, sigmaTwo->GetHistogram());
     sigmaTwo->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
     sigmaTwo->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
 
@@ -114,7 +114,7 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
 
     mainpad->cd();
 
-    Plotter::DrawHeader(false, "All channel", "Work in progress");
+    Plotter::DrawHeader(mainpad, "All channel", "Work in progress");
 
     //Set range
     sigmaTwo->SetMinimum(theory->GetMinimum()*1e-2);

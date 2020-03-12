@@ -1,11 +1,12 @@
 #ifndef PLOTTER2D_H
 #define PLOTTER2D_H
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
-
 #include <TCanvas.h>
 #include <TFile.h>
 #include <TH2F.h>
+
+#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/utils.h>
 
 class Plotter2D : public Plotter{
     

@@ -32,31 +32,7 @@ void PlotterTriggEff::ConfigureHists(){
         TFile* file = TFile::Open(filename.c_str());
 
         for(unsigned int i = 0; i < yParam.size(); i++){
-            if(procDic[process] == BKG){
-                if(bkgTotal[i] == NULL){
-                    bkgTotal[i] = (TH2F*)file->Get((total + "_VS_" + yParam[i]).c_str());
-                }
-
-                else{
-                    bkgTotal[i]->Add((TH2F*)file->Get((total + "_VS_" + yParam[i]).c_str()));
-                }
-
-                for(unsigned int j = 0; j < passed.size(); j++){
-                    TH2F* pass = (TH2F*)file->Get((passed[j] + "_VS_" + yParam[i]).c_str());
-
-                    //Merge bkg hist to another
-                    if(bkgPassed[i][j] == NULL){
-                        bkgPassed[i][j] = pass;
-                    }
-
-                    //Push back hist empty
-                    else{
-                         bkgPassed[i][j]->Add(pass);
-                    }
-                }
-            }
-
-            else if(procDic[process] == DATA){
+            if(Utils::Find<std::string>(process, "Single") != -1. or Utils::Find<std::string>(process, "MET") != -1.){
                 dataTotal.push_back((TH2F*)file->Get((total + "_VS_" + yParam[i]).c_str()));
 
                 for(unsigned int j = 0; j < passed.size(); j++){
@@ -81,6 +57,30 @@ void PlotterTriggEff::ConfigureHists(){
                     dataEff->SetMarkerStyle(20);
 
                     dataEfficiencies[i][j] = dataEff;
+                }
+            }
+
+            else{
+                if(bkgTotal[i] == NULL){
+                    bkgTotal[i] = (TH2F*)file->Get((total + "_VS_" + yParam[i]).c_str());
+                }
+
+                else{
+                    bkgTotal[i]->Add((TH2F*)file->Get((total + "_VS_" + yParam[i]).c_str()));
+                }
+
+                for(unsigned int j = 0; j < passed.size(); j++){
+                    TH2F* pass = (TH2F*)file->Get((passed[j] + "_VS_" + yParam[i]).c_str());
+
+                    //Merge bkg hist to another
+                    if(bkgPassed[i][j] == NULL){
+                        bkgPassed[i][j] = pass;
+                    }
+
+                    //Push back hist empty
+                    else{
+                         bkgPassed[i][j]->Add(pass);
+                    }
                 }
             }
         }
@@ -132,7 +132,7 @@ void PlotterTriggEff::Draw(std::vector<std::string> &outdirs){
 
     canvas->cd();
 
-    Plotter::DrawHeader(false, "e inclusive", "Work in progress");
+    Plotter::DrawHeader(mainpad, "e inclusive", "Work in progress");
 
     for(unsigned int i = 0; i < yParam.size(); i++){
         for(unsigned int j = 0; j < passed.size(); j++){
