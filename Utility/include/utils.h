@@ -42,6 +42,9 @@ namespace Utils{
     //Find string in bracktes in a string
     std::string FindInBracket(const std::string& input);
 
+    //Check if zero, if yes, return 1.
+    float CheckZero(const float& input);
+
     //Function for displaying progress
     void ProgressBar(const int& progress, const std::string& process);
 

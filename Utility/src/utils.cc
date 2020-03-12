@@ -148,6 +148,10 @@ unsigned int Utils::BitCount(unsigned int num){
     return count; 
 }
 
+float Utils::CheckZero(const float& input){
+    return input == 0. ? 1: input;
+}
+
 TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints){
     TGraph* ROC = new TGraph();
 
@@ -205,7 +209,7 @@ void Utils::DrawScore(const torch::Tensor pred, const torch::Tensor truth, const
     
     Plotter::SetPad(canvas);
     Plotter::SetStyle();
-    Plotter::SetHist(topHist);
+    Plotter::SetHist(canvas, topHist);
 
     for(unsigned int k=0; k < pred.size(0); k++){
         if(truth[k].item<float>() == 0){
@@ -219,7 +223,7 @@ void Utils::DrawScore(const torch::Tensor pred, const torch::Tensor truth, const
 
     topHist->DrawNormalized("HIST");
     higgsHist->DrawNormalized("HIST SAME");
-    Plotter::DrawHeader(false, "All channel", "Work in Progress");
+    Plotter::DrawHeader(canvas, "All channel", "Work in Progress");
 
     canvas->SaveAs((scorePath + "/score.pdf").c_str());
 
