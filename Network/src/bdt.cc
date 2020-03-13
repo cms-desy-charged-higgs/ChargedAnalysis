@@ -27,13 +27,13 @@ BDT::~BDT(){
     }
 }
 
-float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize){
+float BDT::Train(std::vector<std::string> &parameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize){
     //Name of tmp dir    
     std::ostringstream thisString;
     thisString << (void*)this;
     
     std::system(("cd " + std::string(std::getenv("CHDIR"))).c_str());
-    std::string tempDir = "Tmp/BDT/BDT_" + thisString.str();
+    std::string tempDir = thisString.str();
     std::system(("mkdir -p " + tempDir).c_str());
 
     //Open output file
@@ -46,12 +46,15 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
 
     (TMVA::gConfig().GetVariablePlotting()).fMaxNumOfAllowedVariablesForScatterPlots = 0.;
 
-    //Add trainings variables
-    for(std::string &xParameter: xParameters){
-        loader->AddVariable(xParameter);
+    //Save used parameters
+    std::ofstream parameterFile;
+    parameterFile.open(resultDir + "/parameters.txt");
+
+    for(std::string &parameter: parameters){
+        if(Utils::Find<std::string>(parameter, "const") == -1.) parameterFile << parameter << std::endl;
     }
 
-    loader->AddVariable("mass");
+    parameterFile.close();
 
     //Add bkg/sig training and test trees
     int nSignal=0; int nBkg=0;
@@ -65,11 +68,21 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
         std::string sigName = signal;
         sigName.replace(sigName.find("{"), 2, mass);
 
-        TFile* sigFile = TFile::Open((treeDir + "/" + sigName + ".root").c_str());
-        TTree* sigTree = (TTree*)sigFile->Get(sigName.c_str());
+        TFile* sigFile = TFile::Open((treeDir + "/" + sigName + "/" + sigName + ".root").c_str());
+        TTree* sigTree = (TTree*)sigFile->Get(sigFile->GetListOfKeys()->At(0)->GetName());
 
         files.push_back(sigFile);
         trees.push_back(sigTree);
+
+        //Add trainings variables
+        if(loader->GetDataSetInfo().GetListOfVariables().empty()){
+            for(int i=0; i < sigTree->GetListOfBranches()->GetEntries(); i++){
+                std::string variable = sigTree->GetListOfBranches()->At(i)->GetName();
+            
+                if(Utils::Find<std::string>(variable, "const") != -1.) loader->AddVariable("mass");
+                else loader->AddVariable(variable);
+            }
+        }
 
         sigTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
         sigTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
@@ -78,9 +91,9 @@ float BDT::Train(std::vector<std::string> &xParameters, std::string &treeDir, st
         loader->AddSignalTree(sigTree);
    
         for(std::string &background: backgrounds){
-            TFile* bkgFile = TFile::Open((treeDir + "/" + background + ".root").c_str());
+            TFile* bkgFile = TFile::Open((treeDir + "/" + background + "/" + background + ".root").c_str());
 
-            TTree* bkgTree = (TTree*)bkgFile->Get(background.c_str());
+            TTree* bkgTree = (TTree*)bkgFile->Get(bkgFile->GetListOfKeys()->At(0)->GetName());
             bkgTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
             bkgTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
 

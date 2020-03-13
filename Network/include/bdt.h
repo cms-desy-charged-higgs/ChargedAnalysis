@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <fstream>
 
 #include <TFile.h>
 #include <TTree.h>
@@ -15,6 +16,8 @@
 #include <TMVA/Tools.h>
 #include <TMVA/Config.h>
 
+#include <ChargedAnalysis/Utility/include/utils.h>
+
 class BDT{
     private:
         std::string trainString;
@@ -25,7 +28,7 @@ class BDT{
         ~BDT();
 
 
-        float Train(std::vector<std::string> &xParameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize);
+        float Train(std::vector<std::string> &parameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize);
         std::vector<std::string> SetEvaluation(const std::string &bdtPath);
         float Evaluate(const std::vector<float> &paramValues);
 };
