@@ -29,24 +29,26 @@ class TreeRead(Task):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
-        skimDir = os.environ["CHDIR"] + "/OldSkim"
+        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"])
         tasks = []
  
         for process in config["processes"] + config["data"].get(channel, []):
+            jobNr = 0
+
             ##List of filenames for each process
             filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = f) for f in processDic[process]]
 
-            for i, filename in enumerate(filenames):
+            for filename in filenames:
                 intervals = utils.SplitEventRange(filename, channel, config["number-events"])
 
-                for j, interval in enumerate(intervals):
+                for interval in intervals:
                     ##Configuration for treeread Task
                     task = {
-                            "name": "{}_{}_{}".format(channel, process, i+j) + ("_{}".format(prefix) if prefix else ""), 
+                            "name": "{}_{}_{}".format(channel, process, jobNr) + ("_{}".format(prefix) if prefix else ""), 
                             "display-name": "Hist: {} ({})".format(process, channel),
                             "channel": channel, 
                             "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                            "dir":  os.environ["CHDIR"] + "/{}/{}/{}/unmerged/{}".format(config["dir"], config["chan-dir"][channel], process, i+j), 
+                            "dir":  os.environ["CHDIR"] + "/{}/{}/{}/unmerged/{}".format(config["dir"], config["chan-dir"][channel], process, jobNr), 
                             "process": process, 
                             "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
                             "filename": filename,
@@ -56,5 +58,7 @@ class TreeRead(Task):
                     }
 
                     tasks.append(TreeRead(task))
+
+                    jobNr+=1
 
         return tasks
