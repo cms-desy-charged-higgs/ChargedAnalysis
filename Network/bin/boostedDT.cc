@@ -18,7 +18,7 @@ int main(int argc, char* argv[]){
     Parser parser(argc, argv);
 
     bool optimize = parser.GetValue<bool>("optimize");
-    std::vector<std::string> xParameters = parser.GetVector<std::string>("x-parameters");
+    std::vector<std::string> parameters = parser.GetVector<std::string>("parameters");
     std::string treeDir = parser.GetValue<std::string>("tree-dir");
     std::string resultDir = parser.GetValue<std::string>("result-dir");
     std::string signal = parser.GetValue<std::string>("signal");
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]){
         lr = std::experimental::randint(10, 100)/100.;
         nCuts = std::experimental::randint(5, 100);
         treeDepth = std::experimental::randint(2, 20);
-        dropOut = std::experimental::randint(2, (int)xParameters.size());
+        dropOut = std::experimental::randint(2, (int)parameters.size()-1);
     }
 
     else{
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]){
 
     //Train BDT
     BDT bdt(nTrees, minNodeSize, lr, nCuts, treeDepth, dropOut, sepType);
-    float ROC = bdt.Train(xParameters, treeDir, resultDir, signal, backgrounds, masses, optimize);
+    float ROC = bdt.Train(parameters, treeDir, resultDir, signal, backgrounds, masses, optimize);
 
     if(optimize){
         std::string pathName = std::string(std::getenv("CHDIR")) + "/BDT/HyperTuning/";

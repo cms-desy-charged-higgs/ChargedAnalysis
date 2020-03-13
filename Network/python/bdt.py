@@ -11,7 +11,7 @@ class BDT(Task):
 
         self["arguments"] = [
                 "--sep-type", self["sep-type"],
-                "--x-parameters", *self["x-parameters"],
+                "--parameters", *self["parameters"],
                 "--tree-dir", self["tree-dir"],
                 "--result-dir", self["dir"],
                 "--signal", self["signal"],
@@ -40,8 +40,8 @@ class BDT(Task):
                 "dir": "{}/{}/{}".format(os.environ["CHDIR"], config["dir"].format(evType), config["chan-dir"][channel]),
                 "signal": config["signal"],
                 "backgrounds": config["backgrounds"],
-                "x-parameters": config["x-parameters"].get("all", []) + config["x-parameters"].get(channel, []),
-                "tree-dir": "{}/Tree/{}/{}".format(os.environ["CHDIR"], config["dir"].format(evType), config["chan-dir"][channel]), 
+                "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
+                "tree-dir": "{}/{}/{}".format(os.environ["CHDIR"], config["dir"].format(evType), config["chan-dir"][channel]), 
                 "masses": config["masses"],
                 "dependencies": [t["name"] for t in haddTasks if evType in t["dir"] and config["chan-dir"][channel] in t["dir"]],
                 "run-mode": config["run-mode"],
