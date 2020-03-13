@@ -1,38 +1,67 @@
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 
-std::map<std::string, std::pair<float(*)(Event&, FuncArgs&), std::string>> TreeFunction::funcMap = {
-    {"mass", {&TreeFunction::Mass, "m(@) [GeV]"}},
-    {"pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
-    {"phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
-    {"eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
-    {"dPhi", {&TreeFunction::DeltaPhi, "#Delta#phi(@, @) [rad]"}},
-    {"dR", {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"}},
-    {"N", {&TreeFunction::NParticle, "N(@)"}},
-    {"HT", {&TreeFunction::HadronicEnergy, "H_{T}"}},
-    {"const", {&TreeFunction::ConstantNumber, ""}},
+Utils::Bimap<std::string, float(*)(Event&, FuncArgs&)> TreeFunction::functions = {
+    {"mass", &TreeFunction::Mass},
+    {"pt", &TreeFunction::Pt},
+    {"phi", &TreeFunction::Phi},
+    {"eta", &TreeFunction::Eta},
+    {"dPhi", &TreeFunction::DeltaPhi},
+    {"dR", &TreeFunction::DeltaR},
+    {"N", &TreeFunction::NParticle},
+    {"HT", &TreeFunction::HadronicEnergy},
+    {"const", &TreeFunction::ConstantNumber},
+    {"evNr", &TreeFunction::EventNumber},
 };
 
-std::map<std::string, std::pair<Particle, std::string>> TreeFunction::partMap = {
-    {"e", {ELECTRON, "e_{@}"}},
-    {"mu", {MUON, "#mu_{@}"}},
-    {"j", {JET, "j_{@}"}},
-    {"fj", {FATJET, "j_{@}^{AK8}"}},
-    {"bj", {BJET, "b_{@}"}},
-    {"bsj", {BSUBJET, "b_{@}"}},
-    {"met", {MET, "#vec{p}_{T}^{miss}"}},
+Utils::Bimap<float(*)(Event&, FuncArgs&), std::string> TreeFunction::funcLabels = {
+    {&TreeFunction::Mass, "m(@) [GeV]"},
+    {&TreeFunction::Pt, "p_{T}(@) [GeV]"},
+    {&TreeFunction::Phi, "#phi(@) [rad]"},
+    {&TreeFunction::Eta, "#eta(@) [rad]"},
+    {&TreeFunction::DeltaPhi, "#Delta#phi(@, @) [rad]"},
+    {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"},
+    {&TreeFunction::NParticle, "N(@)"},
+    {&TreeFunction::HadronicEnergy, "H_{T}"},
+    {&TreeFunction::ConstantNumber, ""},
+    {&TreeFunction::EventNumber, ""},
 };
 
-std::map<std::string, WP> TreeFunction::workingPointMap = {
+Utils::Bimap<std::string, Particle> TreeFunction::particles = {
+    {"e", ELECTRON},
+    {"mu", MUON},
+    {"j", JET},
+    {"sj", SUBJET},
+    {"fj", FATJET},
+    {"bj", BJET},
+    {"bsj", BSUBJET},
+    {"met", MET},
+};
+
+Utils::Bimap<Particle, std::string> TreeFunction::partLabels = {
+    {ELECTRON, "e_{@}"},
+    {MUON, "#mu_{@}"},
+    {JET, "j_{@}"},
+    {SUBJET, "j^{sub}_{@}"},
+    {FATJET, "j_{@}^{AK8}"},
+    {BJET, "b_{@}"},
+    {BSUBJET, "b^{sub}_{@}"},
+    {MET, "#vec{p}_{T}^{miss}"},
+};
+
+Utils::Bimap<std::string, WP> TreeFunction::workingPoints = {
     {"l", LOOSE},
     {"m", MEDIUM},
     {"t", TIGHT},
 };
 
-std::map<std::string, Comparison> TreeFunction::comparisonMap = {
+Utils::Bimap<std::string, Comparison> TreeFunction::comparisons = {
     {"bigger", BIGGER},
     {"smaller", SMALLER},
     {"equal", EQUAL},
+    {"divisible", DIVISIBLE},
+    {"notdivisible", NOTDIVISIBLE},
 };
+
 
 //Function for returning value of wished quantity
 float TreeFunction::Mass(Event& event, FuncArgs& args){
@@ -64,33 +93,38 @@ float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
 }
 
 float TreeFunction::NParticle(Event &event, FuncArgs& args){
-    try{
+    if(event.SF.count(args.parts[0])){
         for(float& SF: event.SF.at(args.parts[0]).at(args.wp[0])){
             event.weight *= SF;
         }
     }
 
-    catch(const std::exception& e) {}
-    
-    try{
-        return event.particles.at(args.parts[0]).at(args.wp[0]).size();
+    if(event.particles.count(args.parts[0])){
+        if(event.particles.at(args.parts[0]).count(args.wp[0])){
+            return event.particles.at(args.parts[0]).at(args.wp[0]).size();
+        }
+
+        else return 0;
     }
 
-    catch(const std::exception& e) {
-        return 0;
-    }
+    else return 0;
 }
 
 float TreeFunction::HadronicEnergy(Event &event, FuncArgs& args){
-    return event.HT;
+    float HT=0;
+
+    if(event.particles.count(JET)){
+        for(ROOT::Math::PxPyPzEVector& jet: event.particles.at(JET).at(NONE)){HT+= jet.Pt();}
+    }
+
+    return HT;
 }
 
-/*
-
-float TreeReader::EventNumber(Event &event, Hist &hist){
+float TreeFunction::EventNumber(Event &event, FuncArgs& args){
     return Utils::BitCount(int(event.eventNumber));
 }
 
+/*
 float TreeReader::Subtiness(Event &event, Hist &hist){
     return event.particles[hist.parts[0]][hist.indeces[0]-1].subtiness[hist.funcValue];
 }

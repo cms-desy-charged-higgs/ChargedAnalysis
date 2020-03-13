@@ -4,19 +4,23 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <iostream>
 
 #include <Math/GenVector/VectorUtil.h>
 #include <Math/Vector4Dfwd.h>
 
+#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/src/bimap.cc>
+
 enum Particle{ELECTRON, MUON, JET, BJET, FATJET, BFATJET, SUBJET, BSUBJET, MET};
 enum WP{NONE, LOOSE, MEDIUM, TIGHT};
-enum Comparison{BIGGER, SMALLER, EQUAL};
+enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
 struct Event{
     std::map<Particle, std::map<WP, std::vector<ROOT::Math::PxPyPzEVector>>> particles;
     std::map<Particle, std::map<WP, std::vector<float>>> SF;
     float weight;
-    float HT;
+    int eventNumber;
 };
 
 struct FuncArgs{
@@ -28,39 +32,13 @@ struct FuncArgs{
     float compValue;
 };
 
-struct Function{
-    float(*func)(Event&, FuncArgs&);
-    std::string funcName, partName, index, wp;
-
-    float operator()(Event& event, FuncArgs& args){
-        try{
-            return func(event, args);
-        }
-
-        catch (const std::exception& e){
-            throw std::runtime_error("Error in function '" + funcName + "': No particle '" + partName + "' with index '" + index + "' and working point '" + wp + "'");
-        }
-    }
-
-    bool operator()(Event& event, FuncArgs& args, const bool& isCut){
-        switch(args.comp){
-            case BIGGER:
-                return func(event, args) > args.compValue;
-
-            case SMALLER:
-                return func(event, args) < args.compValue;
-
-            case EQUAL:
-                return func(event, args) == args.compValue;
-        }
-    }
-};
-
 namespace TreeFunction{
-    extern std::map<std::string, std::pair<float(*)(Event&, FuncArgs&), std::string>> funcMap;
-    extern std::map<std::string, std::pair<Particle, std::string>> partMap;
-    extern std::map<std::string, WP> workingPointMap;
-    extern std::map<std::string, Comparison> comparisonMap;
+    extern Utils::Bimap<std::string, float(*)(Event&, FuncArgs&)> functions;
+    extern Utils::Bimap<float(*)(Event&, FuncArgs&), std::string> funcLabels;
+    extern Utils::Bimap<std::string, Particle> particles;
+    extern Utils::Bimap<Particle, std::string> partLabels;
+    extern Utils::Bimap<std::string, WP> workingPoints;
+    extern Utils::Bimap<std::string, Comparison> comparisons;
 
     float Mass(Event& event, FuncArgs& args);
     float Phi(Event& event, FuncArgs& args);
@@ -71,6 +49,40 @@ namespace TreeFunction{
     float NParticle(Event &event, FuncArgs& args);
     float ConstantNumber(Event &event, FuncArgs& args);
     float HadronicEnergy(Event &event, FuncArgs& args);
+    float EventNumber(Event &event, FuncArgs& args);
+};
+
+struct Function{
+    float(*func)(Event&, FuncArgs&);
+
+    float operator()(Event& event, FuncArgs& args){
+        try{
+            return func(event, args);
+        }
+
+        catch (const std::exception& e){
+            return -999.;
+        }
+    }
+
+    bool operator()(Event& event, FuncArgs& args, const bool& isCut){
+        switch(args.comp){
+            case BIGGER:
+                return this->operator()(event, args) > args.compValue;
+
+            case SMALLER:
+                return this->operator()(event, args) < args.compValue;
+
+            case EQUAL:
+                return this->operator()(event, args) == args.compValue;
+
+            case DIVISIBLE:
+                return int(this->operator()(event, args)) % int(args.compValue) == 0;
+
+            case NOTDIVISIBLE:
+                return int(this->operator()(event, args)) % int(args.compValue) != 0;
+        }
+    }
 };
 
 #endif
