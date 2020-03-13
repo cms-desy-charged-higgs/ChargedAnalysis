@@ -10,6 +10,14 @@ number-events: 300000
 
 run-mode: Local
 
+skim-dir: Skim/
+
+shape-systs:
+    - energyScale
+    - energySigma
+    - JECTotal
+    - JER
+
 cuts:
     all: []
 
