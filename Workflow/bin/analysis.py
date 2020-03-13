@@ -19,7 +19,7 @@ import argparse
 import yaml
 import copy
 import sys
-import pprint
+import numpy
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
@@ -66,12 +66,12 @@ def bdt(config):
     allTasks = []
 
     for channel in config["channels"]:
-        for evType, operator in zip(["Even", "Odd"], ["%", "%!"]):
+        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
             bkgConfig = copy.deepcopy(config)
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
-            bkgConfig["x-parameters"]["all"].extend(["const_{}".format(m) for m in bkgConfig["masses"]])
-            bkgConfig["cuts"].setdefault("all", []).append("evNr_{}_2".format(operator))
+            bkgConfig["parameters"]["all"].extend(["f:[n=const,v={}]/t:[]".format(m) for m in bkgConfig["masses"]])
+            bkgConfig["cuts"].setdefault("all", []).append("f:[n=evNr]/c:[n={},v=2]".format(operator))
             bkgConfig["dir"] = bkgConfig["dir"].format(evType)
 
             treeTasks = TreeRead.configure(bkgConfig, channel, prefix=evType)
@@ -82,8 +82,8 @@ def bdt(config):
                 sigConfig = copy.deepcopy(config)
 
                 sigConfig["processes"] = [config["signal"].format(mass)]
-                sigConfig["x-parameters"]["all"].append("const_{}".format(mass))
-                sigConfig["cuts"].setdefault("all", []).append("evNr_{}_2".format(operator))
+                sigConfig["parameters"]["all"].append("f:[n=const,v={}]/t:[]".format(mass))
+                sigConfig["cuts"].setdefault("all", []).append("f:[n=evNr]/c:[n={},v=2]".format(operator))
                 sigConfig["dir"] = sigConfig["dir"].format(evType)
 
                 treeTasks = TreeRead.configure(sigConfig, channel, prefix=evType)
