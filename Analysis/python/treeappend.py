@@ -28,30 +28,34 @@ class TreeAppend(Task):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
-        skimDir = os.environ["CHDIR"] + "/Skim"
+        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"])
         tasks = []
 
         for process in config["processes"]:
+            jobNr = 0
+
             ##List of filenames for each process
             filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = f) for f in processDic[process]]
 
-            for i, filename in enumerate(filenames):
+            for filename in filenames:
                 intervals = utils.SplitEventRange(filename, channel, config["number-events"])
 
-                for j, interval in enumerate(intervals):
+                for interval in intervals:
                     ##Configuration for treeread Task
                     task = {
-                              "name": "Append_{}_{}_{}_{}".format(channel, process, i, j), 
+                              "name": "Append_{}_{}_{}".format(channel, process, jobNr), 
                               "display-name": "Append: {} ({})".format(process, channel),
                               "channel": channel, 
-                              "dir":  os.environ["CHDIR"] + "/Tmp/Append/{}".format(config["chan-dir"][channel]), 
+                              "dir":  os.environ["CHDIR"] + "/{}/{}/{}/{}".format(config["dir"], config["chan-dir"][channel], process, jobNr), 
                               "input-file": filename, 
                               "entry-start": interval[0],  
                               "entry-end": interval[1],  
-                              "branch-names": config["branch-names"][channel],
+                              "branch-names": config["branch-names"].get("all", []) + config["branch-names"].get(channel, []),
                               "run-mode": config["run-mode"], 
                     }
 
                     tasks.append(TreeAppend(task))
+
+                    jobNr+=1
 
         return tasks       
