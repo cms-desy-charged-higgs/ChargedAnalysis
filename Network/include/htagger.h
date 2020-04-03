@@ -3,13 +3,6 @@
 
 #include <torch/torch.h>
 
-#include <TFile.h>
-#include <TTree.h>
-#include <Math/GenVector/LorentzVector.h>
-#include <Math/GenVector/VectorUtil.h>
-#include <Math/Vector3Dfwd.h>
-#include <Math/Vector4Dfwd.h>
-
 #include <ChargedAnalysis/Utility/include/utils.h>
 
 struct HTagger : torch::nn::Module{
