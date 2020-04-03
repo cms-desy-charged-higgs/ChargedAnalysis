@@ -33,7 +33,9 @@ HTensor HTagDataset::get(size_t index){
     //Set all addresses
     for(unsigned int idx=0; idx < particleVec.size(); idx++){
         chain->SetBranchAddress(("JetParticle_" + particleVariables[idx]).c_str(), &particleVec[idx]);
-        chain->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
+        if(particleVariables[idx] != "Charge"){
+            chain->SetBranchAddress(("SecondaryVertex_" + particleVariables[idx]).c_str(), &secVtxVec[idx]);
+        }
     }
 
     chain->SetBranchAddress("Misc_eventNumber", &eventNumber);
