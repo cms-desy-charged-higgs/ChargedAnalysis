@@ -34,7 +34,7 @@ int main(int argc, char* argv[]){
 
         if(obj->InheritsFrom(TTree::Class())){
             TTree* oldTree = (TTree*)obj;
-            TTree* newTree = oldTree->CloneTree();
+            TTree* newTree = oldTree->CloneTree(-1, "fast");
 
             newTree->Write();
             
