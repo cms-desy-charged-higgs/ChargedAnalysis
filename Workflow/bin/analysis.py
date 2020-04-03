@@ -23,10 +23,10 @@ import numpy
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--check-output", action = "store_true")
-    parser.add_argument("--no-monitor", action = "store_true")
+    parser.add_argument("--no-http", action = "store_true")
 
     return parser.parse_args()
 
@@ -43,6 +43,7 @@ def taskReturner(taskName, **kwargs):
     tasks = {
         "Append": lambda : append(config),
         "BDT": lambda : bdt(config),
+        "DNN": lambda : dnn(config),
         "Plot": lambda : plot(config),
         "Limit": lambda : limit(config)
     }
@@ -57,7 +58,7 @@ def append(config):
 
         allTasks.extend(appendTasks)
 
-    allTasks.extend(FileSkim.configure(allTasks, config["channels"]))
+    allTasks.extend(FileSkim.configure(config, allTasks))
     allTasks.extend(HaddAppend.configure(allTasks))
 
     return allTasks
@@ -70,8 +71,8 @@ def bdt(config):
             bkgConfig = copy.deepcopy(config)
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
-            bkgConfig["parameters"]["all"].extend(["f:[n=const,v={}]/t:[]".format(m) for m in bkgConfig["masses"]])
-            bkgConfig["cuts"].setdefault("all", []).append("f:[n=evNr]/c:[n={},v=2]".format(operator))
+            bkgConfig["parameters"][channel].extend(["f:n=const,v={}/t:v=0:".format(m) for m in bkgConfig["masses"]])
+            bkgConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
             bkgConfig["dir"] = bkgConfig["dir"].format(evType)
 
             treeTasks = TreeRead.configure(bkgConfig, channel, prefix=evType)
@@ -82,8 +83,8 @@ def bdt(config):
                 sigConfig = copy.deepcopy(config)
 
                 sigConfig["processes"] = [config["signal"].format(mass)]
-                sigConfig["parameters"]["all"].append("f:[n=const,v={}]/t:[]".format(mass))
-                sigConfig["cuts"].setdefault("all", []).append("f:[n=evNr]/c:[n={},v=2]".format(operator))
+                sigConfig["parameters"][channel].append("f:n=const,v={}/t:v=0".format(mass))
+                sigConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
                 sigConfig["dir"] = sigConfig["dir"].format(evType)
 
                 treeTasks = TreeRead.configure(sigConfig, channel, prefix=evType)
@@ -104,7 +105,44 @@ def bdt(config):
                     
             allTasks.extend(haddTasks)
 
-    return allTasks        
+    return allTasks       
+
+def dnn(config):
+    allTasks = []
+
+    for channel in config["channels"]:
+        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
+            bkgConfig = copy.deepcopy(config)
+
+            bkgConfig["processes"] = bkgConfig["backgrounds"]
+            bkgConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+            bkgConfig["dir"] = bkgConfig["dir"].format(evType)
+
+            CSVTasks = TreeRead.configure(bkgConfig, channel, "csv", prefix=evType)
+            mergeTasks = MergeCSV.configure(bkgConfig, CSVTasks, channel, prefix=evType)
+            allTasks.extend(CSVTasks)
+
+            paramDir = "{}/{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"], config["chan-dir"][channel]) 
+            os.makedirs(paramDir, exist_ok=True)
+
+            with open(paramDir + "/parameter.txt", "w") as param:
+                for parameter in CSVTasks[0]["parameters"]:
+                    param.write(parameter + "\n")
+
+            for mass in config["masses"]:
+                sigConfig = copy.deepcopy(config)
+
+                sigConfig["processes"] = [config["signal"].format(mass)]
+                sigConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+                sigConfig["dir"] = sigConfig["dir"].format(evType)
+
+                CSVTasks = TreeRead.configure(sigConfig, channel, "csv", prefix=evType)
+                mergeTasks.extend(MergeCSV.configure(sigConfig, CSVTasks, channel, prefix=evType))
+                allTasks.extend(CSVTasks)
+                    
+            allTasks.extend(mergeTasks)
+
+    return allTasks    
             
 def limit(config):
     allTasks = []
@@ -164,7 +202,7 @@ def main():
     tasks = taskReturner(args.task, config=args.config)()
 
     ##Run the manager
-    with TaskManager(args.check_output, args.no_monitor) as manager:
+    with TaskManager(args.check_output, args.no_http) as manager:
         manager.tasks = tasks
         manager.run()
 
