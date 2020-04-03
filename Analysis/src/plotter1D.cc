@@ -86,11 +86,17 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
         //Sort histograms by integral and fill to HStack
         THStack* allBkgs = new THStack();
+        TH1F* statUnc;
 
         if(background.count(param)){
             std::sort(background[param].begin(), background[param].end(), [](TH1F* h1, TH1F* h2){return h1->Integral() < h2->Integral();});
 
             for(TH1F* hist: background[param]){allBkgs->Add(hist);}
+
+            statUnc = (TH1F*)bkgSum[param]->Clone();
+            statUnc->SetFillStyle(3354);
+            statUnc->SetFillColorAlpha(kBlack, 0.8);
+            statUnc->SetMarkerColor(kBlack);
         }
 
         //Rerverse sort histograms by integral and fill to Legend
@@ -101,6 +107,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         if(background.count(param)){
             std::sort(background[param].begin(), background[param].end(), [](TH1F* h1, TH1F* h2){return h1->Integral() > h2->Integral();});
             for(TH1F* hist: background[param]){legend->AddEntry(hist, hist->GetName(), "F");}
+            legend->AddEntry(statUnc, "Stat. unc.", "F");
         }
 
         if(signal.count(param)){
@@ -123,15 +130,21 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             mainPad->Clear();
             mainPad->SetLogy(isLog);
 
+            int nLegendColumns = std::ceil((legend->GetNRows())/5.);
+
             frame->SetMinimum(isLog ? 1e-1 : 0);
-            frame->SetMaximum(isLog ? max*1e1 : max*1.15);
+            frame->SetMaximum(isLog ? max*std::pow(10, 2*nLegendColumns) : max*(1 + nLegendColumns*0.1));
             frame->Draw();
 
             //Draw Title
             Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
 
             //Draw data and MC
-            if(background.count(param)) allBkgs->Draw("HIST SAME");
+            if(background.count(param)){
+                allBkgs->Draw("HIST SAME");
+                statUnc->Draw("SAME E2");
+            }
+
             if(data.count(param)) data[param]->Draw("E SAME");
 
             if(signal.count(param)){
@@ -142,10 +155,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             gPad->RedrawAxis();
 
             //Draw Legend
-            Plotter::DrawLegend(legend, (background.count(param) ? background[param].size() : 0) +
-                                        (signal.count(param) ? signal[param].size() : 0) + 
-                                        data.count(param)
-            );
+            Plotter::DrawLegend(legend, 5);
 
             //Save everything
             std::string extension = isLog ? "_log" : "";
