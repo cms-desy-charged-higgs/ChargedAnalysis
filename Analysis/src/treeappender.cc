@@ -84,6 +84,180 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     return tagValues;
 }
 
+std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>& masses, TTree* oldT){
+    std::map<int, std::vector<float>> values;
+
+    for(const int& mass: masses){
+        values[mass] = std::vector<float>(entryEnd-entryStart, -999.);
+    }
+
+    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/"; 
+
+    Event event;
+    TreeReader reader;
+
+    reader.PrepareEvent<TTree*>(oldT);
+
+    std::vector<Function> functions;
+    std::vector<FuncArgs> args;
+
+    std::ifstream params(dnnPath + "/Even/" + Utils::ChanPaths(oldTree) + "/parameter.txt"); 
+    std::string parameter;
+  
+    while(getline(params, parameter)){
+        Function func; FuncArgs arg;
+
+        reader.GetFunction(parameter, func, arg);
+        reader.GetParticle(parameter, arg);
+
+        functions.push_back(func);
+        args.push_back(arg);
+    }
+    params.close();
+
+    //Tagger
+    torch::Device device(torch::kCPU);
+    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), 2*functions.size(), 2, 0.1, device));
+
+    torch::load(model[0], dnnPath + "/Even/" + Utils::ChanPaths(oldTree) + "/model.pt");
+    torch::load(model[1], dnnPath + "/Odd/" + Utils::ChanPaths(oldTree) + "/model.pt");
+
+    std::vector<int> entries;
+    for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
+    std::vector<int>::iterator entry = entries.begin();
+    int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
+    int counter = 0;
+
+    while(entry != entries.end()){
+        //For right indexing
+        std::vector<int> evenIndex, oddIndex;
+
+        //Put signal + background in one vector and split by even or odd numbered event
+        std::map<int, std::vector<torch::Tensor>> evenTensors;
+        std::map<int, std::vector<torch::Tensor>> oddTensors;
+
+        for(int j = 0; j < batchSize; j++){
+            oldT->GetEntry(*entry);
+
+            //Fill event class with particle content
+            reader.SetEvent(event, false, NOTHING, NONE);
+            std::vector<float> paramValues;
+
+            for(int i=0; i < functions.size(); i++){
+                paramValues.push_back(functions[i](event, args[i]));
+            }
+
+            if((int)TreeFunction::EventNumber(event, args[0]) % 2 == 0){
+                for(const int& mass: masses){
+                    paramValues.push_back(mass);
+                    evenTensors[mass].push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
+                    paramValues.pop_back();
+                }
+
+                evenIndex.push_back(counter);
+            }
+
+            else{
+                for(const int& mass: masses){
+                    paramValues.push_back(mass);
+                    oddTensors[mass].push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
+                    paramValues.pop_back();
+                }
+
+                oddIndex.push_back(counter);
+            }
+
+            counter++;
+            ++entry;
+            if(entry == entries.end()) break; 
+        }
+
+        for(const int& mass: masses){
+            //Prediction
+            torch::NoGradGuard no_grad;
+            torch::Tensor even, odd; 
+            torch::Tensor evenPredict, oddPredict;
+
+            if(evenTensors[mass].size() != 0){    
+                even = torch::cat(evenTensors[mass], 0);
+                evenPredict = model[1]->forward(even);
+            }  
+
+            if(oddTensors[mass].size() != 0){    
+                odd = torch::cat(oddTensors[mass], 0);
+                oddPredict = model[0]->forward(odd);
+            }     
+
+            //Put all predictions back in order again
+            for(int j = 0; j < evenTensors[mass].size(); j++){
+                values[mass][evenIndex[j]] = evenPredict[j].item<float>();
+            }
+
+            for(int j = 0; j < oddTensors[mass].size(); j++){
+                values[mass][oddIndex[j]] = oddPredict[j].item<float>();
+            }
+        }
+    }
+
+    return values;
+}
+
+std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>& masses, TTree* oldT){
+    std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/"; 
+
+    Event event;
+    TreeReader reader;
+
+    reader.PrepareEvent<TTree*>(oldT);
+
+    std::vector<Function> functions;
+    std::vector<FuncArgs> args;
+
+    std::ifstream bdtParams(bdtPath + "/Even/" + Utils::ChanPaths(oldTree) + "/parameters.txt"); 
+    std::string parameter;
+  
+    while(getline(bdtParams, parameter)){
+        Function func; FuncArgs arg;
+
+        reader.GetFunction(parameter, func, arg);
+        reader.GetParticle(parameter, arg);
+
+        functions.push_back(func);
+        args.push_back(arg);
+    
+    }
+    bdtParams.close();
+
+    BDT evenClassifier, oddClassifier;
+
+    evenClassifier.SetEvaluation(bdtPath + "/Even/" + Utils::ChanPaths(oldTree));
+    oddClassifier.SetEvaluation(bdtPath + "/Odd/" + Utils::ChanPaths(oldTree));
+    std::map<int, std::vector<float>> values;
+
+    for (int i = entryStart; i < entryEnd; i++){
+        oldT->GetEntry(i);
+
+        //Fill event class with particle content
+        reader.SetEvent(event, false, NOTHING, NONE);
+
+        std::vector<float> paramValues;
+
+        for(int i=0; i < functions.size(); i++){
+            paramValues.push_back(functions[i](event, args[i]));
+        }
+
+        for(const int& mass: masses){
+            paramValues.push_back(mass);
+
+            values[mass].push_back((int)TreeFunction::EventNumber(event, args[i]) % 2 == 0 ? oddClassifier.Evaluate(paramValues) : evenClassifier.Evaluate(paramValues));
+
+            paramValues.pop_back();
+        }
+    }
+
+    return values;
+}
+
 void TreeAppender::Append(){
     //Get old Tree
     TFile* oldF = TFile::Open(oldFile.c_str(), "READ");
@@ -106,27 +280,54 @@ void TreeAppender::Append(){
         newT->Fill();
     }
 
+    //Set new branches
+    std::map<std::string, TBranch*> branches;
+    std::map<std::string, float> branchValues;
+    std::map<std::string, std::vector<float>> values;
+    std::vector<int> masses;
+
+    for(std::string& branchName: branchNames){
+        branchValues[branchName] = -999.;
+
+        branches[branchName] = newT->Branch(branchName.c_str(), &branchValues[branchName]);
+
+        if(branchName == "ML_HTagFJ1") values[branchName] = HScore(0);
+        if(branchName == "ML_HTagFJ2") values[branchName] = HScore(1);
+
+        if(Utils::Find<std::string>(branchName, "BDT") != -1.){
+            values[branchName] = std::vector<float>();
+            masses.push_back(std::stoi(branchName.substr(branchName.size()-3,3)));
+        }
+
+        if(Utils::Find<std::string>(branchName, "DNN") != -1.){
+            values[branchName] = std::vector<float>();
+            masses.push_back(std::stoi(branchName.substr(branchName.size()-3,3)));
+        }
+    }
+
+    std::map<int, std::vector<float>> bdtScores;
+    std::map<int, std::vector<float>> dnnScores;
+
+    if(!masses.empty()){
+        dnnScores = DNNScore(masses, oldT);
+
+        for(const int& mass: masses){
+            for(std::string& branchName: branchNames){
+                if(Utils::Find<int>(branchName, mass) != -1.){
+                    values[branchName] = dnnScores[mass];
+                }
+            }
+        }
+    } 
+
     delete oldT;
     delete oldF;
 
-    //Set new branches
-    std::vector<float> branchValues(branchNames.size(), -999.);
-    std::vector<std::vector<float>> values;
-    std::vector<TBranch*> branches;
-
-    for(unsigned int i=0; i < branchNames.size(); i++){
-        if(branchNames[i] == "ML_HTagFJ1") values.push_back(HScore(0));
-        if(branchNames[i] == "ML_HTagFJ2") values.push_back(HScore(1));
-
-        TBranch* branch = newT->Branch(branchNames[i].c_str(), &branchValues[i]);
-        branches.push_back(branch);
-    }
-
     //Fill branches
     for(int i=0; i < newT->GetEntries(); i++){
-        for(int j=0; j < branches.size(); j++){
-            branchValues[j] = values[j][i];
-            branches[j]->Fill();
+        for(std::string& branchName: branchNames){
+            branchValues[branchName] = values[branchName][i];       
+            branches[branchName]->Fill();
         }
     }
 

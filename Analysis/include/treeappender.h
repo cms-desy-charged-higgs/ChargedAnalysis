@@ -1,19 +1,21 @@
 #ifndef TREEAPPENDER_H
 #define TREEAPPENDER_H
 
+#include <torch/torch.h>
+
 #include <string>
 #include <vector>
+#include <map>
 
 #include <TFile.h>
 #include <TTree.h>
 #include <TBranch.h>
-#include <TMath.h>
-#include <Math/GenVector/LorentzVector.h>
-#include <Math/GenVector/VectorUtil.h>
-#include <Math/Vector3Dfwd.h>
-#include <Math/Vector4Dfwd.h>
 
 #include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Analysis/include/treereader.h>
+#include <ChargedAnalysis/Analysis/include/treefunction.h>
+#include <ChargedAnalysis/Network/include/bdt.h>
+#include <ChargedAnalysis/Network/include/dnnmodel.h>
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 
@@ -29,6 +31,8 @@ class TreeAppender{
         int entryEnd;
 
         std::vector<float> HScore(const int& FJIndex);
+        std::map<int, std::vector<float>> DNNScore(const std::vector<int>& masses, TTree* oldT);
+        std::map<int, std::vector<float>> BDTScore(const std::vector<int>& masses, TTree* oldT);
         
     public:
         TreeAppender();
