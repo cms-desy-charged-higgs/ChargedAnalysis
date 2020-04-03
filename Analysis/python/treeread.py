@@ -22,10 +22,10 @@ class TreeRead(Task):
         ]
         
     def output(self):
-        self["output"] = "{}/{}.root".format(self["dir"], self["name"])
+        self["output"] = "{}/{}.{}".format(self["dir"], self["name"], self["file-type"])
 
     @staticmethod
-    def configure(config, channel, prefix=""):
+    def configure(config, channel, fileType="root", prefix=""):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
@@ -54,7 +54,8 @@ class TreeRead(Task):
                             "filename": filename,
                             "interval": interval,
                             "run-mode": config["run-mode"],
-                            "clean-jet": config.get("clean-jet", {}).get(channel, "")
+                            "clean-jet": config.get("clean-jet", {}).get(channel, ""),
+                            "file-type": fileType,
                     }
 
                     tasks.append(TreeRead(task))
