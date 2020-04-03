@@ -13,7 +13,7 @@ BDT::BDT(const int &nTrees, const float &minNodeSize, const float &learningRate,
                                                     {"SeparationType", sepType},
     };
 
-    trainString = "!H:BoostType=AdaBoost:UseBaggedBoost:BaggedSampleFraction=0.5:UseRandomisedTrees=True";  
+    trainString = "!H:BoostType=Grad:UseBaggedBoost:BaggedSampleFraction=0.5:UseRandomisedTrees=True";  
 
     for(std::pair<std::string, std::string> conf: config){
         trainString += ":" + conf.first + "=" + conf.second;
@@ -84,8 +84,8 @@ float BDT::Train(std::vector<std::string> &parameters, std::string &treeDir, std
             }
         }
 
-        sigTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
-        sigTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
+        sigTree->GetBranch(("const" + mass).c_str())->SetTitle("mass");
+        sigTree->GetBranch(("const" + mass).c_str())->SetName("mass");
 
         nSignal+=sigTree->GetEntries();
         loader->AddSignalTree(sigTree);
@@ -94,8 +94,8 @@ float BDT::Train(std::vector<std::string> &parameters, std::string &treeDir, std
             TFile* bkgFile = TFile::Open((treeDir + "/" + background + "/" + background + ".root").c_str());
 
             TTree* bkgTree = (TTree*)bkgFile->Get(bkgFile->GetListOfKeys()->At(0)->GetName());
-            bkgTree->GetBranch(("const_" + mass).c_str())->SetTitle("mass");
-            bkgTree->GetBranch(("const_" + mass).c_str())->SetName("mass");
+            bkgTree->GetBranch(("const" + mass).c_str())->SetTitle("mass");
+            bkgTree->GetBranch(("const" + mass).c_str())->SetName("mass");
 
             gROOT->cd();
          
@@ -109,6 +109,8 @@ float BDT::Train(std::vector<std::string> &parameters, std::string &treeDir, std
 
     //Change to lower amount of events for hyperopt
     if(optimize){nSignal = 50000; nBkg = 50000;}
+
+    nBkg = nBkg > 2*nSignal ? nSignal : 2*nBkg;
 
     //Configure BDT training
     loader->PrepareTrainingAndTestTree("", train*nSignal, train*nBkg, test*nSignal, test*nBkg);
@@ -134,15 +136,15 @@ float BDT::Train(std::vector<std::string> &parameters, std::string &treeDir, std
     return ROCCurve;
 }
 
-std::vector<std::string> BDT::SetEvaluation(const std::string &bdtPath){
+void BDT::SetEvaluation(const std::string &bdtPath){
     std::vector<std::string> paramNames;
 
     //Get input variables from TestTree branch names
     TFile* bdtFile = TFile::Open((bdtPath + "/BDT.root").c_str());
 
-    std::string dir = ((TDirectory*)bdtFile->Get("Tmp/BDT"))->GetListOfKeys()->At(0)->GetName();
+    std::string dir = bdtFile->GetListOfKeys()->At(0)->GetName();
 
-    TTree* tree = (TTree*)bdtFile->Get(("Tmp/BDT/" + dir + "/TestTree").c_str());
+    TTree* tree = (TTree*)bdtFile->Get((dir + "/TestTree").c_str());
     TObjArray* branches = tree->GetListOfBranches();
 
     for(int i = 2; i < branches->GetEntries() - 2; i++){
@@ -152,13 +154,11 @@ std::vector<std::string> BDT::SetEvaluation(const std::string &bdtPath){
         paramNames.push_back(varName);
     }
 
-   //Initialize reader;
+    //Initialize reader;
     reader = new TMVA::Reader(paramNames, "Silent");
     reader->BookMVA("BDT", bdtPath + "/weights/BDT_BDT.weights.xml");
 
     delete bdtFile;
-
-    return paramNames;
 }
 
 float BDT::Evaluate(const std::vector<float> &paramValues){

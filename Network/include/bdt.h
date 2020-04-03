@@ -29,7 +29,7 @@ class BDT{
 
 
         float Train(std::vector<std::string> &parameters, std::string &treeDir, std::string &resultDir, std::string &signal, std::vector<std::string> &backgrounds, std::vector<std::string>& masses, const bool& optimize);
-        std::vector<std::string> SetEvaluation(const std::string &bdtPath);
+        void SetEvaluation(const std::string &bdtPath);
         float Evaluate(const std::vector<float> &paramValues);
 };
 
