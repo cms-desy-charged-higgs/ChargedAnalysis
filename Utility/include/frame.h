@@ -20,12 +20,14 @@ class Frame{
 
     public: 
         Frame();
-        Frame(const std::vector<std::string>& initLabels);
+        Frame(const std::string& inFile);
+        Frame(const std::vector<std::string>& inFiles);
 
+        void InitLabels(const std::vector<std::string>& initLabels);
+        int GetNLabels();
         bool AddRow(const std::string& label, const std::vector<float>& row);
-        bool AddColumn(const std::vector<float>& column); 
+        bool AddColumn(const std::vector<float>& column);
         void Sort(const std::string& label, const bool& ascending=false);
-        void ReadCSV(const std::string& fileName);
         void WriteCSV(const std::string& fileName);
 };
 

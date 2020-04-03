@@ -1,9 +1,63 @@
 #include <ChargedAnalysis/Utility/include/frame.h>
 
-Frame::Frame(){}
+Frame::Frame(){
+}
 
-Frame::Frame(const std::vector<std::string>& initLabels) : 
-    labels(initLabels) {}
+Frame::Frame(const std::string& inFile){
+    //Read file
+    std::ifstream myFile(inFile, std::ifstream::in);
+    std::string line;
+
+    if(!myFile.is_open()){
+        throw std::runtime_error("File can not be opened: " + inFile);
+    }
+
+    std::cout << "Read file: " << inFile << std::endl;
+
+    //Get header
+    std::getline(myFile, line);
+    labels = Utils::SplitString<std::string>(line, "\t");
+
+    //Read other columns
+    while(std::getline(myFile, line)){
+        std::vector<float> column = Utils::SplitString<float>(line, "\t");
+        this->AddColumn(column);
+    }
+    
+    myFile.close();
+}
+
+Frame::Frame(const std::vector<std::string>& inFiles){
+    for(std::vector<std::string>::const_iterator file = inFiles.begin(); file != inFiles.end(); ++file){
+        //Read file
+        std::ifstream myFile(*file, std::ifstream::in);
+        std::string line;
+
+        if(!myFile.is_open()){
+            throw std::runtime_error("File can not be opened: " + *file);
+        }
+
+        //Get header
+        std::getline(myFile, line);
+        if(file == inFiles.begin()){
+            labels = Utils::SplitString<std::string>(line, "\t");
+        }
+
+        //Read other columns
+        while(std::getline(myFile, line)){
+            std::vector<float> column = Utils::SplitString<float>(line, "\t");
+            this->AddColumn(column);
+        }
+        
+        myFile.close();
+    }
+}
+
+void Frame::InitLabels(const std::vector<std::string>& initLabels){
+    this->labels = initLabels;  
+}
+
+int Frame::GetNLabels(){return labels.size();}
 
 bool Frame::AddColumn(const std::vector<float>& column){
     if(column.size() != labels.size()){
@@ -74,41 +128,6 @@ void Frame::WriteCSV(const std::string& fileName){
     }
     
     myFile.close();
+
+    std::cout << "Merged file: " << fileName << std::endl;
 }
-
-void Frame::ReadCSV(const std::string& fileName){
-    //Read file
-    std::ifstream myFile(fileName, std::ifstream::in);
-    std::string line;
-
-    if(!myFile.is_open()){
-        throw std::runtime_error("File can not be opened: " + fileName);
-    }
-
-    //Get header
-    std::getline(myFile, line);
-    std::vector<std::string> inLabels = Utils::SplitString<std::string>(line, "\t");
-
-    std::cout << inLabels.size() << std::endl;
-
-    if(inLabels.size() != labels.size()){
-        myFile.close();
-        throw std::runtime_error("Number of labels in file does not correspond initialized label size");
-    }
-    
-    for(std::string& label: inLabels){
-        if(std::find(labels.begin(), labels.end(), label) == labels.end()){
-            myFile.close();
-            throw std::runtime_error("Initialized label " + label + " not found in file.");
-        }
-    }
-
-    //Read other columns
-    while(std::getline(myFile, line)){
-        std::vector<float> column = Utils::SplitString<float>(line, "\t");
-        this->AddColumn(column);
-    }
-    
-    myFile.close();
-}
-
