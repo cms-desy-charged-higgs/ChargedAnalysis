@@ -11,9 +11,9 @@ from taskmonitor import TaskMonitor
 from taskwebpage import TaskWebpage
 
 class TaskManager(object):
-    def __init__(self, checkOutput=False, noMonitor=False):
+    def __init__(self, checkOutput=False, noHTTP=False):
         self.checkOutput = checkOutput
-        self.noMonitor = noMonitor
+        self.noHTTP = noHTTP
 
         ##Make working directory for all output of taskmanager handling
         self.workDir = "{}/Workflow/{}/".format(os.environ["CHDIR"], time.asctime().replace(" ", "_").replace(":", "_"))
@@ -23,15 +23,15 @@ class TaskManager(object):
         http.server.SimpleHTTPRequestHandler.log_message = lambda self, format, *args: None
         os.chdir(self.workDir)
 
-        self.httpd = http.server.HTTPServer(("localhost", 2000), http.server.SimpleHTTPRequestHandler)
-        self.server = Process(target=TaskManager.runServer, args=(self.httpd,))
-        self.server.daemon = True
-        self.server.start()
+        if not self.noHTTP:
+            self.httpd = http.server.HTTPServer(("localhost", 2000), http.server.SimpleHTTPRequestHandler)
+            self.server = Process(target=TaskManager.runServer, args=(self.httpd,))
+            self.server.daemon = True
+            self.server.start()
 
         ##Task monitor instance
-        if not self.noMonitor:
-            self.monitor = TaskMonitor(True)
         self.webpage = TaskWebpage()
+        self.monitor = TaskMonitor(True)
 
         ##Start time
         self.startTime = time.time()
@@ -43,8 +43,9 @@ class TaskManager(object):
         self.__printRunStatus(time.time() - self.startTime)   
         self.webpage.createWebpage(self._tasks, self.workDir) 
 
-        ##Close http server
-        self.httpd.server_close()
+        if not self.noHTTP:
+            ##Close http server
+            self.httpd.server_close()
 
     @staticmethod
     def runServer(server):
@@ -72,7 +73,7 @@ class TaskManager(object):
         
             for i, task in enumerate(self._tasks):
                 if task["name"] in t["dependencies"]:
-                    t.depth = task.depth + 1
+                    t.depth = t.depth + 1 if task.depth == t.depth else t.depth
                     t.dependencies.append(task)
 
                 in_degrees[i] -= 1
@@ -95,12 +96,11 @@ class TaskManager(object):
         localStatus = ["RUNNING", "VALID", "FINISHED", "FAILED", "TOTAL"]
         condorStatus = ["RUNNING", "VALID", "SUBMITTED", "FINISHED", "FAILED", "TOTAL"]
 
-        if not self.noMonitor:
-            self.monitor.updateMonitor(
+        self.monitor.updateMonitor(
                     time, 
                     {stat: nStatus([t for t in self._tasks if t["run-mode"] == "Local"], stat) for stat in localStatus}, 
                     {stat: nStatus([t for t in self._tasks if t["run-mode"] == "Condor"], stat) for stat in condorStatus}
-            )
+        )
 
     def __submitCondor(self, tasks):
         ##List which will be written into submit file
