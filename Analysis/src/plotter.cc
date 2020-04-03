@@ -132,9 +132,19 @@ void Plotter::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, co
 
 void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
     //Draw Legend and legend pad
-    TPad* legendPad = new TPad("legendPad", "legendPad", 0.18, 0.84, 0.91, 0.88);
+    TPad* legendPad = new TPad("legendPad", "legendPad", 0.18, 0.88-nColumns*0.02, 0.91, 0.88);
     legendPad->Draw();
     legendPad->cd();
+
+    float padWidth = legendPad->GetWw() * legendPad->GetWNDC();
+    float padHeight = legendPad->GetWh() * legendPad->GetHNDC();
+
+    float textSize = padHeight > padWidth ? 30./padWidth : 30./padHeight;
+
+    for(int i=0; i < legend->GetListOfPrimitives()->GetSize(); i++){
+        ((TLegendEntry*)legend->GetListOfPrimitives()->At(i))->SetTextSize(textSize);
+    }
+
     legend->SetNColumns(nColumns);
     legend->Draw();
 }

@@ -11,6 +11,7 @@
 #include <TError.h>
 #include <TROOT.h>
 #include <TLegend.h>
+#include <TLegendEntry.h>
 #include <TCanvas.h>
 #include <TStyle.h>
 #include <TH1.h>
