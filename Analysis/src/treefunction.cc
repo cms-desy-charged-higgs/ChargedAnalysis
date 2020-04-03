@@ -11,6 +11,9 @@ Utils::Bimap<std::string, float(*)(Event&, FuncArgs&)> TreeFunction::functions =
     {"HT", &TreeFunction::HadronicEnergy},
     {"const", &TreeFunction::ConstantNumber},
     {"evNr", &TreeFunction::EventNumber},
+    {"tau", &TreeFunction::Subtiness},
+    {"bdt", &TreeFunction::BDTScore},
+    {"dnn", &TreeFunction::DNNScore},
 };
 
 Utils::Bimap<float(*)(Event&, FuncArgs&), std::string> TreeFunction::funcLabels = {
@@ -24,6 +27,9 @@ Utils::Bimap<float(*)(Event&, FuncArgs&), std::string> TreeFunction::funcLabels 
     {&TreeFunction::HadronicEnergy, "H_{T}"},
     {&TreeFunction::ConstantNumber, ""},
     {&TreeFunction::EventNumber, ""},
+    {&TreeFunction::Subtiness, "#tau_{@}(@)"},
+    {&TreeFunction::BDTScore, "BDT score(m_{H^{#pm}} = @ GeV)"},
+    {&TreeFunction::DNNScore, "DNN score(m_{H^{#pm}} = @ GeV)"},
 };
 
 Utils::Bimap<std::string, Particle> TreeFunction::particles = {
@@ -94,8 +100,12 @@ float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
 
 float TreeFunction::NParticle(Event &event, FuncArgs& args){
     if(event.SF.count(args.parts[0])){
+        if(args.parts[0] == BJET) std::cout << std::endl;
+
         for(float& SF: event.SF.at(args.parts[0]).at(args.wp[0])){
             event.weight *= SF;
+
+            if(args.parts[0] == BJET) std::cout << SF << std::endl;
         }
     }
 
@@ -124,25 +134,21 @@ float TreeFunction::EventNumber(Event &event, FuncArgs& args){
     return Utils::BitCount(int(event.eventNumber));
 }
 
+
+float TreeFunction::Subtiness(Event &event, FuncArgs& args){
+    if(args.parts[0] == FATJET) return event.subtiness.at(args.index[0]).at(args.value-1);
+    return -999.;
+}
+
+float TreeFunction::BDTScore(Event &event, FuncArgs& args){
+    return event.bdtScore.at(args.value);
+}
+
+float TreeFunction::DNNScore(Event &event, FuncArgs& args){
+    return event.dnnScore.at(args.value);
+}
+
 /*
-float TreeReader::Subtiness(Event &event, Hist &hist){
-    return event.particles[hist.parts[0]][hist.indeces[0]-1].subtiness[hist.funcValue];
-}
-
-float TreeReader::BDTScore(Event &event, Hist &hist){
-    std::vector<float> paramValues;
-
-    for(Hist funcs: bdtFunctions){
-        paramValues.push_back((this->*funcDir[funcs.func])(event, funcs));
-    }
-
-    paramValues.push_back(hist.funcValue);
-
-    float score = (int)EventNumber(event, hist) % 2 == 0 ? oddClassifier.Evaluate(paramValues) : evenClassifier.Evaluate(paramValues);
-
-    return score;
-}
-
 float TreeReader::HTag(Event &event, Hist &hist){
     return event.hTag[hist.indeces[0]-1];
 }
