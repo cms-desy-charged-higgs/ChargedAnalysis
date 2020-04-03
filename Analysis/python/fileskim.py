@@ -20,7 +20,7 @@ class FileSkim(Task):
         self["output"] = "{}/{}_skimmed.root".format(self["dir"], self["input-file"].split("/")[-1][:-5])
 
     @staticmethod
-    def configure(appendTask, channels):
+    def configure(config, appendTask):
         tasks = []
 
         fileNames = list(set([task["input-file"] for task in appendTask]))
@@ -28,9 +28,9 @@ class FileSkim(Task):
         for fileName in fileNames:
             task = {
                     "name": "FileSkim_{}".format(fileName.split("/")[-1][:-5]), 
-                    "dir": os.environ["CHDIR"] + "/Tmp/FileSkim", 
+                    "dir": "{}/{}/FileSkim/{}".format(os.environ["CHDIR"], config["dir"], fileName), 
                     "input-file": fileName,
-                    "exclude": channels,
+                    "exclude": config["channels"],
                     "display-name": "FileSkim: {}".format(fileName.split("/")[-1][:-5])
             }
 
