@@ -7,23 +7,10 @@ int main(int argc, char* argv[]){
     //Extract informations of command line
     Parser parser(argc, argv);
 
-    std::vector<std::string> labels = parser.GetVector<std::string>("labels");
-    std::string sort = parser.GetValue<std::string>("sort");
-    std::string dir = parser.GetValue<std::string>("dir");
-    std::string outName = parser.GetValue<std::string>("out-name");
+    std::vector<std::string> inFiles = parser.GetVector<std::string>("input");
+    std::string outName = parser.GetValue<std::string>("output");
 
-    Frame frame(labels);
+    Frame frame(inFiles);
 
-    for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(dir)){
-        frame.ReadCSV(entry.path());
-
-        std::cout << "Read file: " << entry.path() << std::endl;
-
-        std::filesystem::remove(entry.path());
-    }
-
-    frame.Sort(sort, false);
-    frame.WriteCSV(dir + "/" + outName + ".csv");
-
-    std::cout << "Merged file: " << dir + "/" + outName + ".csv" << std::endl;
+    frame.WriteCSV(outName);
 }

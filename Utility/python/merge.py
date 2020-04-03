@@ -10,24 +10,28 @@ class MergeCSV(Task):
         self["executable"] = "mergeCSV"
 
         self["arguments"] = [
-                "--labels", *self["labels"],
-                "--dir", self["dir"],
-                "--out-name", self["out-name"],
-                "--sort", self["sort"],
+                "--input", *self["dependent-files"],
+                "--output", self["output"],
         ]
 
     def output(self):
-        self["output"] = self["dir"] + "/{}.csv".format(self["out-name"])
+        self["output"] = "{}/{}.csv".format(self["dir"], self["process"])
 
     @staticmethod
-    def configure(config, otherTask, prefix=""):
-        task = {
-                "name": "MergeCSV" + ("_{}".format(prefix) if prefix else ""),
-                "labels": [config["sort-by"]] + list(config["hyper-parameter"].keys()), 
-                "dir": "{}/{}/HyperTuning".format(os.environ["CHDIR"], config["dir"].format("")),
-                "out-name": "parameter",
-                "sort": config["sort-by"],
-                "dependencies": [t["name"] for t in otherTask]
-        }
+    def configure(config, treeTasks, channel, prefix=""):
+        tasks = []
 
-        return [MergeCSV(task)]
+        for process in config["processes"] + config["data"].get(channel, []):
+            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"], config["chan-dir"][channel], process)
+                
+            task = {
+                    "name": "MergeCSV{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  
+                    "dir": outDir,
+                    "channel": channel,
+                    "process": process,
+                    "display-name": "Merge CSV: {} ({})".format(process, channel),
+                    "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"]]
+            }
+
+            tasks.append(MergeCSV(task))
+        return tasks
