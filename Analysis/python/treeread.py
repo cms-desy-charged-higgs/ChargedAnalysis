@@ -48,7 +48,7 @@ class TreeRead(Task):
                             "display-name": "Hist: {} ({})".format(process, channel),
                             "channel": channel, 
                             "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                            "dir":  os.environ["CHDIR"] + "/{}/{}/{}/unmerged/{}".format(config["dir"], config["chan-dir"][channel], process, jobNr), 
+                            "dir":  os.environ["CHDIR"] + "/{}/{}/{}/unmerged/{}".format(config["dir"], channel, process, jobNr), 
                             "process": process, 
                             "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
                             "filename": filename,
