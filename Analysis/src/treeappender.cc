@@ -140,7 +140,7 @@ std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>&
             oldT->GetEntry(*entry);
 
             //Fill event class with particle content
-            reader.SetEvent(event, false, NOTHING, NONE);
+            reader.SetEvent(event, JET, NONE);
             std::vector<float> paramValues;
 
             for(int i=0; i < functions.size(); i++){
@@ -238,7 +238,7 @@ std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>&
         oldT->GetEntry(i);
 
         //Fill event class with particle content
-        reader.SetEvent(event, false, NOTHING, NONE);
+        reader.SetEvent(event, JET, NONE);
 
         std::vector<float> paramValues;
 
