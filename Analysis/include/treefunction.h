@@ -3,28 +3,47 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 #include <map>
 #include <iostream>
 
 #include <Math/GenVector/VectorUtil.h>
 #include <Math/Vector4Dfwd.h>
+#include <TH2F.h>
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/src/bimap.cc>
 
-enum Particle{NOTHING, ELECTRON, MUON, JET, BJET, FATJET, BFATJET, SUBJET, BSUBJET, MET};
-enum WP{NONE, LOOSE, MEDIUM, TIGHT};
+enum Particle{ELECTRON, MUON, JET, BJET, FATJET, SUBJET, BSUBJET, MET, NPART};
+enum WP{LOOSE, MEDIUM, TIGHT, NONE, NWP};
 enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
 struct Event; struct Function; struct FuncArgs;
 
 struct Event{
-    std::map<Particle, std::map<WP, std::vector<ROOT::Math::PxPyPzEVector>>> particles;
-    std::map<Particle, std::map<WP, std::vector<float>>> SF;
+    const int NMAX=15;
+    bool isData=true;
+
+    std::vector<std::shared_ptr<ROOT::Math::PxPyPzEVector>> particles = std::vector<std::shared_ptr<ROOT::Math::PxPyPzEVector>>(NPART*NWP*NMAX, NULL);
+    std::vector<float> SF = std::vector<float>(NPART*NWP*NMAX, 1.);
+    std::vector<bool> isTrueB = std::vector<bool>(NPART*NWP*NMAX, 1.);
+    std::vector<TH2F*> effBTag;
     std::vector<std::vector<float>> subtiness;
     float weight;
     int eventNumber;
     std::map<int, float> bdtScore, dnnScore;
+
+    static int Index(const Particle& part, const WP& wp, const int& index){
+        return part + NPART*(wp + NWP*index);
+    }
+
+    void Clear(){
+        for(int i=0; i < particles.size(); i++){
+            if(particles[i] != NULL) particles[i] = NULL;
+        }
+
+        this->subtiness.clear();
+    }
 };
 
 struct FuncArgs{
@@ -39,32 +58,24 @@ struct FuncArgs{
 struct Function{
     float(*func)(Event&, FuncArgs&);
 
-    float operator()(Event& event, FuncArgs& args){
-        try{
-            return func(event, args);
-        }
-
-        catch (const std::exception& e){
-            return -999.;
-        }
-    }
+    float operator()(Event& event, FuncArgs& args){return func(event, args);}
 
     bool operator()(Event& event, FuncArgs& args, const bool& isCut){
         switch(args.comp){
             case BIGGER:
-                return this->operator()(event, args) > args.compValue;
+                return func(event, args) > args.compValue;
 
             case SMALLER:
-                return this->operator()(event, args) < args.compValue;
+                return func(event, args) < args.compValue;
 
             case EQUAL:
-                return this->operator()(event, args) == args.compValue;
+                return func(event, args) == args.compValue;
 
             case DIVISIBLE:
-                return int(this->operator()(event, args)) % int(args.compValue) == 0;
+                return int(func(event, args)) % int(args.compValue) == 0;
 
             case NOTDIVISIBLE:
-                return int(this->operator()(event, args)) % int(args.compValue) != 0;
+                return int(func(event, args)) % int(args.compValue) != 0;
         }
     }
 };

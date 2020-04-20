@@ -71,27 +71,47 @@ Utils::Bimap<std::string, Comparison> TreeFunction::comparisons = {
 
 //Function for returning value of wished quantity
 float TreeFunction::Mass(Event& event, FuncArgs& args){
-    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).M();
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+
+    if(part != NULL) return part->M();
+    else return -999.;
 }
 
 float TreeFunction::Pt(Event& event, FuncArgs& args){
-    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Pt();
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+
+    if(part != NULL){return part->Pt();}
+    else return -999.;
 }
 
 float TreeFunction::Phi(Event& event, FuncArgs& args){
-    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Phi();
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+
+    if(part != NULL) return part->Phi();
+    else return -999.;
 }
 
 float TreeFunction::Eta(Event& event, FuncArgs& args){
-    return event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]).Eta();
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+
+    if(part != NULL) return part->Eta();
+    else return -999.;
 }
 
 float TreeFunction::DeltaPhi(Event& event, FuncArgs& args){
-    return ROOT::Math::VectorUtil::DeltaPhi(event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]), event.particles.at(args.parts[1]).at(args.wp[1]).at(args.index[1]));
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part1 = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part2 = event.particles[Event::Index(args.parts[1], args.wp[1], args.index[1])];
+
+    if(part1 != NULL and part2 != NULL) return ROOT::Math::VectorUtil::DeltaPhi(*part1, *part2);
+    else return -999.;
 }
 
 float TreeFunction::DeltaR(Event& event, FuncArgs& args){
-    return ROOT::Math::VectorUtil::DeltaR(event.particles.at(args.parts[0]).at(args.wp[0]).at(args.index[0]), event.particles.at(args.parts[1]).at(args.wp[1]).at(args.index[1]));
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part1 = event.particles[Event::Index(args.parts[0], args.wp[0], args.index[0])];
+    const std::shared_ptr<ROOT::Math::PxPyPzEVector>& part2 = event.particles[Event::Index(args.parts[1], args.wp[1], args.index[1])];
+
+    if(part1 != NULL and part2 != NULL) return ROOT::Math::VectorUtil::DeltaR(*part1, *part2);
+    else return -999.;
 }
 
 float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
@@ -99,32 +119,46 @@ float TreeFunction::ConstantNumber(Event &event, FuncArgs& args){
 }
 
 float TreeFunction::NParticle(Event &event, FuncArgs& args){
-    if(event.SF.count(args.parts[0])){
-        if(args.parts[0] == BJET) std::cout << std::endl;
+    int nParts = 0;
 
-        for(float& SF: event.SF.at(args.parts[0]).at(args.wp[0])){
-            event.weight *= SF;
+    for(int i=0; i < event.NMAX; i++){
+        if(event.particles[Event::Index(args.parts[0], args.wp[0], i)] != NULL){
+            if((args.parts[0] == BJET or args.parts[0] == BSUBJET) and !event.isData){
+                const std::shared_ptr<ROOT::Math::PxPyPzEVector>& jet = event.particles[Event::Index(args.parts[0] == BJET ? JET : SUBJET, NONE, i)];
+               
+                if(jet != NULL){
+                    const float& eff = event.effBTag[args.wp[0]]->GetBinContent(event.effBTag[args.wp[0]]->FindBin(jet->Eta(), jet->Pt()));
+                    const float& sf = event.SF[Event::Index(args.parts[0], args.wp[0], i)];
 
-            if(args.parts[0] == BJET) std::cout << SF << std::endl;
+                    if(eff == 0 or eff == 1) continue;
+
+                    if(event.isTrueB[Event::Index(JET, NONE, i)]){
+                        event.weight *= sf*eff/eff;
+                    }
+    
+                    else{
+                        event.weight *= (1 - sf*eff)/(1 - eff);
+                    }
+                }
+            }
+
+            else event.weight *= event.SF[Event::Index(args.parts[0], args.wp[0], i)];
+            nParts++;
         }
     }
 
-    if(event.particles.count(args.parts[0])){
-        if(event.particles.at(args.parts[0]).count(args.wp[0])){
-            return event.particles.at(args.parts[0]).at(args.wp[0]).size();
-        }
-
-        else return 0;
-    }
-
-    else return 0;
+    return nParts;
 }
 
 float TreeFunction::HadronicEnergy(Event &event, FuncArgs& args){
     float HT=0;
 
-    if(event.particles.count(JET)){
-        for(ROOT::Math::PxPyPzEVector& jet: event.particles.at(JET).at(NONE)){HT+= jet.Pt();}
+    for(int i=0; i < event.NMAX; i++){
+        const std::shared_ptr<ROOT::Math::PxPyPzEVector>& jet = event.particles[Event::Index(JET, NONE, i)];
+        const std::shared_ptr<ROOT::Math::PxPyPzEVector>& subjet = event.particles[Event::Index(SUBJET, NONE, i)];
+
+        if(jet != NULL) HT += jet->Pt();
+        if(subjet != NULL) HT += subjet->Pt();
     }
 
     return HT;
@@ -136,7 +170,7 @@ float TreeFunction::EventNumber(Event &event, FuncArgs& args){
 
 
 float TreeFunction::Subtiness(Event &event, FuncArgs& args){
-    if(args.parts[0] == FATJET) return event.subtiness.at(args.index[0]).at(args.value-1);
+    //if(args.parts[0] == FATJET) return event.subtiness.at(args.index[0]).at(args.value-1);
     return -999.;
 }
 
