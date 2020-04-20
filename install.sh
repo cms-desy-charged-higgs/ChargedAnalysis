@@ -15,7 +15,7 @@ command rm Miniconda3-latest-Linux-x86_64.sh
 export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
 
-conda install -c conda-forge root boost vdt -y
+conda install -c conda-forge root boost vdt psutil -y
 conda install -c anaconda git make pytorch-gpu pyyaml -y
 
 ##Source compiler from CERN software package
