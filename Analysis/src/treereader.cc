@@ -191,6 +191,9 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
         {"Py", Py},
         {"Pz", Pz},
         {"E", E},
+        {"Isolation", Isolation},
+        {"TrueFlavour", TrueFlavour},
+        {"CSVScore", BScore},
         {"FatJetIdx", FatJetIdx},
         {"Njettiness1", oneSubJettiness},
         {"Njettiness2", twoSubJettiness},
@@ -200,9 +203,10 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
         {"tightSF", tightSF},
         {"triggerSF", triggerSF},
         {"recoSF", recoSF},
-        {"loosebTagSF", loosebTagSF},
-        {"mediumbTagSF", mediumbTagSF},
-        {"tightbTagSF", tightbTagSF},
+
+        {"looseCSVbTagSF", loosebTagSF},
+        {"mediumbCSVTagSF", mediumbTagSF},
+        {"tightCSVbTagSF", tightbTagSF},
         {"looseIsoLooseSF", looseIsoLooseSF},
         {"looseIsoMediumSF", looseIsoMediumSF},
         {"looseIsoTightSF", looseIsoTightSF},
@@ -210,13 +214,17 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
         {"tightIsoTightSF", tightIsoTightSF},
     };
 
+    std::map<std::string, float&> otherProperties = {
+        {"MET_Px", MET_Px},
+        {"MET_Py", MET_Py},
+        {"Misc_eventNumber", eventNumber},
+        {"Misc_TrueInteraction", nTrue},
+    };
+
     std::map<std::string, std::map<Particle, std::vector<bool>*>&> boolProperties = {
         {"isLoose", isLoose},
         {"isMedium", isMedium},
         {"isTight", isTight},
-        {"isLooseB", isLooseB},
-        {"isMediumB", isMediumB},
-        {"isTightB", isTightB},
         {"isLooseIso", isLooseIso},
         {"isMediumIso", isMediumIso},
         {"isTightIso", isTightIso},
@@ -229,6 +237,8 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
         {"FatJet", FATJET},
     };
 
+    inputTree->SetBranchStatus("*", false);
+
     //Set all branch address for all particles/quantities
     for(std::pair<const std::string, Particle>& part: particles){
         for(std::pair<const std::string, std::map<Particle, std::vector<float>*>&> property: floatProperties){
@@ -236,6 +246,7 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
 
             if(inputTree->GetListOfBranches()->Contains(branchName.c_str())){
                 property.second[part.second] = NULL;
+                inputTree->SetBranchStatus(branchName.c_str(), true);
                 inputTree->SetBranchAddress(branchName.c_str(), &property.second[part.second]);
             }
         }
@@ -245,8 +256,17 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
 
             if(inputTree->GetListOfBranches()->Contains(branchName.c_str())){
                 property.second[part.second] = NULL;
+                inputTree->SetBranchStatus(branchName.c_str(), true);
                 inputTree->SetBranchAddress(branchName.c_str(), &property.second[part.second]);
             }
+        }
+    }
+
+    //Set all other branch values needed
+    for(std::pair<const std::string, float&> property: otherProperties){
+        if(inputTree->GetListOfBranches()->Contains(property.first.c_str())){
+            inputTree->SetBranchStatus(property.first.c_str(), true);
+            inputTree->SetBranchAddress(property.first.c_str(), &property.second);
         }
     }
 
@@ -254,15 +274,10 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
     std::vector<std::string> weightNames = {"lumi", "xsec", "prefireWeight"};
     weights = std::vector<float>(weightNames.size(), 0.);
 
-    for(unsigned int idx=0; idx < weightNames.size(); idx++){;
+    for(unsigned int idx=0; idx < weightNames.size(); idx++){
+        inputTree->SetBranchStatus(("Weight_" + weightNames[idx]).c_str(), true);
         inputTree->SetBranchAddress(("Weight_" + weightNames[idx]).c_str(), &weights[idx]);
     }
-
-    //Set all other branch values needed
-    inputTree->SetBranchAddress("MET_Px", &MET_Px); 
-    inputTree->SetBranchAddress("MET_Py", &MET_Py);
-    inputTree->SetBranchAddress("Misc_eventNumber", &eventNumber);
-    inputTree->SetBranchAddress("Misc_TrueInteraction", &nTrue);
 
     //BDT score branches
     for(int i=0; i < inputTree->GetListOfBranches()->GetSize(); i++){
@@ -285,136 +300,154 @@ void TreeReader::PrepareEvent(TreeObject inputTree){
 template void TreeReader::PrepareEvent(TTree* inputTree);
 template void TreeReader::PrepareEvent(TChain* inputTree);
 
-void TreeReader::SetEvent(Event& event, const bool& isData, const Particle& cleanPart, const WP& cleanWP){
+void TreeReader::SetEvent(Event& event, const Particle& cleanPart, const WP& cleanWP){
     //Clear event
-    event.particles.clear();
-    event.SF.clear();
-    event.subtiness.clear();
+    event.Clear();
+
     event.eventNumber = eventNumber;
     event.bdtScore = bdtScore;
     event.dnnScore = dnnScore;
 
+    bool isCleaned=true;
+    bool isSubJet=false;
+
     //Get all particles and put them into event container by particle type/working point
     for(const Particle part: {ELECTRON, MUON, JET, FATJET}){
         for(int j=0; j < Px[part]->size(); j++){
-            ROOT::Math::PxPyPzEVector LV(Px[part]->at(j), Py[part]->at(j), Pz[part]->at(j), E[part]->at(j));
+            if(j == event.NMAX) break;
+
+            std::shared_ptr<ROOT::Math::PxPyPzEVector> LV = std::make_shared<ROOT::Math::PxPyPzEVector>(ROOT::Math::PxPyPzEVector(Px[part]->at(j), Py[part]->at(j), Pz[part]->at(j), E[part]->at(j)));
+
             if(part==ELECTRON){
-                if(isTight[part]->at(j) && isTightIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][TIGHT].push_back(LV);
-                    event.SF[part][TIGHT].push_back(isData ? 1 : tightSF[part]->at(j) * Utils::CheckZero(recoSF[part]->at(j)));
+                if(isTight[part]->at(j) && Isolation[part]->at(j) < 0.2 && LV->Pt() > 30){
+                    event.particles[Event::Index(part, TIGHT, j)] = LV;
+                    event.SF[Event::Index(part, TIGHT, j)] = event.isData ? 1 : tightSF[part]->at(j) * Utils::CheckZero(recoSF[part]->at(j));
                 }
 
-                if(isMedium[part]->at(j) && isMediumIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][MEDIUM].push_back(LV);
-                    event.SF[part][MEDIUM].push_back(isData ? 1 : mediumSF[part]->at(j)*Utils::CheckZero(recoSF[part]->at(j)));
+                if(isMedium[part]->at(j) && Isolation[part]->at(j) < 0.15 && LV->Pt() > 30){
+                    event.particles[Event::Index(part, MEDIUM, j)] = LV;
+                    event.SF[Event::Index(part, MEDIUM, j)] = event.isData ? 1 : mediumSF[part]->at(j) * Utils::CheckZero(recoSF[part]->at(j));
                 }
 
-                if(isLoose[part]->at(j) && isLooseIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][LOOSE].push_back(LV);
-                    event.SF[part][LOOSE].push_back(isData ? 1 : looseSF[part]->at(j)*Utils::CheckZero(recoSF[part]->at(j)));
+                if(isLoose[part]->at(j) && Isolation[part]->at(j) < 0.1 && LV->Pt() > 30){
+                    event.particles[Event::Index(part, LOOSE, j)] = LV;
+                    event.SF[Event::Index(part, LOOSE, j)] = event.isData ? 1 : looseSF[part]->at(j) * Utils::CheckZero(recoSF[part]->at(j));
                 }
 
-                event.particles[part][NONE].push_back(LV);
+                event.particles[Event::Index(part, NONE, j)] = LV;
             }
 
             if(part==MUON){
-                if(isTight[part]->at(j) && isTightIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][TIGHT].push_back(LV);
-                    event.SF[part][TIGHT].push_back(isData ? 1 : Utils::CheckZero(tightSF[part]->at(j))*Utils::CheckZero(looseIsoTightSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j)));
+                if(isTight[part]->at(j) && isTightIso[part]->at(j) && LV->Pt() > 30){
+                    event.particles[Event::Index(part, TIGHT, j)] = LV;
+                    event.SF[Event::Index(part, TIGHT, j)] = event.isData ? 1 : Utils::CheckZero(tightSF[part]->at(j))*Utils::CheckZero(looseIsoTightSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j));
                 }
 
-                if(isMedium[part]->at(j) && isTightIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][MEDIUM].push_back(LV);
-                    event.SF[part][MEDIUM].push_back(isData ? 1 : Utils::CheckZero(mediumSF[part]->at(j))*Utils::CheckZero(tightIsoMediumSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j)));
+                if(isMedium[part]->at(j) && isTightIso[part]->at(j) && LV->Pt() > 30){
+                    event.particles[Event::Index(part, MEDIUM, j)] = LV;
+                    event.SF[Event::Index(part, MEDIUM, j)] = event.isData ? 1 : Utils::CheckZero(mediumSF[part]->at(j))*Utils::CheckZero(tightIsoMediumSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j));
                 }
 
-                if(isLoose[part]->at(j) && isTightIso[part]->at(j) && LV.Pt() > 30){
-                    event.particles[part][LOOSE].push_back(LV);
-                    event.SF[part][LOOSE].push_back(isData ? 1 : Utils::CheckZero(looseSF[part]->at(j))*Utils::CheckZero(tightIsoTightSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j)));
+                if(isLoose[part]->at(j) && isTightIso[part]->at(j) && LV->Pt() > 30){
+                    event.particles[Event::Index(part, LOOSE, j)] = LV;
+                    event.SF[Event::Index(part, LOOSE, j)] = event.isData ? 1 : Utils::CheckZero(looseSF[part]->at(j))*Utils::CheckZero(tightIsoTightSF[part]->at(j))*Utils::CheckZero(triggerSF[part]->at(j));
                 }
-                   
-                event.particles[part][NONE].push_back(LV);
+                
+                event.particles[Event::Index(part, NONE, j)] = LV;
             }
 
             if(part==JET){
-                bool isCleaned=true;
+                isCleaned=true;
 
-                if(cleanPart != NOTHING){
-                    for(ROOT::Math::PxPyPzEVector& p: event.particles[cleanPart][cleanWP]){
-                        if(ROOT::Math::VectorUtil::DeltaR(p, LV) < 0.4){
-                            isCleaned=false;
-                            break;
+                if(cleanPart != JET){
+                    for(int i=0; i < event.NMAX; i++){
+                        const std::shared_ptr<ROOT::Math::PxPyPzEVector>& p = event.particles[Event::Index(cleanPart, cleanWP, i)];
+
+                        if(p != NULL){
+                            if(ROOT::Math::VectorUtil::DeltaR(*p, *LV) < 0.4){
+                                isCleaned=false;
+                                break;
+                            }
                         }
                     }
                 }
-
-                bool isSubJet=false;
+    
+                isSubJet=false;
                 if(FatJetIdx[part]->size() != 0){
                     if(FatJetIdx[part]->at(j) != -1) isSubJet=true; 
                 }
 
                 if(!isCleaned and !isSubJet) continue;
 
-                if(isTightB[part]->at(j)){
+                if(BScore[part]->at(j) > 0.8001){
                     if(isSubJet){
-                        event.particles[BSUBJET][TIGHT].push_back(LV);
-                        event.SF[BSUBJET][TIGHT].push_back(isData ? 1 : tightbTagSF[part]->at(j));
+                        event.particles[Event::Index(BSUBJET, TIGHT, j)] = LV;
+                        event.SF[Event::Index(BSUBJET, TIGHT, j)] = event.isData ? 1 : tightbTagSF[part]->at(j);
                     }
 
                     else{
-                        event.particles[BJET][TIGHT].push_back(LV);
-                        event.SF[BJET][TIGHT].push_back(isData ? 1 : tightbTagSF[part]->at(j));
+                        event.particles[Event::Index(BJET, TIGHT, j)] = LV;
+                        event.SF[Event::Index(BJET, TIGHT, j)] = event.isData ? 1 : tightbTagSF[part]->at(j);
                     }
                 }
 
-                if(isMediumB[part]->at(j)){
+                if(BScore[part]->at(j) > 0.4941){
                     if(isSubJet){
-                        event.particles[BSUBJET][MEDIUM].push_back(LV);
-                        event.SF[BSUBJET][MEDIUM].push_back(isData ? 1 : mediumbTagSF[part]->at(j));
+                        event.particles[Event::Index(BSUBJET, MEDIUM, j)] = LV;
+                        event.SF[Event::Index(BSUBJET, MEDIUM, j)] = event.isData ? 1 : mediumbTagSF[part]->at(j);
                     }
 
                     else{
-                        event.particles[BJET][MEDIUM].push_back(LV);
-                        event.SF[BJET][MEDIUM].push_back(isData ? 1 : mediumbTagSF[part]->at(j));
+                        event.particles[Event::Index(BJET, MEDIUM, j)] = LV;
+                        event.SF[Event::Index(BJET, MEDIUM, j)] = event.isData ? 1 : mediumbTagSF[part]->at(j);
                     }
                 }
 
-                if(isLooseB[part]->at(j)){
+                if(BScore[part]->at(j) > 0.1522){
                     if(isSubJet){
-                        event.particles[BSUBJET][LOOSE].push_back(LV);
-                        event.SF[BSUBJET][LOOSE].push_back(isData ? 1 : loosebTagSF[part]->at(j));
+                        event.particles[Event::Index(BSUBJET, LOOSE, j)] = LV;
+                        event.SF[Event::Index(BSUBJET, LOOSE, j)] = event.isData ? 1 : loosebTagSF[part]->at(j);
                     }
 
                     else{
-                        event.particles[BJET][LOOSE].push_back(LV);
-                        event.SF[BJET][LOOSE].push_back(isData ? 1 : loosebTagSF[part]->at(j));
+                        event.particles[Event::Index(BJET, LOOSE, j)] = LV;
+                        event.SF[Event::Index(BJET, LOOSE, j)] = event.isData ? 1 : loosebTagSF[part]->at(j);
                     }
                 }
 
-                if(isSubJet) event.particles[SUBJET][NONE].push_back(LV);
-                else event.particles[JET][NONE].push_back(LV);
+                if(isSubJet){
+                    event.particles[Event::Index(SUBJET, NONE, j)] = LV;
+                    if(!event.isData) event.isTrueB[Event::Index(SUBJET, NONE, j)] = TrueFlavour[part]->at(j);
+                }
+
+                else{
+                    event.particles[Event::Index(JET, NONE, j)] = LV;
+                    if(!event.isData) event.isTrueB[Event::Index(JET, NONE, j)] = TrueFlavour[part]->at(j);
+                }
             }
 
             if(part==FATJET){
-                event.particles[FATJET][NONE].push_back(LV);
+                event.particles[Event::Index(FATJET, NONE, j)] = LV;
                 event.subtiness.push_back({oneSubJettiness[part]->at(j), twoSubJettiness[part]->at(j), threeSubJettiness[part]->at(j)});
             }
         }
     }
 
     //MET
-    event.particles[MET][NONE].push_back(ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0));
+    event.particles[Event::Index(MET, NONE, 0)] = std::make_shared<ROOT::Math::PxPyPzEVector>(ROOT::Math::PxPyPzEVector(MET_Px, MET_Py, 0, 0));
 }
 
 void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, const std::string& cleanJet){
+    //Take time
+    Utils::RunTime timer;
+
     //Get input tree
     TFile* inputFile = TFile::Open(fileName.c_str(), "READ");
-    TTree* inputTree = (TTree*)inputFile->Get(channel.c_str());
+    TTree* inputTree = inputFile->Get<TTree>(channel.c_str());
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << channel << "' from " << entryStart << " to " << entryEnd << std::endl;
 
-    TH1::AddDirectory(kFALSE);
     gROOT->SetBatch(kTRUE);
 
     std::string name = outname;
@@ -435,47 +468,66 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
     //Get number of generated events
     if(inputFile->GetListOfKeys()->Contains("nGen")){
-        nGen = ((TH1F*)inputFile->Get("nGen"))->Integral();
+        nGen = inputFile->Get<TH1F>("nGen")->Integral();
     }
-
-    //Calculate pile up weight histogram
-    TH1F* pileUpWeight=NULL;
-    bool isData=true;
-
-    if(inputFile->GetListOfKeys()->Contains("puMC")){
-        TH1F* puMC=NULL; TH1F* puReal=NULL;
-        isData=false;
-
-        puMC = (TH1F*)inputFile->Get("puMC");
-        puReal = (TH1F*)inputFile->Get("pileUp");
-
-        pileUpWeight = (TH1F*)puReal->Clone();
-        pileUpWeight->Scale(1./pileUpWeight->Integral());
-        puMC->Scale(1./puMC->Integral());
-
-        pileUpWeight->Divide(puMC);
-        delete puMC; delete puReal;
-    }
-
-    //Cutflow
-    TH1F* cutflow = (TH1F*)inputFile->Get(("cutflow_" + channel).c_str())->Clone();
-    cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
-    if(inputTree->GetEntries() != 0) cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
-    else cutflow->Scale(1./nGen);
 
     //Set all branch addresses needed for the event
     PrepareEvent<TTree*>(inputTree);
     Event event;
 
+    float weight = 1., value = -999.;
+    bool passed = true;
+
+    //Calculate pile up weight histogram
+    TH1D* pileUpWeight=NULL;
+
+    if(inputFile->GetListOfKeys()->Contains("puMC")){
+        event.isData=false;
+
+        TH1F* puMC = inputFile->Get<TH1F>("puMC");
+        TH1D* puReal = inputFile->Get<TH1D>("pileUp");
+
+        pileUpWeight = (TH1D*)puReal->Clone();
+        pileUpWeight->Scale(1./pileUpWeight->Integral());
+        puMC->Scale(1./puMC->Integral());
+
+        pileUpWeight->Divide(puMC);
+        delete puMC; delete puReal;
+
+        inputTree->Draw("sqrt(Jet_Px**2 + Jet_Py**2):(1/2*log((Jet_E+Jet_Pz)/(Jet_E-Jet_Pz)))>>TotalB(30, -2.4, 2.4, 30, 30, 300)", "Jet_TrueFlavour==5", "goff");
+        inputTree->Draw("sqrt(Jet_Px**2 + Jet_Py**2):(1/2*log((Jet_E+Jet_Pz)/(Jet_E-Jet_Pz)))>>effLB(30, -2.4, 2.4, 30, 30, 300)", "Jet_CSVScore>0.1522 && Jet_TrueFlavour==5", "goff");
+        inputTree->Draw("sqrt(Jet_Px**2 + Jet_Py**2):(1/2*log((Jet_E+Jet_Pz)/(Jet_E-Jet_Pz)))>>effMB(30, -2.4, 2.4, 30, 30, 300)", "Jet_CSVScore>0.4941 && Jet_TrueFlavour==5", "goff");
+        inputTree->Draw("sqrt(Jet_Px**2 + Jet_Py**2):(1/2*log((Jet_E+Jet_Pz)/(Jet_E-Jet_Pz)))>>effTB(30, -2.4, 2.4, 30, 30, 300)", "Jet_CSVScore>0.8001 && Jet_TrueFlavour==5", "goff");
+
+        TH2F* TotalB = gDirectory->Get<TH2F>("TotalB");
+        for(const std::string& name: {"effLB", "effMB", "effTB"}){
+            TH2F* eff = gDirectory->Get<TH2F>(name.c_str());
+            eff->Divide(TotalB);
+
+            event.effBTag.push_back(eff);
+        }
+        delete TotalB;
+    }
+
+    //Cutflow
+    TH1F* cutflow = inputFile->Get<TH1F>(("cutflow_" + channel).c_str());
+    cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
+    if(inputTree->GetEntries() != 0) cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
+    else cutflow->Scale(1./nGen);
+
     for (int i = entryStart; i < entryEnd; i++){
+        if(i % 100000 == 0){
+            std::cout << "Processed events: " << i-entryStart << " (" << (i-entryStart)/timer.Time() << " eve/s)" << std::endl;
+        }
+
         //Load event
         inputTree->GetEntry(i);
 
         //Fill event class with particle content
-        SetEvent(event, isData, partToClean, wpToClean);
+        SetEvent(event, partToClean, wpToClean);
 
         //Multiply all common weights
-        float weight = 1.;
+        weight = 1.;
 
         for(float& w: weights){
             weight *= w;
@@ -485,7 +537,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         if(pileUpWeight!=NULL) weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(nTrue));
 
         //Check if event passed all cuts
-        bool passed=true;
+        passed=true;
 
         for(int j=0; j < cutFunctions.size(); j++){
             event.weight = 1.;
@@ -504,8 +556,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         //Fill histogram
         for(int j=0; j < hists.size(); j++){
             event.weight = 1.;
-            float value = histFunctions[j](event, histArgs[j]);
 
+            value = histFunctions[j](event, histArgs[j]);
             hists[j]->Fill(value, weight*event.weight);
         }
 
@@ -567,4 +619,5 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     delete cutflow; delete inputTree; delete inputFile; delete outFile;
 
     std::cout << "Closed output file: '" << outname << "'" << std::endl;
+    std::cout << "Time passed for complete processing: " << timer.Time() << " s" << std::endl;
 }

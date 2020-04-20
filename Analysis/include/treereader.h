@@ -45,7 +45,7 @@ class TreeReader {
         std::vector<std::string> cutLabels;
 
         //Objects to hold values 
-        std::map<Particle, std::vector<float>*> Px, Py, Pz, E, Isolation, looseSF, mediumSF, tightSF, triggerSF, recoSF, loosebTagSF, mediumbTagSF, tightbTagSF, FatJetIdx, isFromh, oneSubJettiness, twoSubJettiness, threeSubJettiness, looseIsoLooseSF, looseIsoMediumSF, looseIsoTightSF, tightIsoMediumSF, tightIsoTightSF;
+        std::map<Particle, std::vector<float>*> Px, Py, Pz, E, Isolation, looseSF, mediumSF, tightSF, triggerSF, recoSF, loosebTagSF, mediumbTagSF, tightbTagSF, FatJetIdx, isFromh, oneSubJettiness, twoSubJettiness, threeSubJettiness, looseIsoLooseSF, looseIsoMediumSF, looseIsoTightSF, tightIsoMediumSF, tightIsoTightSF, BScore, TrueFlavour;
         std::map<Particle, std::vector<bool>*> isLoose, isMedium, isTight, isLooseIso, isMediumIso, isTightIso, isLooseB, isMediumB, isTightB;
 
         std::vector<float> weights;
@@ -65,7 +65,7 @@ class TreeReader {
 
         template <typename TreeObject>
         void PrepareEvent(TreeObject inputTree);
-        void SetEvent(Event& event, const bool& isData, const Particle& cleanPart=NOTHING, const WP& cleanWP=NONE);
+        void SetEvent(Event& event, const Particle& cleanPart=JET, const WP& cleanWP=NONE);
         void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, const std::string& cleanJet);
 };
 
