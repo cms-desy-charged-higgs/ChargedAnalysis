@@ -14,29 +14,30 @@ void Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, st
     //Create directories
     std::system((std::string("mkdir -p ") + outPath).c_str());
 
-    std::vector<DataLoader> signal;
-    std::vector<DataLoader> background;
-    int nBatches = 0;
-    std::vector<float> wSig; std::vector<float> wBkg;
+    std::vector<DataLoader> signal, background;
+    int nSig = 0, nBkg = 0;
     
     for(int i = 0; i < sigSets.size(); i++){
-        int nSig = sigSets[i].size().value();
-        int nBkg = bkgSets[i].size().value();
+        int nS = sigSets[i].size().value(); nSig += nS;
+        int nB = bkgSets[i].size().value(); nBkg += nB;
 
-        nBatches += nSig+nBkg % batchSize == 0 ? (nSig+nBkg)/batchSize : (nSig+nBkg)/batchSize + 1;
-
-        wSig.push_back((nSig+nBkg)/float(nSig));
-        wBkg.push_back((nSig+nBkg)/float(nBkg));
+        float wS = (nS+nB)/float(nS);
+        float wB = (nS+nB)/float(nB);
 
         //Create dataloader for sig and bkg
-        signal.push_back(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(sigSets[i], 1./wSig.back()*batchSize));
-        background.push_back(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSets[i], 1./wBkg.back()*batchSize));
+        signal.push_back(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(sigSets[i], 1./wS* batchSize/(2*sigSets.size())));
+        background.push_back(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSets[i], 1./wB* batchSize/(2*sigSets.size())));
     }
+
+    float wSig = (nSig+nBkg)/float(nSig);
+    float wBkg = (nSig+nBkg)/float(nBkg);
+
+    int nBatches = nSig+nBkg % batchSize == 0 ? (nSig+nBkg)/batchSize : (nSig+nBkg)/batchSize + 1;
 
     //Optimizer
     float forTest = 0.05;
 
-    float lr = 0.0001;
+    float lr = 0.00001;
     torch::optim::Adam optimizer(model->parameters(), torch::optim::AdamOptions(lr).weight_decay(lr/10.));
 
     //Initial best loss for later early stopping
@@ -62,13 +63,7 @@ void Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, st
         std::default_random_engine generator;
         std::uniform_int_distribution<int> distribution(0, (int)signal.size()-1);
 
-        while(nBatches - finishedBatches != 0){
-            int index = distribution(generator);
-
-            if(bkgIter[index] == background[index]->end()){
-                continue;
-            }
-    
+        while(nBatches - finishedBatches != 0){    
             //Set gradients to zero
             model->zero_grad();
             optimizer.zero_grad();
@@ -76,12 +71,14 @@ void Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, st
             //Put signal + background in one vector and split by even or odd numbered event
             std::vector<DNNTensor> batch;
 
-            for(DNNTensor& tensor: *sigIter[index]){
-                batch.push_back(tensor);
-            }
+            for(int j = 0; j < bkgIter.size(); j++){
+                for(DNNTensor& tensor: *sigIter[j]){
+                    batch.push_back(tensor);
+                }
 
-            for(DNNTensor& tensor: *bkgIter[index]){
-                batch.push_back(tensor);
+                for(DNNTensor& tensor: *bkgIter[j]){
+                    batch.push_back(tensor);
+                }
             }
 
             //Shuffle batch
@@ -103,11 +100,11 @@ void Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, st
             std::vector<float> weightsTest;
             
             for(int i = 0; i < train.label.size(0); i++){
-                weightsTrain.push_back(train.label[i].item<float>() == 1 ? wSig[index] : wBkg[index]);
+                weightsTrain.push_back(train.label[i].item<float>() == 1 ? wSig: wBkg);
             }
 
             for(int i = 0; i < test.label.size(0); i++){
-                weightsTest.push_back(test.label[i].item<float>() == 1 ? wSig[index] : wBkg[index]);
+                weightsTest.push_back(test.label[i].item<float>() == 1 ? wSig : wBkg);
             }
 
             torch::Tensor weightTrain = torch::from_blob(weightsTrain.data(), {weightsTrain.size()}).clone().to(device);
@@ -142,8 +139,10 @@ void Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, st
             Utils::ProgressBar(float(finishedBatches)/nBatches*100, barString);
 
             //Increment iterators
-            ++sigIter[index];
-            ++bkgIter[index];
+            for(int j = 0; j < bkgIter.size(); j++){
+                ++sigIter[j];
+                ++bkgIter[j];
+            }
         }
 
         //Early stopping
@@ -190,7 +189,7 @@ int main(int argc, char** argv){
     int nParameters = frame->GetNLabels();
     delete frame;
 
-    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(nParameters, 2*nParameters, 2, 0.1, device);
+    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(nParameters, 6*nParameters, 3, 0.1, device);
     model->Print();
 
     Train(model, sigSets, bkgSets, device, int(batchSize), outPath);
