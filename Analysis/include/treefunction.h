@@ -1,106 +1,101 @@
-#ifndef TREEFUNCTION_H
-#define TREEFUNCTION_H
+#ifndef TREEFUNCTION
+#define TREEFUNCTION
 
-#include <vector>
 #include <string>
-#include <memory>
+#include <vector>
 #include <map>
 #include <iostream>
+#include <cctype>
 
-#include <Math/GenVector/VectorUtil.h>
-#include <Math/Vector4Dfwd.h>
+#include <TLeaf.h>
+#include <TTree.h>
+#include <TFile.h>
 #include <TH2F.h>
 
 #include <ChargedAnalysis/Utility/include/utils.h>
-#include <ChargedAnalysis/Utility/src/bimap.cc>
 
-enum Particle{ELECTRON, MUON, JET, BJET, FATJET, SUBJET, BSUBJET, MET, NPART};
-enum WP{LOOSE, MEDIUM, TIGHT, NONE, NWP};
+enum Particle{VACUUM, ELECTRON, MUON, BJET, BSUBJET, JET, FATJET, SUBJET, MET};
+enum WP{NOTCLEAN = -10, NONE, LOOSE, MEDIUM, TIGHT};
 enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
-struct Event; struct Function; struct FuncArgs;
+class TreeFunction{
+    private:
+        void(TreeFunction::*funcPtr)();
+        float inputValue;
 
-struct Event{
-    const int NMAX=15;
-    bool isData=true;
+        Comparison comp;
+        float compValue;
 
-    std::vector<std::shared_ptr<ROOT::Math::PxPyPzEVector>> particles = std::vector<std::shared_ptr<ROOT::Math::PxPyPzEVector>>(NPART*NWP*NMAX, NULL);
-    std::vector<float> SF = std::vector<float>(NPART*NWP*NMAX, 1.);
-    std::vector<bool> isTrueB = std::vector<bool>(NPART*NWP*NMAX, 1.);
-    std::vector<TH2F*> effBTag;
-    std::vector<std::vector<float>> subtiness;
-    float weight;
-    int eventNumber;
-    std::map<int, float> bdtScore, dnnScore;
+        float value;
+        float weight;
 
-    static int Index(const Particle& part, const WP& wp, const int& index){
-        return part + NPART*(wp + NWP*index);
-    }
+        std::string partLabel1 = "", partLabel2 = "", name, axisLabel, cutLabel;
 
-    void Clear(){
-        for(int i=0; i < particles.size(); i++){
-            if(particles[i] != NULL) particles[i] = NULL;
-        }
+        inline static int entry = 0;
 
-        this->subtiness.clear();
-    }
+        std::map<std::string, void(TreeFunction::*)()> functions;
+        std::map<Particle, std::string> partLabels, branchPrefix, partNames;
+        std::map<std::string, std::string> funcLabels;
+        std::map<WP, std::string> wpName;
+
+        //General TLeafes
+        TFile* inputFile;
+        TTree* inputTree;
+        std::vector<TLeaf*> quantities;
+
+        //Particle specific
+        TLeaf* nPart;
+        TLeaf* ID;
+        TLeaf* Isolation;
+        TLeaf* BScore;
+        TLeaf* nTrueB;
+        std::vector<TLeaf*> scaleFactors;
+
+        //BTag Histo
+        TH2F* effBTag = nullptr;
+
+        //Particle information
+        Particle part1 = VACUUM, part2 = VACUUM;
+        WP wp1 = NONE, wp2 = NONE;
+        int idx1 = -1., idx2 = 1., realIdx1, realIdx2;
+
+        WP whichWP(const Particle& part, const int& idx);
+        bool isCleanJet(const int& idx);
+
+        Particle cleanPart = VACUUM; WP cleanedWP = NONE;        
+        TLeaf* cleanPhi = nullptr; 
+        TLeaf* cleanEta = nullptr;
+        TLeaf* jetPhi = nullptr; 
+        TLeaf* jetEta = nullptr;
+
+        //TreeFunction to get wished values
+        void Pt();
+        void Phi();
+        void Eta();
+        void HT();
+        void NParticle();
+
+    public:
+        TreeFunction(TFile* inputFile, const std::string& treeName);
+        ~TreeFunction();
+
+        //Setter function
+        void SetP1(const Particle& part, const int& idx = 0, const WP& wp = NONE);
+        void SetP2(const Particle& part, const int& idx = 0, const WP& wp = NONE);
+        void SetCleanJet(const Particle& part, const WP& wp);
+        void SetCut(const Comparison& comp, const float& compValue);
+        void SetFunction(const std::string& funcName, const float& inputValue = -999.);
+
+        //Getter function
+        const float Get();
+        const float GetWeight();
+        const bool GetPassed();
+        const std::string GetAxisLabel();
+        const std::string GetCutLabel();
+        const std::string GetName();
+
+        //Static function for global configuration of all instances
+        static void SetEntry(const int& entry);
 };
 
-struct FuncArgs{
-    std::vector<Particle> parts;
-    std::vector<int> index;
-    std::vector<WP> wp;
-    int value=-999.;
-    Comparison comp;
-    float compValue=-999.;
-};
-
-struct Function{
-    float(*func)(Event&, FuncArgs&);
-
-    float operator()(Event& event, FuncArgs& args){return func(event, args);}
-
-    bool operator()(Event& event, FuncArgs& args, const bool& isCut){
-        switch(args.comp){
-            case BIGGER:
-                return func(event, args) > args.compValue;
-
-            case SMALLER:
-                return func(event, args) < args.compValue;
-
-            case EQUAL:
-                return func(event, args) == args.compValue;
-
-            case DIVISIBLE:
-                return int(func(event, args)) % int(args.compValue) == 0;
-
-            case NOTDIVISIBLE:
-                return int(func(event, args)) % int(args.compValue) != 0;
-        }
-    }
-};
-
-namespace TreeFunction{
-    extern Utils::Bimap<std::string, float(*)(Event&, FuncArgs&)> functions;
-    extern Utils::Bimap<float(*)(Event&, FuncArgs&), std::string> funcLabels;
-    extern Utils::Bimap<std::string, Particle> particles;
-    extern Utils::Bimap<Particle, std::string> partLabels;
-    extern Utils::Bimap<std::string, WP> workingPoints;
-    extern Utils::Bimap<std::string, Comparison> comparisons;
-
-    float Mass(Event& event, FuncArgs& args);
-    float Phi(Event& event, FuncArgs& args);
-    float Pt(Event& event, FuncArgs& args);
-    float Eta(Event& event, FuncArgs& args);
-    float DeltaPhi(Event& event, FuncArgs& args);
-    float DeltaR(Event& event, FuncArgs& args);
-    float NParticle(Event &event, FuncArgs& args);
-    float ConstantNumber(Event &event, FuncArgs& args);
-    float HadronicEnergy(Event &event, FuncArgs& args);
-    float EventNumber(Event &event, FuncArgs& args);
-    float Subtiness(Event &event, FuncArgs& args);
-    float BDTScore(Event &event, FuncArgs& args);
-    float DNNScore(Event &event, FuncArgs& args);
-};
-
-#endif
+#endif A_
