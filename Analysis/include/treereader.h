@@ -16,6 +16,7 @@
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
+#include <ChargedAnalysis/Analysis/include/treeparser.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 
 class TreeReader {
@@ -39,10 +40,6 @@ class TreeReader {
 
         std::vector<TreeFunction> cutFunctions;
 
-        std::map<std::string, Particle> particles;
-        std::map<std::string, WP> workingPoints;
-        std::map<std::string, Comparison> comparisons;
-
         int nGen = 1, nTrue = 0;
         float lumi = 1., xSec = 1.;
 
@@ -51,11 +48,6 @@ class TreeReader {
     public:
         TreeReader();
         TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel);
-
-        void GetFunction(const std::string& parameter, TreeFunction& func);
-        void GetParticle(const std::string& parameter, TreeFunction& func);
-        void GetCut(const std::string& parameter, TreeFunction& func);
-        void GetBinning(const std::string& parameter, TH1* hist);
 
         void EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, const std::string& cleanJet);
 };

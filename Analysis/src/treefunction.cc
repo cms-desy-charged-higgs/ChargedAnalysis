@@ -3,118 +3,94 @@
 TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
     inputFile(inputFile),
     inputTree(inputFile->Get<TTree>(treeName.c_str())){
-    functions = {
-        {"Pt", &TreeFunction::Pt},
-        {"Phi", &TreeFunction::Phi},
-        {"Eta", &TreeFunction::Eta},
-        {"HT", &TreeFunction::HT},
-        {"N", &TreeFunction::NParticle},
+    funcInfo = {
+        {"Pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
+        {"Phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
+        {"Eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
+        {"HT", {&TreeFunction::HT, "H_{T} [GeV]"}},
+        {"N", {&TreeFunction::NParticle, "N(@)"}},
     };
 
-    branchPrefix = {
-        {VACUUM, ""},
-        {ELECTRON, "Electron"},
-        {MUON, "Muon"},
-        {JET, "Jet"},
-        {MET, "MET"},
-        {SUBJET, "SubJet"},
-        {BJET, "Jet"},
-        {BSUBJET, "SubJet"},
-        {FATJET, "FatJet"},
+    partInfo = {
+        {"", {VACUUM, "", ""}},
+        {"e", {ELECTRON, "Electron", "e_{@}"}},
+        {"mu", {MUON, "Muon", "#mu_{@}"}},
+        {"j", {JET, "Jet", "j_{@}"}},
+        {"met", {MET, "MET", "#vec{p}_{T}^{miss}"}},
+        {"sj", {SUBJET, "SubJet", "j^{sub}_{@}"}},
+        {"bj", {BJET, "Jet", "b_{@}"}},
+        {"bsj", {BSUBJET, "SubJet", "b^{sub}_{@}"}},
+        {"fj", {FATJET, "FatJet", "j_{@}^{AK8}"}},
     };
 
-    partNames = {
-        {VACUUM, ""},
-        {ELECTRON, "Electron"},
-        {MUON, "Muon"},
-        {JET, "Jet"},
-        {MET, "MET"},
-        {SUBJET, "SubJet"},
-        {BJET, "BJet"},
-        {BSUBJET, "SubBJet"},
-        {FATJET, "FatJet"},
+    wpInfo = {
+        {"", {NONE, ""}},
+        {"l", {LOOSE, "loose"}},
+        {"m", {MEDIUM, "medium"}},
+        {"t", {TIGHT, "tight"}},
     };
 
-    partLabels = {
-        {VACUUM, ""},
-        {ELECTRON, "e_{@}"},
-        {MUON, "#mu_{@}"},
-        {JET, "j_{@}"},
-        {SUBJET, "j^{sub}_{@}"},
-        {FATJET, "j_{@}^{AK8}"},
-        {BJET, "b_{@}"},
-        {BSUBJET, "b^{sub}_{@}"},
-        {MET, "#vec{p}_{T}^{miss}"},
+    comparisons = {
+        {"bigger", {BIGGER, ">"}},
+        {"smaller", {SMALLER, "<"}},
+        {"equal", {EQUAL, "=="}},
+        {"divisible", {DIVISIBLE, "%"}},
+        {"notdivisible", {NOTDIVISIBLE, "%!"}},
     };
-
-    funcLabels = {
-        {"M", "m(@) [GeV]"},
-        {"Pt", "p_{T}(@) [GeV]"},
-        {"Phi", "#phi(@) [rad]"},
-        {"Eta", "#eta(@) [rad]"},
-        {"dPhi", "#Delta#phi(@, @) [rad]"},
-        {"dR", "#Delta R(@, @) [rad]"},
-        {"N", "N(@)"},
-        {"HT", "H_{T} [GeV]"},
-        {"Const", ""},
-        {"EvrNr", ""},
-        {"Tau", "#tau_{@}(@)"},
-        {"BDT", "BDT score(m_{H^{#pm}} = @ GeV)"},
-        {"DNN", "DNN score(m_{H^{#pm}} = @ GeV)"},
-    };
-
-    wpName = {{LOOSE, "loose"}, {MEDIUM, "medium"}, {TIGHT, "tight"}};
 }
 
 TreeFunction::~TreeFunction(){}
 
-void TreeFunction::SetP1(const Particle& part, const int& idx, const WP& wp){
-    part1 = part;
-    wp1 = wp;
+void TreeFunction::SetP1(const std::string& part, const int& idx, const std::string& wp){
+    part1 = std::get<0>(partInfo.at(part));
+    wp1 = std::get<0>(wpInfo.at(wp));
     idx1 = idx-1;
 
-    partLabel1 = Utils::Format<std::string>("@", partLabels[part1], idx1 == -1. ? "" : std::to_string(idx1+1), true);
+    partLabel1 = Utils::Format<std::string>("@", std::get<2>(partInfo.at(part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
+    partName1 = part;
+    wpName1 = wp;
 }
 
-void TreeFunction::SetP2(const Particle& part, const int& idx, const WP& wp){
-    part2 = part;
-    wp2 = wp;
+void TreeFunction::SetP2(const std::string& part, const int& idx, const std::string& wp){
+    part2 = std::get<0>(partInfo.at(part));
+    wp2 = std::get<0>(wpInfo.at(wp));
     idx2 = idx-1;
 
-    partLabel2 = Utils::Format<std::string>("@", partLabels[part2], idx2 == -1. ? "" : std::to_string(idx2+1), true);
+    partLabel2 = Utils::Format<std::string>("@", std::get<2>(partInfo.at(part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
+    partName2 = part;
+    wpName2 = wp;
 }
 
-void TreeFunction::SetCleanJet(const Particle& part, const WP& wp){
+void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
     if(part1 == JET or part1 == BJET){
-        cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", branchPrefix.at(part)).c_str());
-        cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", branchPrefix.at(part)).c_str());
-        ID = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_ID", branchPrefix.at(part)).c_str());
-        Isolation = inputTree->GetLeaf(Utils::Format<std::string>("@", part == ELECTRON ? "@_Isolation" : "@_isoID", branchPrefix.at(part)).c_str());
+        cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", std::get<1>(partInfo.at(part))).c_str());
+        cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", std::get<1>(partInfo.at(part))).c_str());
+        ID = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_ID", std::get<1>(partInfo.at(part))).c_str());
+        Isolation = inputTree->GetLeaf(Utils::Format<std::string>("@", part == "e" ? "@_Isolation" : "@_isoID", std::get<1>(partInfo.at(part))).c_str());
 
         jetPhi = inputTree->GetLeaf("Jet_Phi");
         jetEta = inputTree->GetLeaf("Jet_Eta");
-        cleanPart = part;
-        cleanedWP = wp;
+        cleanPart = std::get<0>(partInfo.at(part));
+        cleanedWP = std::get<0>(wpInfo.at(wp));
     }
 }
 
-void TreeFunction::SetCut(const Comparison& comp, const float& compValue){
-    this->comp = comp;
+void TreeFunction::SetCut(const std::string& comp, const float& compValue){
+    this->comp = std::get<0>(comparisons.at(comp));
     this->compValue = compValue;
 
     std::string compV = std::to_string(compValue);
     compV.erase(compV.find_last_not_of('0') + 1, std::string::npos); 
     compV.erase(compV.find_last_not_of('.') + 1, std::string::npos);
-    std::map<Comparison, std::string> compStr = {{BIGGER, ">"}, {SMALLER, "<"}, {EQUAL, "=="}};
 
-    cutLabel = axisLabel + " " + compStr[comp] + " " + compV;
+    cutLabel = axisLabel + " " + std::get<1>(comparisons.at(comp)) + " " + compV;
 }
 
 void TreeFunction::SetFunction(const std::string& funcName, const float& inputValue){
-    this->funcPtr = functions.at(funcName);
+    this->funcPtr = std::get<0>(funcInfo.at(funcName));
     this->inputValue = inputValue;
 
-    const std::string& partName = branchPrefix.at(part1);
+    const std::string& partName = std::get<1>(partInfo[partName1]);
 
     if(funcName == "Pt"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Pt", partName);
@@ -156,7 +132,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     nPart = inputTree->GetLeaf(branchName.c_str());
 
     if(part1 < JET and wp1 != NONE){
-        std::string wpname = wpName[wp1];
+        std::string wpname = std::get<1>(wpInfo[wpName1]);
 
         switch(part1){
             case ELECTRON:
@@ -195,7 +171,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     if(part1 == BJET or part1 == BSUBJET){
-        std::string wpname = wpName[wp1];
+        std::string wpname = std::get<1>(wpInfo[wpName1]);
         wpname[0] = std::toupper(wpname[0]);
 
         effBTag = inputFile->Get<TH2F>(Utils::Format<std::string>("@", "n@CSVbTag", wpname).c_str());
@@ -204,8 +180,8 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     //Set Name of functions/axis label
-    name = funcName + (inputValue != -999. ? Utils::Format<std::string>("@", "_@", std::to_string(inputValue)) : "");
-    axisLabel = funcLabels[funcName];
+    name = funcName + (inputValue != -999. ? Utils::Format<int>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<1>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<1>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
+    axisLabel = std::get<1>(funcInfo.at(funcName));;
 
     if(inputValue != -999.){
         axisLabel = Utils::Format<int>("@", axisLabel, inputValue, true);
@@ -214,8 +190,6 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     for(const std::string partLabel : {partLabel1, partLabel2}){
         axisLabel = Utils::Format<std::string>("@", axisLabel, partLabel, true);
     }
-
-    name += (part1 != VACUUM ? "_" + partNames[part1] : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + wpName[wp1] : "");
 }
 
 void TreeFunction::SetEntry(const int& entry){
@@ -327,7 +301,7 @@ const std::string TreeFunction::GetName(){
     return name;
 }
 
-WP TreeFunction::whichWP(const Particle& part, const int& idx){
+TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
     std::vector<char>* id;
     std::vector<char>* isoID;
     std::vector<float>* iso; 

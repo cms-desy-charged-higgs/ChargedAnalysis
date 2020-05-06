@@ -8,123 +8,23 @@ TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::ve
     parameters(parameters),
     cutStrings(cutStrings),
     outname(outname),
-    channel(channel){
-
-    particles = {
-        {"e", ELECTRON},
-        {"mu", MUON},
-        {"j", JET},
-        {"sj", SUBJET},
-        {"fj", FATJET},
-        {"bj", BJET},
-        {"bsj", BSUBJET},
-        {"met", MET},
-    };
-
-    workingPoints = {
-        {"l", LOOSE},
-        {"m", MEDIUM},
-        {"t", TIGHT},
-    };
-
-    comparisons = {
-        {"bigger", BIGGER},
-        {"smaller", SMALLER},
-        {"equal", EQUAL},
-        {"divisible", DIVISIBLE},
-        {"notdivisible", NOTDIVISIBLE},
-    };
-}
-
-void TreeReader::GetFunction(const std::string& parameter, TreeFunction& func){
-    if(Utils::Find<std::string>(parameter, "f:") == -1) throw std::runtime_error("No function key 'f' in '" + parameter + "'");
-
-    std::string funcName; float value = -999.;
-
-    std::string funcLine = parameter.substr(parameter.find("f:")+2, parameter.substr(parameter.find("f:")).find("/")-2);
-    
-    for(std::string& funcParam: Utils::SplitString<std::string>(funcLine, ",")){
-        std::vector<std::string> fInfo = Utils::SplitString<std::string>(funcParam, "=");
-
-        if(fInfo[0] == "n") funcName = fInfo[1];
-        else if(fInfo[0] == "v") value = std::stoi(fInfo[1]);
-        else throw std::runtime_error("Invalid key '" + fInfo[0] + "' in parameter '" +  funcLine + "'");
-    }
-
-    func.SetFunction(funcName, value); 
-}
-
-void TreeReader::GetParticle(const std::string& parameter, TreeFunction& func){
-    if(Utils::Find<std::string>(parameter, "p:") == -1) return;
-
-    std::string partLine = parameter.substr(parameter.find("p:")+2, parameter.substr(parameter.find("p:")).find("/")-2);
-
-    for(std::string& particle: Utils::SplitString<std::string>(partLine, "~")){
-        Particle part = VACUUM; WP wp = NONE; int idx = 0;
-
-        for(const std::string& partParam: Utils::SplitString<std::string>(particle, ",")){
-            std::vector<std::string> pInfo = Utils::SplitString<std::string>(partParam, "=");
-
-            if(pInfo[0] == "n") part = particles[pInfo[1]];
-            else if (pInfo[0] == "wp") wp = workingPoints[pInfo[1]];
-            else if (pInfo[0] == "i") idx = std::atoi(pInfo[1].c_str());
-            else throw std::runtime_error("Invalid key '" + pInfo[0] + "' in parameter '" +  partLine + "'");
-        }
-
-        func.SetP1(part, idx, wp);
-    }
-}
-
-void TreeReader::GetCut(const std::string& parameter, TreeFunction& func){
-    if(Utils::Find<std::string>(parameter, "c:") == -1) throw std::runtime_error("No cut key 'c' in '" + parameter + "'");
-
-    Comparison comp; float compValue = -999.;
-
-    std::string cutLine = parameter.substr(parameter.find("c:")+2, parameter.substr(parameter.find("c:")).find("/")-2);
-
-    for(std::string& cutParam: Utils::SplitString<std::string>(cutLine, ",")){
-        std::vector<std::string> cInfo = Utils::SplitString<std::string>(cutParam, "=");
-
-        if(cInfo[0] == "n") comp = comparisons[cInfo[1]];
-        else if(cInfo[0] == "v") compValue = std::stof(cInfo[1]);
-        else throw std::runtime_error("Invalid key '" + cInfo[0] + "' in parameter '" +  cutLine + "'");
-    }
-
-    func.SetCut(comp, compValue);
-}
-
-void TreeReader::GetBinning(const std::string& parameter, TH1* hist){
-    if(Utils::Find<std::string>(parameter, "h:") == -1) throw std::runtime_error("No hist key 'h' in '" + parameter + "'");
-
-    std::string histLine = parameter.substr(parameter.find("h:")+2, parameter.substr(parameter.find("h:")).find("/")-2);
-
-    int bins = 30; float xlow = 0; float xhigh = 1; 
-
-    for(std::string& histParam: Utils::SplitString<std::string>(histLine, ",")){
-        std::vector<std::string> hInfo = Utils::SplitString<std::string>(histParam, "=");
-
-        if(hInfo[0] == "nxb") bins = std::stof(hInfo[1]);
-        else if(hInfo[0] == "xl") xlow = std::stof(hInfo[1]);
-        else if(hInfo[0] == "xh") xhigh = std::stof(hInfo[1]);
-        else throw std::runtime_error("Invalid key '" + hInfo[0] + " in parameter '" +  histLine + "'");
-    }
-
-    hist->SetBins(bins, xlow, xhigh);
-}
+    channel(channel){}
 
 void TreeReader::PrepareLoop(TFile* outFile, TTree* inputTree){
+    TreeParser parser;
+
     for(const std::string& parameter: parameters){
         //Functor structure and arguments
         TreeFunction function(inputTree->GetCurrentFile(), inputTree->GetName());
         
         //Read in everything, orders matter
-        GetParticle(parameter, function);
-        GetFunction(parameter, function);
+        parser.GetParticle(parameter, function);
+        parser.GetFunction(parameter, function);
 
         if(Utils::Find<std::string>(parameter, "h:") != -1){
             TH1F* hist = new TH1F();
 
-            TreeReader::GetBinning(parameter, hist);
+            parser.GetBinning(parameter, hist);
 
             hist->SetName(function.GetName().c_str());       
             hist->SetTitle(function.GetName().c_str());
@@ -170,9 +70,9 @@ void TreeReader::PrepareLoop(TFile* outFile, TTree* inputTree){
         //Functor structure and arguments
         TreeFunction function(inputTree->GetCurrentFile(), inputTree->GetName());
 
-        GetParticle(cut, function);
-        GetFunction(cut, function);
-        GetCut(cut, function);
+        parser.GetParticle(cut, function);
+        parser.GetFunction(cut, function);
+        parser.GetCut(cut, function);
 
         cutFunctions.push_back(function);
 
@@ -207,19 +107,19 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
     if(cleanInfo.size() != 1){
         for(int j=0; j < histFunctions.size(); j++){
-            histFunctions[j].SetCleanJet(particles[cleanInfo[0]], workingPoints[cleanInfo[1]]);
+            histFunctions[j].SetCleanJet(cleanInfo[0], cleanInfo[1]);
         }
 
         for(int j=0; j < cutFunctions.size(); j++){
-            cutFunctions[j].SetCleanJet(particles[cleanInfo[0]], workingPoints[cleanInfo[1]]);
+            cutFunctions[j].SetCleanJet(cleanInfo[0], cleanInfo[1]);
         }
 
         for(int j=0; j < treeFunctions.size(); j++){
-            treeFunctions[j].SetCleanJet(particles[cleanInfo[0]], workingPoints[cleanInfo[1]]);
+            treeFunctions[j].SetCleanJet(cleanInfo[0], cleanInfo[1]);
         }
 
         for(int j=0; j < CSVFunctions.size(); j++){
-            CSVFunctions[j].SetCleanJet(particles[cleanInfo[0]], workingPoints[cleanInfo[1]]);
+            CSVFunctions[j].SetCleanJet(cleanInfo[0], cleanInfo[1]);
         }
     }
 
