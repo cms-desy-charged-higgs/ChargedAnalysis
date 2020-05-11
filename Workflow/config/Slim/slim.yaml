@@ -1,0 +1,37 @@
+skim-dir: Skim/Inclusive
+out-dir: Skim/Channels/@
+
+run-mode: Condor
+
+channels:
+    Ele4J: EleIncl
+    Ele2J1FJ: EleIncl
+    Ele2FJ: EleIncl
+    Muon4J: MuonIncl
+    Muon2J1FJ: MuonIncl
+    Muon2FJ: MuonIncl
+
+cuts:
+    Ele4J:
+        - f:n=N/p:n=fj/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=3
+
+    Ele2J1FJ:
+        - f:n=N/p:n=fj/c:n=equal,v=1
+        - f:n=N/p:n=j/c:n=bigger,v=1
+
+    Ele2FJ:
+        - f:n=N/p:n=fj/c:n=equal,v=2
+
+    Muon4J:
+        - f:n=N/p:n=fj/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=3
+
+    Muon2J1FJ:
+        - f:n=N/p:n=fj/c:n=equal,v=1
+        - f:n=N/p:n=j/c:n=bigger,v=1
+
+    Muon2FJ:
+        - f:n=N/p:n=fj/c:n=equal,v=2
+
+dCache: Skim/Channels/@
