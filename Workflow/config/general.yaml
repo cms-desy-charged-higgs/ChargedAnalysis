@@ -1,16 +1,8 @@
-chan-dir:
-    mu4j: Muon4J
-    e4j: Ele4J
-    mu2j1fj: Muon2J1FJ
-    e2j1fj: Ele2J1FJ
-    mu2fj: Muon2FJ
-    e2fj: Ele2FJ
-
-number-events: 300000
+number-events: 2500000000
 
 run-mode: Local
 
-skim-dir: Skim/
+skim-dir: Skim/Inclusive
 
 shape-systs:
     - energyScale
