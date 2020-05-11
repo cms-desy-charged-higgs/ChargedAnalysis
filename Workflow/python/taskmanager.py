@@ -4,8 +4,7 @@ import time
 import sys
 import subprocess
 import http.server
-import psutil
-from multiprocessing import Process, Pool
+from multiprocessing import Process, Pool, cpu_count
 
 from taskmonitor import TaskMonitor
 from taskwebpage import TaskWebpage
@@ -152,7 +151,7 @@ class TaskManager(object):
                
         nFinished = 0
 
-        nCores = psutil.cpu_count(logical=False)
+        nCores = cpu_count()
         pool = Pool(processes=nCores)
         localJobs = {}
         condorJobs = []
