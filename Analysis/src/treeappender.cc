@@ -2,13 +2,14 @@
 
 TreeAppender::TreeAppender() {}
 
-TreeAppender::TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const int& entryStart, const int& entryEnd) :
+TreeAppender::TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const int& entryStart, const int& entryEnd, const std::string& dCacheDir) :
         oldFile(oldFile), 
         oldTree(oldTree),
         newFile(newFile),
         branchNames(branchNames),
         entryStart(entryStart), 
-        entryEnd(entryEnd) {}
+        entryEnd(entryEnd), 
+        dCacheDir(dCacheDir){}
 
 std::vector<float> TreeAppender::HScore(const int& FJindex){
     //Vector with final score (FatJetIndex/Score per event)
@@ -22,7 +23,7 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
 
     //Get data set
-    HTagDataset data = HTagDataset({oldFile}, {oldTree}, FJindex, device, true);
+    HTagDataset data = HTagDataset({oldFile + "/"  + oldTree}, FJindex, device, true);
     std::vector<int> entries;
 
     for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
@@ -86,6 +87,7 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
 
 std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>& masses, TTree* oldT){
     std::map<int, std::vector<float>> values;
+    /*
 
     for(const int& mass: masses){
         values[mass] = std::vector<float>(entryEnd-entryStart, -999.);
@@ -198,11 +200,15 @@ std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>&
             }
         }
     }
+    */
 
     return values;
 }
 
 std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>& masses, TTree* oldT){
+    std::map<int, std::vector<float>> values;
+
+    /*
     std::string bdtPath = std::string(std::getenv("CHDIR")) + "/BDT/"; 
 
     Event event;
@@ -232,7 +238,6 @@ std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>&
 
     evenClassifier.SetEvaluation(bdtPath + "/Even/" + Utils::ChanPaths(oldTree));
     oddClassifier.SetEvaluation(bdtPath + "/Odd/" + Utils::ChanPaths(oldTree));
-    std::map<int, std::vector<float>> values;
 
     for (int i = entryStart; i < entryEnd; i++){
         oldT->GetEntry(i);
@@ -255,10 +260,15 @@ std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>&
         }
     }
 
+    */
+
     return values;
 }
 
 void TreeAppender::Append(){
+    at::set_num_interop_threads(1);
+    at::set_num_threads(1);
+
     //Get old Tree
     TFile* oldF = TFile::Open(oldFile.c_str(), "READ");
     TTree* oldT = (TTree*)oldF->Get(oldTree.c_str());
@@ -320,9 +330,6 @@ void TreeAppender::Append(){
         }
     } 
 
-    delete oldT;
-    delete oldF;
-
     //Fill branches
     for(int i=0; i < newT->GetEntries(); i++){
         for(std::string& branchName: branchNames){
@@ -334,8 +341,24 @@ void TreeAppender::Append(){
     newF->cd();
     newT->Write();
 
-    std::cout << "Sucessfully append branches " << branchNames << " in tree " << oldTree << " from range " << entryStart << " to " << entryEnd << " in file " << newFile << std::endl;    
+    std::cout << "Sucessfully append branches " << branchNames << " in tree " << oldTree << " from range " << entryStart << " to " << entryEnd << " in file " << newFile << std::endl;
+
+    TList* keys = oldF->GetListOfKeys();
+
+    for(int i=0; i < keys->GetSize(); i++){
+        bool skipKey = false;
+
+        TObject* obj = oldF->Get(keys->At(i)->GetName());
+        if(obj->InheritsFrom(TTree::Class())) continue;
+
+        obj->Write();
+    }
     
+
+    delete oldT;
+    delete oldF;
     delete newT;
     delete newF;
+
+    if(dCacheDir != "") Utils::CopyToCache(newFile, dCacheDir);
 }
