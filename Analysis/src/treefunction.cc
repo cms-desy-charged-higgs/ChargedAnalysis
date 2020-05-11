@@ -7,20 +7,23 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
         {"Pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
         {"Phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
         {"Eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
+        {"Mass", {&TreeFunction::Mass, "m(@) [GeV]"}},
+        {"Tau", {&TreeFunction::JetSubtiness, "#tau_{@}(@)"}},
         {"HT", {&TreeFunction::HT, "H_{T} [GeV]"}},
         {"N", {&TreeFunction::NParticle, "N(@)"}},
+        {"EvNr", {&TreeFunction::EventNumber, "Event number"}},
     };
 
     partInfo = {
-        {"", {VACUUM, "", ""}},
-        {"e", {ELECTRON, "Electron", "e_{@}"}},
-        {"mu", {MUON, "Muon", "#mu_{@}"}},
-        {"j", {JET, "Jet", "j_{@}"}},
-        {"met", {MET, "MET", "#vec{p}_{T}^{miss}"}},
-        {"sj", {SUBJET, "SubJet", "j^{sub}_{@}"}},
-        {"bj", {BJET, "Jet", "b_{@}"}},
-        {"bsj", {BSUBJET, "SubJet", "b^{sub}_{@}"}},
-        {"fj", {FATJET, "FatJet", "j_{@}^{AK8}"}},
+        {"", {VACUUM, "", "", ""}},
+        {"e", {ELECTRON, "Electron", "Electron", "e_{@}"}},
+        {"mu", {MUON, "Muon", "Muon", "#mu_{@}"}},
+        {"j", {JET, "Jet", "Jet", "j_{@}"}},
+        {"met", {MET, "MET", "MET", "#vec{p}_{T}^{miss}"}},
+        {"sj", {SUBJET, "SubJet", "SubJet", "j^{sub}_{@}"}},
+        {"bj", {BJET, "Jet", "BJet", "b_{@}"}},
+        {"bsj", {BSUBJET, "SubJet", "BSubJet", "b^{sub}_{@}"}},
+        {"fj", {FATJET, "FatJet", "FatJet", "j_{@}^{AK8}"}},
     };
 
     wpInfo = {
@@ -46,7 +49,7 @@ void TreeFunction::SetP1(const std::string& part, const int& idx, const std::str
     wp1 = std::get<0>(wpInfo.at(wp));
     idx1 = idx-1;
 
-    partLabel1 = Utils::Format<std::string>("@", std::get<2>(partInfo.at(part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
+    partLabel1 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
     partName1 = part;
     wpName1 = wp;
 }
@@ -56,7 +59,7 @@ void TreeFunction::SetP2(const std::string& part, const int& idx, const std::str
     wp2 = std::get<0>(wpInfo.at(wp));
     idx2 = idx-1;
 
-    partLabel2 = Utils::Format<std::string>("@", std::get<2>(partInfo.at(part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
+    partLabel2 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
     partName2 = part;
     wpName2 = wp;
 }
@@ -110,12 +113,29 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
         quantities.push_back(std::move(leaf));
     }
 
+    else if(funcName == "Mass"){
+        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", partName);
+        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        quantities.push_back(std::move(leaf));
+    }
+
     else if(funcName == "HT"){
         for(const std::string& jetName : {"Jet", "FatJet"}){
             const std::string branchName = Utils::Format<std::string>("@", "@_Pt", jetName);
             TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
             quantities.push_back(std::move(leaf));
         }
+    }
+
+    else if(funcName == "Tau"){
+        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + std::to_string(int(inputValue)), partName);
+        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        quantities.push_back(std::move(leaf));
+    }
+
+    else if(funcName == "EvNr"){
+        TLeaf* leaf = inputTree->GetLeaf("Misc_eventNumber");
+        quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "N"){
@@ -180,7 +200,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     //Set Name of functions/axis label
-    name = funcName + (inputValue != -999. ? Utils::Format<int>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<1>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<1>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
+    name = funcName + (inputValue != -999. ? Utils::Format<int>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<1>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
     axisLabel = std::get<1>(funcInfo.at(funcName));;
 
     if(inputValue != -999.){
@@ -342,11 +362,11 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             return NONE;
 
         case BJET:
-        case BSUBJET:
-           if(cleanPhi != nullptr){
+            if(cleanPhi != nullptr){
                 if(!isCleanJet(idx)) return NOTCLEAN;
             }
 
+        case BSUBJET:
             if(BScore->GetBranch()->GetReadEntry() != entry) BScore->GetBranch()->GetEntry(entry);
             score = (std::vector<float>*)BScore->GetValuePointer();
 
@@ -411,11 +431,32 @@ void TreeFunction::Phi(){
     }
 }
 
+void TreeFunction::Mass(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    const std::vector<float>* mass = (std::vector<float>*)quantities[0]->GetValuePointer();
+
+    value = mass->at(realIdx1);
+}
+
 void TreeFunction::Eta(){
     if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
     const std::vector<float>* eta = (std::vector<float>*)quantities[0]->GetValuePointer();
 
     value = eta->at(realIdx1);
+}
+
+void TreeFunction::JetSubtiness(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    const std::vector<float>* tau = (std::vector<float>*)quantities[0]->GetValuePointer();
+
+    value = tau->at(realIdx1);
+}
+
+void TreeFunction::EventNumber(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    const float* evNr = (float*)quantities[0]->GetValuePointer();
+
+    value = Utils::BitCount(int(*evNr));
 }
 
 void TreeFunction::HT(){

@@ -36,7 +36,7 @@ class TreeFunction{
         inline static int entry = 0;
 
         std::map<std::string, std::tuple<void(TreeFunction::*)(), std::string>> funcInfo;
-        std::map<std::string, std::tuple<Particle, std::string, std::string>> partInfo;
+        std::map<std::string, std::tuple<Particle, std::string, std::string, std::string>> partInfo;
         std::map<std::string, std::tuple<WP, std::string>> wpInfo;
         std::map<std::string, std::tuple<Comparison, std::string>> comparisons;
 
@@ -74,6 +74,9 @@ class TreeFunction{
         void Pt();
         void Phi();
         void Eta();
+        void Mass();
+        void JetSubtiness();
+        void EventNumber();
         void HT();
         void NParticle();
 
