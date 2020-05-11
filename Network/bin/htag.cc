@@ -52,9 +52,13 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
             //Put signal + background in one vector and split by even or odd numbered event
             std::vector<HTensor> batch;
 
+            //std::cout << signal->size() << std::endl;
+
             for(HTensor& tensor: *signal){
                 if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
             }
+
+          //  std::cout << batch.size() << std::endl;
 
             for(HTensor& tensor: *background){
                 if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
@@ -137,27 +141,37 @@ int main(int argc, char** argv){
     int batchSize = 2*parser.GetValue<int>("batch-size");
 
     //File names and channels for training
-    std::vector<std::string> sigFiles = {
-                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_200_100/merged/HPlusAndH_ToWHH_ToL4B_200_100.root",
-                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_300_100/merged/HPlusAndH_ToWHH_ToL4B_300_100.root",
-                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_400_100/merged/HPlusAndH_ToWHH_ToL4B_400_100.root",
-                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_500_100/merged/HPlusAndH_ToWHH_ToL4B_500_100.root",
-                            std::string(std::getenv("CHDIR")) + "/Skim/HPlusAndH_ToWHH_ToL4B_600_100/merged/HPlusAndH_ToWHH_ToL4B_600_100.root",
+    std::vector<std::string> sigNames = {
+                                    "HPlusAndH_ToWHH_ToL4B_200_100",
+                                    "HPlusAndH_ToWHH_ToL4B_300_100",
+                                    "HPlusAndH_ToWHH_ToL4B_400_100",
+                                    "HPlusAndH_ToWHH_ToL4B_500_100", 
+                                    "HPlusAndH_ToWHH_ToL4B_600_100",
     };
 
-    std::vector<std::string> bkgFiles = {
-                std::string(std::getenv("CHDIR")) + "/Skim/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root",                   
+    std::vector<std::string> bkgNames = {
+                "TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8",                   
     };
 
-    
-    std::vector<std::string> channels = {"mu2j1fj", "e2j1fj", "mu2fj", "e2fj"};
+    std::vector<std::string> sigFiles;
+    std::vector<std::string> bkgFiles;
+
+    for(const std::string& chan: {"Ele2J1FJ", "Muon2J1FJ", "Ele2FJ", "Muon2FJ"}){
+        for(const std::string& name: sigNames){
+            sigFiles.push_back(std::string(std::getenv("CHDIR")) + "/Skim/Channels/" + chan + "/" + name + "/merged/" + name + ".root/" + chan);
+        }
+
+        for(const std::string& name: bkgNames){
+            bkgFiles.push_back(std::string(std::getenv("CHDIR")) + "/Skim/Channels/" + chan + "/" + name + "/merged/" + name + ".root/" + chan);
+        }
+    }
 
     //Check if you are on CPU or GPU
     torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
 
     //Pytorch dataset class
-    HTagDataset sigSet = HTagDataset(sigFiles, channels, 0, device, true);
-    HTagDataset bkgSet = HTagDataset(bkgFiles, channels, 0, device, false);
+    HTagDataset sigSet = HTagDataset(sigFiles, 0, device, true);
+    HTagDataset bkgSet = HTagDataset(bkgFiles, 0, device, false);
 
     //Model for Htaggers
     std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06, device);

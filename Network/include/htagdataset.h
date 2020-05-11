@@ -8,6 +8,7 @@
 
 #include <TFile.h>
 #include <TTree.h>
+#include <TLeaf.h>
 #include <TChain.h>
 
 #include <ChargedAnalysis/Utility/include/utils.h>
@@ -28,13 +29,17 @@ class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
         torch::Device device;
         bool isSignal;
 
-        std::vector<std::string> particleVariables;
-        std::vector<std::vector<float>*> particleVec;
-        std::vector<std::vector<float>*> secVtxVec;
+        std::vector<TLeaf*> jetPart;
+        std::vector<TLeaf*> vtx;
+
+        TLeaf* jetCharge;
+        TLeaf* jetIdx;  
+        TLeaf* vtxIdx;
+
         float eventNumber; 
 
     public:
-        HTagDataset(const std::vector<std::string>& files, const std::vector<std::string>& channels, const int& fatIndex, torch::Device& device, const bool& isSignal);
+        HTagDataset(const std::vector<std::string>& files, const int& fatIndex, torch::Device& device, const bool& isSignal);
         ~HTagDataset();
 
         torch::optional<size_t> size() const;
