@@ -22,7 +22,7 @@ class MergeCSV(Task):
         tasks = []
 
         for process in config["processes"] + config["data"].get(channel, []):
-            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"], config["chan-dir"][channel], process)
+            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"], channel, process)
                 
             task = {
                     "name": "MergeCSV{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  
