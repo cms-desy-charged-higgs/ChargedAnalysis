@@ -3,6 +3,7 @@
 from taskmanager import TaskManager
 
 from treeread import TreeRead
+from treeslim import TreeSlim
 from plot import Plot
 from hadd import HaddPlot, HaddAppend
 from treeappend import TreeAppend
@@ -23,7 +24,7 @@ import numpy
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN", "Slim"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--check-output", action = "store_true")
     parser.add_argument("--no-http", action = "store_true")
@@ -45,7 +46,8 @@ def taskReturner(taskName, **kwargs):
         "BDT": lambda : bdt(config),
         "DNN": lambda : dnn(config),
         "Plot": lambda : plot(config),
-        "Limit": lambda : limit(config)
+        "Limit": lambda : limit(config),
+        "Slim": lambda : slim(config),
     }
 
     return tasks[taskName]
@@ -72,7 +74,7 @@ def bdt(config):
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
             bkgConfig["parameters"][channel].extend(["f:n=const,v={}/t:v=0:".format(m) for m in bkgConfig["masses"]])
-            bkgConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+            bkgConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
             bkgConfig["dir"] = bkgConfig["dir"].format(evType)
 
             treeTasks = TreeRead.configure(bkgConfig, channel, prefix=evType)
@@ -84,7 +86,7 @@ def bdt(config):
 
                 sigConfig["processes"] = [config["signal"].format(mass)]
                 sigConfig["parameters"][channel].append("f:n=const,v={}/t:v=0".format(mass))
-                sigConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+                sigConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
                 sigConfig["dir"] = sigConfig["dir"].format(evType)
 
                 treeTasks = TreeRead.configure(sigConfig, channel, prefix=evType)
@@ -115,14 +117,14 @@ def dnn(config):
             bkgConfig = copy.deepcopy(config)
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
-            bkgConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+            bkgConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
             bkgConfig["dir"] = bkgConfig["dir"].format(evType)
 
             CSVTasks = TreeRead.configure(bkgConfig, channel, "csv", prefix=evType)
             mergeTasks = MergeCSV.configure(bkgConfig, CSVTasks, channel, prefix=evType)
             allTasks.extend(CSVTasks)
 
-            paramDir = "{}/{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"], config["chan-dir"][channel]) 
+            paramDir = "{}/{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"], channel) 
             os.makedirs(paramDir, exist_ok=True)
 
             with open(paramDir + "/parameter.txt", "w") as param:
@@ -133,7 +135,7 @@ def dnn(config):
                 sigConfig = copy.deepcopy(config)
 
                 sigConfig["processes"] = [config["signal"].format(mass)]
-                sigConfig["cuts"].setdefault("all", []).append("f:n=evNr/c:n={},v=2".format(operator))
+                sigConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
                 sigConfig["dir"] = sigConfig["dir"].format(evType)
 
                 CSVTasks = TreeRead.configure(sigConfig, channel, "csv", prefix=evType)
@@ -182,6 +184,9 @@ def limit(config):
     allTasks.extend(datacardTasks+limitTasks+PlotLimit.configure(histConfig)+postfitTasks)
 
     return allTasks
+
+def slim(config):
+    return TreeSlim.configure(config)
 
 def plot(config):
     allTasks = []
