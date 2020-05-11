@@ -39,9 +39,6 @@ namespace Utils{
     template <typename T>
     int Find(const std::string& string, const T& itemToFind);
 
-    //Find string in bracktes in a string
-    std::string FindInBracket(const std::string& input);
-
     //Check if zero, if yes, return 1.
     float CheckZero(const float& input);
 
@@ -59,6 +56,9 @@ namespace Utils{
             RunTime();
             float Time();
     };
+
+    //Send file to dCache with symlinking
+    void CopyToCache(const std::string inFile, const std::string outPath);
 
     //channel name to dir name
     std::string ChanPaths(const std::string& channel);

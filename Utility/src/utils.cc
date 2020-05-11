@@ -75,13 +75,6 @@ std::string Utils::Join(const std::string& delimeter, const std::vector<std::str
     return out;
 }
 
-std::string Utils::FindInBracket(const std::string& input){
-    size_t begin = input.find("[")+1;
-    size_t end = input.find("]") - begin;
-    
-    return input.substr(begin, end);
-}
-
 template <typename T>
 std::vector<T> Utils::Merge(const std::vector<T>& vec1, const std::vector<T>& vec2){
     std::vector<T> vec = vec1;
@@ -150,6 +143,18 @@ unsigned int Utils::BitCount(unsigned int num){
 
 float Utils::CheckZero(const float& input){
     return input == 0. ? 1: input;
+}
+
+void Utils::CopyToCache(const std::string inFile, const std::string outPath){
+    std::string gfalPrefix = "srm://dcache-se-cms.desy.de:8443/srm/managerv2?SFN=";
+    std::string dCachePath = "/pnfs/desy.de/cms/tier2/store/user/dbrunner/";
+
+    std::string fileName = Utils::SplitString<std::string>(inFile, "/").back();
+
+    std::system(("gfal-mkdir -p " + gfalPrefix + dCachePath +  outPath).c_str());
+    std::system(("gfal-copy -f " + inFile + " " + gfalPrefix + dCachePath +  outPath).c_str());
+    std::system(("rm -fv " + inFile).c_str());
+    std::system(("ln -sv " + dCachePath +  outPath + "/" + fileName + " " + inFile).c_str());
 }
 
 TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints){
