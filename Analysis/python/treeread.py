@@ -29,7 +29,7 @@ class TreeRead(Task):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
-        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"])
+        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("@", channel))
         tasks = []
  
         for process in config["processes"] + config["data"].get(channel, []):
