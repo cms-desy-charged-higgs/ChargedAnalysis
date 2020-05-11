@@ -4,7 +4,7 @@ TreeSlimmer::TreeSlimmer(const std::string& inputFile, const std::string& inputC
     inputFile(inputFile),
     inputChannel(inputChannel){}
 
-void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts){
+void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const std::string& dCacheDir){
     //Get input tree
     TFile* inFile = TFile::Open(inputFile.c_str(), "READ");
     TTree* inTree = inFile->Get<TTree>(inputChannel.c_str());
@@ -91,4 +91,6 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
     std::cout << "Saved tree: '" << outTree->GetName() << "' with " << outTree->GetEntries() << " entries" << std::endl;
 
     delete inFile; delete outFile;
+
+    if(dCacheDir != "") Utils::CopyToCache(outputFile, dCacheDir);
 }

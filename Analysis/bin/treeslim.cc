@@ -9,8 +9,9 @@ int main(int argc, char* argv[]){
     std::string inChannel = parser.GetValue<std::string>("input-channel");
     std::string outName = parser.GetValue<std::string>("out-name");
     std::string outChannel = parser.GetValue<std::string>("out-channel");
+    std::string dCache = parser.GetValue<std::string>("dCache");
     std::vector<std::string> cuts = parser.GetVector<std::string>("cuts");
 
     TreeSlimmer slimmer(inName, inChannel);    
-    slimmer.DoSlim(outName, outChannel, cuts);
+    slimmer.DoSlim(outName, outChannel, cuts, dCache);
 }
