@@ -7,7 +7,6 @@ from treeslim import TreeSlim
 from plot import Plot
 from hadd import HaddPlot, HaddAppend
 from treeappend import TreeAppend
-from fileskim import FileSkim
 from datacard import Datacard
 from limit import Limit
 from plotlimit import PlotLimit
