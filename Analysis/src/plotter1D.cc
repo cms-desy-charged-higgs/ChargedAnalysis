@@ -169,6 +169,27 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             }
         }
 
-        delete legend; delete allBkgs; delete mainPad; delete canvas;
+        delete legend; delete mainPad, delete canvas;
+
+        //Draw shape plots if signal is there
+        if(signal.count(param)){
+            for(TH1F* hist: signal[param]){
+                TCanvas* c = new TCanvas("canvas",  "canvas", 1000, 1000);
+
+                Plotter::DrawShapes(c, statUnc, hist);
+                Plotter::DrawHeader(c, channelHeader[channel], "Work in progress");
+
+                std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
+
+                for(std::string outdir: outdirs){
+                    c->SaveAs((outdir + "/" + param + "_" + mass + "_shape.pdf").c_str());
+                    c->SaveAs((outdir + "/" + param + "_" + mass + "_shape.png").c_str());
+
+                    std::cout << "Saved plot: '" + outdir + "/" + param + "_" + mass + "_shape.pdf'" << std::endl;
+                }
+
+                delete c;
+            }
+        }
     }
 }
