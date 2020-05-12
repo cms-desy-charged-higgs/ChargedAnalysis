@@ -1,18 +1,5 @@
 #include <ChargedAnalysis/Utility/include/utils.h>
 
-std::string Utils::ChanPaths(const std::string& channel){
-    std::map<std::string, std::string> chanMap = {
-            {"e4j", "Ele4J"},
-            {"mu4j", "Muon4J"},
-            {"e2j1fj", "Ele2J1FJ"},
-            {"mu2j1fj", "Muon2J1FJ"},
-            {"e2fj", "Ele2FJ"},
-            {"mu2fj", "Muon2FJ"},
-    };
-
-    return chanMap[channel];
-};
-
 template <typename T>
 std::vector<T> Utils::SplitString(const std::string& splitString, const std::string& delimeter){
     T value;

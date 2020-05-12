@@ -39,6 +39,19 @@ namespace Utils{
     template <typename T>
     int Find(const std::string& string, const T& itemToFind);
 
+    //Find string in vector
+    template <typename T>
+    T* CheckNull(T* ptr, const char* function = __builtin_FUNCTION(), const char* file = __builtin_FILE(), int line = __builtin_LINE()){
+        if(ptr != nullptr) return ptr;
+        else{
+            throw std::runtime_error("Null pointer returned: " + std::string(function) + " method in " + std::string(file) + ":" + std::to_string(line));
+        } 
+    };
+
+    //Find string in vector
+    template <typename T>
+    int Find(const std::string& string, const T& itemToFind);
+
     //Check if zero, if yes, return 1.
     float CheckZero(const float& input);
 
@@ -59,9 +72,6 @@ namespace Utils{
 
     //Send file to dCache with symlinking
     void CopyToCache(const std::string inFile, const std::string outPath);
-
-    //channel name to dir name
-    std::string ChanPaths(const std::string& channel);
 
     unsigned int BitCount(unsigned int num);
 
