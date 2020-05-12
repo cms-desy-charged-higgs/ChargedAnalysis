@@ -144,33 +144,22 @@ void Utils::CopyToCache(const std::string inFile, const std::string outPath){
     std::system(("ln -sv " + dCachePath +  outPath + "/" + fileName + " " + inFile).c_str());
 }
 
-TGraph* Utils::GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints){
+TGraph* Utils::GetROC(const std::vector<float>& pred, const std::vector<int>& target, const int& nPoints){
     TGraph* ROC = new TGraph();
 
-    std::vector<float> p(pred.size(0), 1);
-    std::vector<float> t(pred.size(0), 1);
-
-    for(int i = 0; i < pred.size(0); i++){
-        p[i] = pred[i].item<float>();
-        t[i] = target[i].item<float>();
-    }
-
     for(int i = 1; i <= nPoints; i++){
-        int truePositive = 0;
-        int trueTotal = 0;
-        int falsePositive = 0;
-        int falseTotal = 0;
+        int truePositive = 0, trueTotal = 0, falsePositive = 0, falseTotal = 0;
         float thresHold = (float)i/nPoints;
 
-        for(int j = 0; j < pred.size(0); j++){
-            if(t[j] == 0){
+        for(int j = 0; j < pred.size(); j++){
+            if(target[j] == 0){
                 falseTotal++;
-                if(p[j] > thresHold) falsePositive++;
+                if(pred[j] > thresHold) falsePositive++;
             } 
 
-            if(t[j] == 1){
+            if(target[j] == 1){
                 trueTotal++;
-                if(p[j] > thresHold) truePositive++;
+                if(pred[j] > thresHold) truePositive++;
             } 
         }
 

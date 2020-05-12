@@ -76,7 +76,7 @@ namespace Utils{
     unsigned int BitCount(unsigned int num);
 
     //Return TGraph with ROC curve
-    TGraph* GetROC(const torch::Tensor pred, const torch::Tensor target, const int& nPoints = 200);
+    TGraph* GetROC(const std::vector<float>& pred, const std::vector<int>& target, const int& nPoints = 200);
     void DrawScore(const torch::Tensor pred, const torch::Tensor truth, const std::string& scorePath);
 };
 
