@@ -79,6 +79,8 @@ class TreeFunction{
         void EventNumber();
         void HT();
         void NParticle();
+        void HTag();
+        void DeepAK();
 
     public:
         TreeFunction(TFile* inputFile, const std::string& treeName);

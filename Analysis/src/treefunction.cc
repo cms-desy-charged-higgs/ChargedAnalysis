@@ -12,6 +12,8 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
         {"HT", {&TreeFunction::HT, "H_{T} [GeV]"}},
         {"N", {&TreeFunction::NParticle, "N(@)"}},
         {"EvNr", {&TreeFunction::EventNumber, "Event number"}},
+        {"HTag", {&TreeFunction::HTag, "Higgs score"}},
+        {"DAK8", {&TreeFunction::DeepAK, "Deep AK8 Top vs Higgs"}},
     };
 
     partInfo = {
@@ -97,44 +99,56 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
 
     if(funcName == "Pt"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Pt", partName);
-        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Eta"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Eta", partName);
-        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Phi"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Phi", partName);
-        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Mass"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Mass", partName);
-        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "HT"){
         for(const std::string& jetName : {"Jet", "FatJet"}){
             const std::string branchName = Utils::Format<std::string>("@", "@_Pt", jetName);
-            TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+            TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
             quantities.push_back(std::move(leaf));
         }
     }
 
     else if(funcName == "Tau"){
         const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + std::to_string(int(inputValue)), partName);
-        TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        quantities.push_back(std::move(leaf));
+    }
+
+    else if(funcName == "HTag"){
+        const std::string branchName = "ML_HTagFJ" + std::to_string(idx1+1);
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        quantities.push_back(std::move(leaf));
+    }
+
+    else if(funcName == "DAK8"){
+        const std::string branchName = Utils::Format<std::string>("@", "@_topVsHiggs", partName);
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "EvNr"){
-        TLeaf* leaf = inputTree->GetLeaf("Misc_eventNumber");
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Misc_eventNumber"));
         quantities.push_back(std::move(leaf));
     }
 
@@ -142,7 +156,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
         if(part1 == BJET or part1 == BSUBJET){
             for(const std::string& param : {"Pt", "Eta"}){
                 const std::string branchName = std::string(part1 == BJET ? "Jet" : "SubJet") + "_" + param;
-                TLeaf* leaf = inputTree->GetLeaf(branchName.c_str());
+                TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
                 quantities.push_back(std::move(leaf));
             }
         }
@@ -156,33 +170,33 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
 
         switch(part1){
             case ELECTRON:
-                ID = inputTree->GetLeaf("Electron_ID");
-                Isolation = inputTree->GetLeaf("Electron_Isolation");
-                scaleFactors.push_back(inputTree->GetLeaf("Electron_recoSF"));
-                scaleFactors.push_back(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str()));
+                ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_ID"));
+                Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_Isolation"));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSF")));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str())));
 
                 break;
 
             case MUON:
-                ID = inputTree->GetLeaf("Muon_ID");
-                Isolation = inputTree->GetLeaf("Muon_isoID");
-                scaleFactors.push_back(inputTree->GetLeaf("Muon_triggerSF"));
-                scaleFactors.push_back(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str()));
+                ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_ID"));
+                Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_isoID"));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSF")));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str())));
 
                 wpname[0] = std::toupper(wpname[0]); 
-                scaleFactors.push_back(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str()));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str())));
                 break;
 
             case BJET:
-                nTrueB = inputTree->GetLeaf("Jet_TrueFlavour");
-                BScore = inputTree->GetLeaf("Jet_CSVScore");
-                scaleFactors.push_back(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str()));
+                nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_TrueFlavour"));
+                BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_CSVScore"));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str())));
                 break;
 
             case BSUBJET:
-                nTrueB = inputTree->GetLeaf("SubJet_TrueFlavour");
-                BScore = inputTree->GetLeaf("SubJet_CSVScore");
-                scaleFactors.push_back(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str()));
+                nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
+                BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_CSVScore"));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str())));
                 break;
 
             default: break;
@@ -457,6 +471,20 @@ void TreeFunction::EventNumber(){
     const float* evNr = (float*)quantities[0]->GetValuePointer();
 
     value = Utils::BitCount(int(*evNr));
+}
+
+void TreeFunction::HTag(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    const float* htag = (float*)quantities[0]->GetValuePointer();
+
+    value = *htag;
+}
+
+void TreeFunction::DeepAK(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    const std::vector<float>* score = (std::vector<float>*)quantities[0]->GetValuePointer();
+
+    value = score->at(realIdx1);
 }
 
 void TreeFunction::HT(){
