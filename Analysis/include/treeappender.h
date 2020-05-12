@@ -17,22 +17,19 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 
-#include <torch/torch.h>
-
 class TreeAppender{
     private:
         std::string oldFile, oldTree, newFile; 
         std::vector<std::string> branchNames;
-        int entryStart, entryEnd;
         std::string dCacheDir;
 
-        std::vector<float> HScore(const int& FJIndex);
+        std::vector<float> HScore(const int& FJIndex, const int& length);
         std::map<int, std::vector<float>> DNNScore(const std::vector<int>& masses, TTree* oldT);
         std::map<int, std::vector<float>> BDTScore(const std::vector<int>& masses, TTree* oldT);
         
     public:
         TreeAppender();
-        TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const int& entryStart, const int& entryEnd, const std::string& dCacheDir = "");
+        TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const std::string& dCacheDir = "");
 
         void Append();
 };

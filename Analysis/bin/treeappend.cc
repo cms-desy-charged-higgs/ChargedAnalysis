@@ -12,10 +12,8 @@ int main(int argc, char* argv[]){
     std::string newFile = parser.GetValue<std::string>("new-file");
     std::string dCache = parser.GetValue<std::string>("dCache");
     std::vector<std::string> branchNames = parser.GetVector<std::string>("branch-names");
-    int entryStart = parser.GetValue<int>("entry-start");
-    int entryEnd = parser.GetValue<int>("entry-end");
 
-    TreeAppender appender(oldFile, oldTree, newFile, branchNames, entryStart, entryEnd, dCache);
+    TreeAppender appender(oldFile, oldTree, newFile, branchNames, dCache);
     appender.Append();
 }
 

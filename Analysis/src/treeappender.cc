@@ -2,18 +2,16 @@
 
 TreeAppender::TreeAppender() {}
 
-TreeAppender::TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const int& entryStart, const int& entryEnd, const std::string& dCacheDir) :
+TreeAppender::TreeAppender(const std::string& oldFile, const std::string& oldTree, const std::string& newFile, const std::vector<std::string>& branchNames, const std::string& dCacheDir) :
         oldFile(oldFile), 
         oldTree(oldTree),
         newFile(newFile),
         branchNames(branchNames),
-        entryStart(entryStart), 
-        entryEnd(entryEnd), 
         dCacheDir(dCacheDir){}
 
-std::vector<float> TreeAppender::HScore(const int& FJindex){
+std::vector<float> TreeAppender::HScore(const int& FJindex, const int& length){
     //Vector with final score (FatJetIndex/Score per event)
-    std::vector<float> tagValues(entryEnd-entryStart, -999.);
+    std::vector<float> tagValues(length, -999.);
 
     //Tagger
     torch::Device device(torch::kCPU);
@@ -26,9 +24,9 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
     HTagDataset data = HTagDataset({oldFile + "/"  + oldTree}, FJindex, device, true);
     std::vector<int> entries;
 
-    for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
+    for(int i = 0; i < length; i++){entries.push_back(i);}
     std::vector<int>::iterator entry = entries.begin();
-    int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
+    int batchSize = length > 2500 ? 2500 : length;
     int counter = 0;
     
     while(entry != entries.end()){
@@ -60,9 +58,9 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
         //Prediction
         torch::NoGradGuard no_grad;
         HTensor even, odd; 
-        torch::Tensor evenPredict, oddPredict;        
+        torch::Tensor evenPredict, oddPredict;      
 
-        if(evenTensors.size() != 0){    
+        if(evenTensors.size() != 0){
             even = HTagDataset::PadAndMerge(evenTensors);
             evenPredict = tagger[1]->forward(even.charged, even.neutral, even.SV);
         }  
@@ -87,11 +85,13 @@ std::vector<float> TreeAppender::HScore(const int& FJindex){
 
 std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>& masses, TTree* oldT){
     std::map<int, std::vector<float>> values;
-    /*
 
     for(const int& mass: masses){
-        values[mass] = std::vector<float>(entryEnd-entryStart, -999.);
+        values[mass] = std::vector<float>(oldT->GetEntries(), -999.);
     }
+
+
+    /*
 
     std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/"; 
 
@@ -273,6 +273,9 @@ void TreeAppender::Append(){
     TFile* oldF = TFile::Open(oldFile.c_str(), "READ");
     TTree* oldT = (TTree*)oldF->Get(oldTree.c_str());
 
+    std::cout << "Read file: '" << oldFile << "'" << std::endl;
+    std::cout << "Read tree '" << oldTree << "'" << std::endl;
+
     //Disables wished branches if they are already existing in old tree
     for(std::string& branchName: branchNames){
         if(oldT->GetListOfBranches()->Contains(branchName.c_str())){
@@ -281,14 +284,10 @@ void TreeAppender::Append(){
     }
 
     //Clone Tree
-    TFile* newF = TFile::Open(newFile.c_str(), "RECREATE");
-    TTree* newT = oldT->CloneTree(0);
-    newT->SetDirectory(newF);
+    std::string tmpFile = "/tmp/tmp_" + std::to_string(getpid()) + ".root";
 
-    for(int i = entryStart; i < entryEnd; i++){
-        oldT->GetEntry(i);
-        newT->Fill();
-    }
+    TFile* newF = TFile::Open(tmpFile.c_str(), "RECREATE");
+    TTree* newT = oldT->CloneTree(-1, "fast");
 
     //Set new branches
     std::map<std::string, TBranch*> branches;
@@ -301,8 +300,8 @@ void TreeAppender::Append(){
 
         branches[branchName] = newT->Branch(branchName.c_str(), &branchValues[branchName]);
 
-        if(branchName == "ML_HTagFJ1") values[branchName] = HScore(0);
-        if(branchName == "ML_HTagFJ2") values[branchName] = HScore(1);
+        if(branchName == "ML_HTagFJ1") values[branchName] = HScore(0, oldT->GetEntries());
+        if(branchName == "ML_HTagFJ2") values[branchName] = HScore(1, oldT->GetEntries());
 
         if(Utils::Find<std::string>(branchName, "BDT") != -1.){
             values[branchName] = std::vector<float>();
@@ -332,6 +331,10 @@ void TreeAppender::Append(){
 
     //Fill branches
     for(int i=0; i < newT->GetEntries(); i++){
+        if(i % 100000 == 0 and i != 0){
+            std::cout << "Processed events: " << i << std::endl;
+        }
+
         for(std::string& branchName: branchNames){
             branchValues[branchName] = values[branchName][i];       
             branches[branchName]->Fill();
@@ -341,7 +344,7 @@ void TreeAppender::Append(){
     newF->cd();
     newT->Write();
 
-    std::cout << "Sucessfully append branches " << branchNames << " in tree " << oldTree << " from range " << entryStart << " to " << entryEnd << " in file " << newFile << std::endl;
+    std::cout << "Sucessfully append branches " << branchNames << " in tree " << oldTree << std::endl;
 
     TList* keys = oldF->GetListOfKeys();
 
@@ -359,6 +362,8 @@ void TreeAppender::Append(){
     delete oldF;
     delete newT;
     delete newF;
+
+    std::system(("mv -vf " + tmpFile + " " + newFile).c_str());
 
     if(dCacheDir != "") Utils::CopyToCache(newFile, dCacheDir);
 }
