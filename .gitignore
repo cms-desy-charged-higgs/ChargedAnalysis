@@ -1,10 +1,5 @@
-*__init__*
 *pyc
 */lib/*
-Analysis/bin/FileSkim
-Analysis/bin/TreeAppend
-Analysis/bin/TreeRead
-Analysis/bin/Plot1D
-Network/bin/HTag
-*html
+*/bin/*
+!*/bin/*.cc
 */obj/*
