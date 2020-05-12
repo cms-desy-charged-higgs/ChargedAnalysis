@@ -56,12 +56,7 @@ def append(config):
     allTasks = []
 
     for channel in config["channels"]:
-        appendTasks = TreeAppend.configure(config, channel)
-
-        allTasks.extend(appendTasks)
-
-    allTasks.extend(FileSkim.configure(config, allTasks))
-    allTasks.extend(HaddAppend.configure(allTasks))
+        allTasks.extend(TreeAppend.configure(config, channel))
 
     return allTasks
 
