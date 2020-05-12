@@ -16,46 +16,31 @@ class TreeAppend(Task):
                 "--old-tree", self["channel"],
                 "--new-file", self["output"],
                 "--branch-names", *self["branch-names"],
-                "--entry-start", self["entry-start"],  
-                "--entry-end", self["entry-end"],
+                "--dCache", self["dCache"],
         ]
 
     def output(self):
-        self["output"] = "{}/{}.root".format(self["dir"], self["name"])
+        self["output"] = self["input-file"]
    
     @staticmethod
     def configure(config, channel):
-        ##Dic with process:filenames 
-        processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
-
-        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"])
         tasks = []
 
-        for process in config["processes"]:
-            jobNr = 0
+        for fileName in os.listdir("{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel))):
+            inFile = "{}/{}/{}/merged/{}.root".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel), fileName, fileName)
 
-            ##List of filenames for each process
-            filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = f) for f in processDic[process]]
+            ##Configuration for treeread Task
+            task = {
+                "name": "Append_{}_{}".format(channel, fileName), 
+                "display-name": "Append: {} ".format(channel),
+                "dir":  "{}/{}/{}/merged".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel), fileName),
+                "input-file": inFile,
+                "channel": channel,
+                "branch-names": config["branch-names"].get("all", []) + config["branch-names"].get(channel, []),
+                "run-mode": config["run-mode"], 
+                "dCache": "{}/{}/merged".format(config["dCache"].replace("@", channel), fileName) if "dCache" in config else "", 
+            }
 
-            for filename in filenames:
-                intervals = utils.SplitEventRange(filename, channel, config["number-events"])
-
-                for interval in intervals:
-                    ##Configuration for treeread Task
-                    task = {
-                              "name": "Append_{}_{}_{}".format(channel, process, jobNr), 
-                              "display-name": "Append: {} ({})".format(process, channel),
-                              "channel": channel, 
-                              "dir":  os.environ["CHDIR"] + "/{}/{}/{}/{}".format(config["dir"], config["chan-dir"][channel], process, jobNr), 
-                              "input-file": filename, 
-                              "entry-start": interval[0],  
-                              "entry-end": interval[1],  
-                              "branch-names": config["branch-names"].get("all", []) + config["branch-names"].get(channel, []),
-                              "run-mode": config["run-mode"], 
-                    }
-
-                    tasks.append(TreeAppend(task))
-
-                    jobNr+=1
+            tasks.append(TreeAppend(task))
 
         return tasks       
