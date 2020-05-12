@@ -34,6 +34,7 @@ class Plotter{
         static void DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText);
         static void DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
         static void DrawLegend(TLegend* legend, const int& nColumns);
+        static void DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig);
 
         virtual void ConfigureHists() = 0;
         virtual void Draw(std::vector<std::string> &outdirs) = 0;

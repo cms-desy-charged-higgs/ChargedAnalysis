@@ -5,18 +5,17 @@ Plotter::Plotter() : Plotter("") {}
 Plotter::Plotter(const std::string& histdir):
     histdir(histdir),
     channelHeader({
-            {"e4j", "e + 4j"},
-            {"mu4j", "#mu + 4j"},
-            {"e2j1fj", "e + 2j + 1fj"},
-            {"mu2j1fj", "#mu + 2j + 1fj"},
-            {"e2fj", "e + 2fj"},
-            {"mu2fj", "#mu + 2fj"},
+            {"Ele4J", "e + 4j"},
+            {"Muon4J", "#mu + 4j"},
+            {"Ele2J1FJ", "e + 2j + 1fj"},
+            {"Muon2J1FJ", "#mu + 2j + 1fj"},
+            {"Ele2FJ", "e + 2fj"},
+            {"Muon2FJ", "#mu + 2fj"},
     }),
     colors({
         {"DY+j", kRed + -7}, 
         {"TT-1L", kYellow -7}, 
         {"TT-2L", kYellow +4}, 
-        {"TT-Had", kYellow + 7},
         {"TT+V", kOrange +2},            
         {"T", kGreen  + 2},             
         {"W+j", kCyan + 2},             
@@ -147,4 +146,36 @@ void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
 
     legend->SetNColumns(nColumns);
     legend->Draw();
+}
+
+void Plotter::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
+    TH1* b = (TH1*)bkg->Clone();
+    TH1* s = (TH1*)sig->Clone();
+    TLegend* l = new TLegend(0., 0., 1, 1);
+
+    Plotter::SetPad(canvas);
+    Plotter::SetHist(canvas, b, "Normalized events");
+
+    canvas->Draw();
+
+    float max = std::max({b->GetMaximum(), s->GetMaximum()});
+    b->SetMaximum(max*(1 + 0.2));
+
+    //Draw Legend and legend pad
+    s->SetLineColor(kBlue+1);
+    s->SetFillStyle(3335);
+    s->SetFillColor(kBlue);
+    s->SetLineWidth(4);
+
+    b->SetLineColor(kRed+1);
+    b->SetFillStyle(3353);
+    b->SetFillColor(kRed);
+    b->SetLineWidth(4);
+
+    b->DrawNormalized("HIST");
+    s->DrawNormalized("HIST SAME");
+
+    l->AddEntry(b, "Bkg", "F");
+    l->AddEntry(s, "Sig", "F");
+    Plotter::DrawLegend(l, 2);
 }
