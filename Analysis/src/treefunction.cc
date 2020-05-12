@@ -12,8 +12,8 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
         {"HT", {&TreeFunction::HT, "H_{T} [GeV]"}},
         {"N", {&TreeFunction::NParticle, "N(@)"}},
         {"EvNr", {&TreeFunction::EventNumber, "Event number"}},
-        {"HTag", {&TreeFunction::HTag, "Higgs score"}},
-        {"DAK8", {&TreeFunction::DeepAK, "Deep AK8 Top vs Higgs"}},
+        {"HTag", {&TreeFunction::HTag, "Higgs score(@)"}},
+        {"DAK8", {&TreeFunction::DeepAK, "DeepAK8 Higgs vs Top(@)"}},
     };
 
     partInfo = {
