@@ -1,7 +1,6 @@
 #include <string>
 #include <vector>
 
-#include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
 
 int main(int argc, char* argv[]){
@@ -16,7 +15,7 @@ int main(int argc, char* argv[]){
 
     //Calculate limit per channel
     for(std::string& channel: channels){
-        std::string channelDir = limitDir + "/" + Utils::ChanPaths(channel);
+        std::string channelDir = limitDir + "/" + channel;
         std::system(("combine " + channelDir + "/datacard.txt --mass " + mass).c_str());
         std::system(("mv higgsCombineTest*" + mass + ".root " + channelDir + "/limit.root").c_str());
 
