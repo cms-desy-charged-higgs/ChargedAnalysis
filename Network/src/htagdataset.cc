@@ -106,7 +106,7 @@ HTensor HTagDataset::get(size_t index){
 
     torch::Tensor chargedTensor = torch::from_blob(chargedParticles.data(), {1, nCharged, 7}).clone().to(device);
     torch::Tensor neutralTensor = torch::from_blob(neutralParticles.data(), {1, nNeutral, 7}).clone().to(device);
-    torch::Tensor SVTensor = torch::from_blob(SV.data(), {1, nVtx, 7}).clone().to(device);
+    torch::Tensor SVTensor = torch::from_blob(SV.data(), {1, nVtx != 0 ? nVtx : 1, 7}).clone().to(device);
 
     return {chargedTensor, neutralTensor, SVTensor, torch::tensor({float(isSignal)}).to(device), torch::tensor({isEven}).to(device)};
 }
