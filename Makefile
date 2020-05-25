@@ -2,92 +2,80 @@
 
 ##Compiler/Linking flags
 CC      = g++
-CFLAGS  = -fPIC -w -std=c++17 -g
+CFLAGS  = -fPIC -w -std=c++17 -g -D_GLIBCXX_USE_CXX11_ABI=0
 
+##Ouput directories
+BINDIR=$(CHDIR)/ChargedAnalysis/bin
+LIBDIR=$(CHDIR)/ChargedAnalysis/lib
+OBJDIR=$(CHDIR)/ChargedAnalysis/obj
+ 
 ##Directories with needed header files
-INC = -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include -I$(CHDIR)/ -L$(CHDIR)/ChargedAnalysis/Utility/lib -I$(shell root-config --incdir)
+INC = -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include -I$(CHDIR)/ -I$(shell root-config --incdir)
 
 ##Directories with needed shared libaries
-LIBS=-L$(shell root-config --libdir) -L$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -L$(CHDIR)/ChargedAnalysis/Utility/lib -L$(CHDIR)/ChargedAnalysis/Analysis/lib -L$(CHDIR)/ChargedAnalysis/Network/lib
+LIBS=-Wl,-rpath,$(shell root-config --libdir) -Wl,-rpath,$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -Wl,-rpath,$(LIBDIR) -L$(shell root-config --libdir) -L$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -L$(LIBDIR)
 
 ##All depedencies of on shared libaries
-DEPS=$(shell root-config --noauxlibs --noldflags --glibs) -lGX11 -lTMVA -lGenVector -lpthread -ltorch -lc10 -lcaffe2_detectron_ops_gpu -lUtil -lTrees -lPlot -lML
+DEPS=$(shell root-config --noauxlibs --noldflags --glibs) -lpthread -ltorch -lc10 -Wl,--no-as-needed,-ltorch_cpu 
 
 ##Target sharged libraries/executables
-SO=$(CHDIR)/ChargedAnalysis/Analysis/lib/libTrees.so $(CHDIR)/ChargedAnalysis/Analysis/lib/libPlot.so  $(CHDIR)/ChargedAnalysis/Utility/lib/libUtil.so $(CHDIR)/ChargedAnalysis/Network/lib/libML.so
+SOSRC = $(shell ls --color=never $(CHDIR)/ChargedAnalysis/*/src/ | grep .cc)
+SOOBJ = $(SOSRC:%.cc=$(OBJDIR)/%.o)
+SO=$(CHDIR)/ChargedAnalysis/lib/libChargedAnalysis.so
 
-EXESRC=$(shell ls --color=never $(CHDIR)/ChargedAnalysis/*/bin/* | grep cc)
-EXE=$(EXESRC:%.cc=%)
+EXESRC=$(shell ls --color=never $(CHDIR)/ChargedAnalysis/*/exesrc | grep .cc)
+EXE=$(EXESRC:%.cc=$(BINDIR)/%)
+
+PYSRC=$(shell ls --color=never $(CHDIR)/ChargedAnalysis/*/exesrc | grep .py)
+PYEXE=$(PYSRC:%.py=$(BINDIR)/%.py)
+
+### Target rules ###
 
 all:
+    @echo $(PYEXE)
     @+make --quiet makedir
     @+make --quiet $(SO)
+    @+make --quiet $(PYEXE)
     @+make --quiet $(EXE)
 
 makedir:
-    for DIR in Analysis Network Utility; do \
-        mkdir -p $(CHDIR)/ChargedAnalysis/$$DIR/obj; \
-        mkdir -p $(CHDIR)/ChargedAnalysis/$$DIR/lib; \
-    done    
+    mkdir -p $(OBJDIR)
+    mkdir -p $(BINDIR)
+    mkdir -p $(LIBDIR)
 
 #### Compile all executables ####
-#### Compile all executables ####
-$(CHDIR)/ChargedAnalysis/Analysis/bin/%: $(CHDIR)/ChargedAnalysis/Analysis/obj/%.o
+
+$(BINDIR)/%: $(CHDIR)/ChargedAnalysis/obj/%.o
     echo "Creating executable $@"
-    g++ $^ -o $@ $(LIBS) $(DEPS)
+    $(CC) $^ -o $@ $(LIBS) $(LIBS) $(DEPS) -lChargedAnalysis 
 
-$(CHDIR)/ChargedAnalysis/Utility/bin/%: $(CHDIR)/ChargedAnalysis/Utility/obj/%.o
-    echo "Creating executable $@"
-    g++ $^ -o $@ $(LIBS) $(DEPS)
-
-$(CHDIR)/ChargedAnalysis/Network/bin/%: $(CHDIR)/ChargedAnalysis/Network/obj/%.o
-    echo "Creating executable $@"
-    g++ $^ -o $@ $(LIBS) $(DEPS)
-#### Build shared libaries
-TREESRC = $(shell ls --color=never $(CHDIR)/ChargedAnalysis/Analysis/src | grep tree)
-TREEOBJ = $(TREESRC:%.cc=$(CHDIR)/ChargedAnalysis/Analysis/obj/%.o)
-
-$(CHDIR)/ChargedAnalysis/Analysis/lib/libTrees.so: $(TREEOBJ)
-    echo "Building shared library $@"
-    $(CC) -o $@ $^ -shared
-
-UTILSRC = $(shell ls --color=never $(CHDIR)/ChargedAnalysis/Utility/src)
-UTILOBJ = $(UTILSRC:%.cc=$(CHDIR)/ChargedAnalysis/Utility/obj/%.o)
-
-$(CHDIR)/ChargedAnalysis/Utility/lib/libUtil.so: $(UTILOBJ)
-    echo "Building shared library $@"
-    $(CC) -o $@ $^ -shared
-
-PLOTSRC = $(shell ls --color=never $(CHDIR)/ChargedAnalysis/Analysis/src | grep plot)
-PLOTOBJ = $(PLOTSRC:%.cc=$(CHDIR)/ChargedAnalysis/Analysis/obj/%.o)
-
-$(CHDIR)/ChargedAnalysis/Analysis/lib/libPlot.so: $(PLOTOBJ)
-    echo "Building shared library $@"
-    $(CC) -o $@ $^ -shared
-
-MLSRC = $(shell ls --color=never $(CHDIR)/ChargedAnalysis/Network/src)
-MLOBJ = $(MLSRC:%.cc=$(CHDIR)/ChargedAnalysis/Network/obj/%.o)
-
-$(CHDIR)/ChargedAnalysis/Network/lib/libML.so: $(MLOBJ)
-    echo "Building shared library $@"
-    $(CC) -o $@ $^ -shared
-
-#### Compile all classes ####
-$(CHDIR)/ChargedAnalysis/Utility/obj/%.o: $(CHDIR)/ChargedAnalysis/Utility/*/%.cc
+$(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/exesrc/%.cc
     echo "Compiling $<"
-    $(CC) -c $^ -o $@ $(CFLAGS) $(INC)
+    $(CC) $(CFLAGS) -c $^ -o $@ $(CFLAGS) $(INC)
 
-$(CHDIR)/ChargedAnalysis/Analysis/obj/%.o: $(CHDIR)/ChargedAnalysis/Analysis/*/%.cc
+### Copy all python executables to bin dir ###
+
+$(BINDIR)/%.py: $(CHDIR)/ChargedAnalysis/*/exesrc/%.py
+    echo "Copy python executable '$<' to bin directory"  
+    cp -f $< $(BINDIR)
+
+### Compile all objects files origin from classes and the shared library ###
+
+$(SO): $(SOOBJ)
+    echo "Building shared library $@"
+    $(CC) -Wl,--no-undefined -shared -o $@ $^ $(LIBS) $(DEPS)
+
+$(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/src/%.cc
     echo "Compiling $<"
-    $(CC) -c $^ -o $@ $(CFLAGS) $(INC)
+    $(CC) $(CFLAGS) -c $^ -o $@ $(CFLAGS) $(INC)
 
-$(CHDIR)/ChargedAnalysis/Network/obj/%.o: $(CHDIR)/ChargedAnalysis/Network/*/%.cc
+$(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/src/%.cc $(CHDIR)/ChargedAnalysis/*/include/%.h
     echo "Compiling $<"
-    $(CC) -c $^ -o $@ $(CFLAGS) $(INC)
+    $(CC) $(CFLAGS) -c $^ -o $@ $(CFLAGS) $(INC)
 
-##Clean function
+### Clean function ###
 clean:
-    @rm -rf $(CHDIR)/ChargedAnalysis/*/obj
-    @rm -rf $(CHDIR)/ChargedAnalysis/*/lib
-    @rm -rf $(EXE)
+    @rm -rf $(OBJDIR)
+    @rm -rf $(LIBDIR)
+    @rm -rf $(BINDIR)
     @echo "All object files, shared libraries and executables are deleted"
