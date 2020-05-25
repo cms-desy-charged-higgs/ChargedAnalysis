@@ -11,17 +11,20 @@ chmod +x Miniconda3-latest-Linux-x86_64.sh
 ./Miniconda3-latest-Linux-x86_64.sh -b -p $CHDIR/Anaconda3
 command rm Miniconda3-latest-Linux-x86_64.sh
 
-##Install ROOT, python packages and g++ compiler with conda
+##Install necessary things with anaconda
 export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.7/site-packages/
 source $CHDIR/Anaconda3/bin/activate
 
-conda install -c conda-forge root boost vdt psutil -y
-conda install -c anaconda git make pytorch-gpu pyyaml -y
+##Install pytorch
+conda install pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly -y
 
-##Source compiler from CERN software package
-source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
+conda install -c conda-forge boost vdt root -y
+conda install -c anaconda git make pyyaml cmake -y
 
 ##Git standalone analysis code and compile everything
+source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
+
+cd $CHDIR
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
 
 cd ChargedAnalysis
