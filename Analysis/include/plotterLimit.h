@@ -12,8 +12,7 @@
 #include <TCanvas.h>
 #include <TLegend.h>
 #include <TPad.h>
-#include <TTreeReader.h>
-#include <TTreeReaderValue.h>
+#include <TLeaf.h>
 
 #include <ChargedAnalysis/Analysis/include/plotter.h>
 

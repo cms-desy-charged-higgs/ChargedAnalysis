@@ -35,13 +35,12 @@ void PlotterLimit::ConfigureHists(){
         //Set branch for reading limits
         std::vector<double> limitValues;
 
-        TTreeReader reader(limitTree);
-        TTreeReaderValue<double> limitValue(reader, "limit");       
+        TLeaf* limitValue = limitTree->GetLeaf("limit");       
 
         //Values
         for(int j=0; j < 5; j++){
-            reader.SetEntry(j);
-            limitValues.push_back(*limitValue*xSecs[masses[i]]);
+            limitValue->GetBranch()->GetEntry(j);
+            limitValues.push_back(*(double*)limitValue->GetValuePointer());
         }
 
         theory->SetPoint(i, masses[i], xSecs[masses[i]]);
