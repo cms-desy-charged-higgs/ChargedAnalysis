@@ -48,9 +48,11 @@ HTensor HTagDataset::get(size_t index){
     std::vector<char>* idx = (std::vector<char>*)jetIdx->GetValuePointer();
     std::vector<char>* vIdx = (std::vector<char>*)vtxIdx->GetValuePointer();
 
+    int nParts = charge->size() > 100 ? 100 : charge->size();
+
     int nCharged = 0, nNeutral = 0, nVtx = 0;
 
-    for(int i = 0; i < charge->size(); i++){
+    for(int i = 0; i < nParts; i++){
         if(idx->at(i) == fatIndex){
             if(charge->at(i) != 0) nCharged++;
             else nNeutral++;
@@ -70,7 +72,7 @@ HTensor HTagDataset::get(size_t index){
 
         int nC = 0; int nN = 0;
 
-        for(int j = 0; j < partVar->size(); j++){
+        for(int j = 0; j < nParts; j++){
             if(idx->at(j) == fatIndex){
                 if(charge->at(j) != 0){
                     chargedParticles.at(i + jetPart.size()*nC) = partVar->at(j);
