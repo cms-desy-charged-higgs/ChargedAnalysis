@@ -32,6 +32,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         ~DNNDataset(){}
 
         void SetMass(const int& mass);
+        int GetMass();
         torch::optional<size_t> size() const;
         DNNTensor get(size_t index);
         static DNNTensor Merge(std::vector<DNNTensor>& tensors);
