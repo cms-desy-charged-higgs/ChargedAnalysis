@@ -3,6 +3,7 @@
 
 #include <ChargedAnalysis/Analysis/include/plotter.h>
 
+#include <functional>
 #include <vector>
 #include <map>
 
