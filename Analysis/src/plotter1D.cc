@@ -28,7 +28,7 @@ void Plotter1D::ConfigureHists(){
             }
 
             //Data configuration
-            if(Utils::Find<std::string>(process, "Single") != -1.){
+            if(Utils::Find<std::string>(process, "Single") != -1. or Utils::Find<std::string>(process, "JetHT") != -1.){
                 hist->SetMarkerStyle(20);
                 hist->SetName("data");
 
