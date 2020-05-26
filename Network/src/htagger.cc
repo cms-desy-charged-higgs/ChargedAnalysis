@@ -13,26 +13,34 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
     modelSummary << "----------------------------------------\n";
 
     //Register LSTM Layers
-    lstmCharged = register_module("LSTM charged input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).layers(nLSTM).batch_first(true).dropout(dropOut)));
+    lstmCharged = register_module("LSTM charged input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).num_layers(nLSTM).batch_first(true)));
     lstmCharged->pretty_print(modelSummary); modelSummary << "\n";
 
-    lstmNeutral = register_module("LSTM neutral input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).layers(nLSTM).batch_first(true).dropout(dropOut)));
+    lstmNeutral = register_module("LSTM neutral input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).num_layers(nLSTM).batch_first(true)));
     lstmNeutral->pretty_print(modelSummary); modelSummary << "\n";
 
-    lstmSV = register_module("LSTM SV input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).layers(nLSTM).batch_first(true).dropout(dropOut)));
+    lstmSV = register_module("LSTM SV input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).num_layers(nLSTM).batch_first(true)));
     lstmSV->pretty_print(modelSummary); modelSummary << "\n";
 
     //Convolution layer
     convLayer = register_module("Conv layer 1", torch::nn::Conv1d(3, nConvFilter, kernelSize));
     convLayer->pretty_print(modelSummary); modelSummary << "\n";
 
+    //Activation function
+    reluLayer = register_module("ReLU layer", torch::nn::ReLU());
+    reluLayer->pretty_print(modelSummary); modelSummary << "\n";
 
     //Output layer
     int outConv = nHidden + 2 - kernelSize -1;
     outLayer = register_module("Output layer", torch::nn::Linear(nConvFilter*outConv, 1));
     outLayer->pretty_print(modelSummary); modelSummary << "\n";
 
-    modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";  
+    //Outlayer activation
+    sigLayer = register_module("Sigmoid layer", torch::nn::Sigmoid());
+    sigLayer->pretty_print(modelSummary); modelSummary << "\n";
+
+    modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";
+    modelSummary << "----------------------------------------\n";
 
     //Send model to device
     this->to(device);
@@ -40,7 +48,6 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nLSTM, const i
 
 void HTagger::Print(){
     //Print model summary
-    modelSummary << "----------------------------------------\n";
     std::cout << modelSummary.str() << std::endl;
 }
 
@@ -56,39 +63,35 @@ int HTagger::GetNWeights(){
 }
 
 torch::Tensor HTagger::forward(torch::Tensor inputCharged, torch::Tensor inputNeutral, torch::Tensor inputSV){
-    //Pack into pytorch class so LSTM skipped padded values
-    torch::Tensor chargedSeq = ((inputCharged.narrow(2, 0, 1) != 0).sum(1) - 1).squeeze(1);
-    torch::Tensor neutralSeq = ((inputNeutral.narrow(2, 0, 1) != 0).sum(1) - 1).squeeze(1);
-    torch::Tensor SVSeq = ((inputSV.narrow(2, 0, 1) != 0).sum(1) - 1).squeeze(1);
+    //Get non-padded length for each batch
+    torch::Tensor charTrueLen = (inputCharged.index({torch::indexing::Slice(), torch::indexing::Ellipsis, torch::indexing::Slice(), torch::indexing::Ellipsis, 0}) != 0).sum(1).squeeze().to(torch::kCPU);
+    torch::Tensor neutralTrueLen = (inputNeutral.index({torch::indexing::Slice(), torch::indexing::Ellipsis, torch::indexing::Slice(), torch::indexing::Ellipsis, 0}) != 0).sum(1).squeeze().to(torch::kCPU);
+    torch::Tensor SVTrueLen = (inputSV.index({torch::indexing::Slice(), torch::indexing::Ellipsis, torch::indexing::Slice(), torch::indexing::Ellipsis, 0}) != 0).sum(1).squeeze().to(torch::kCPU);
 
-    torch::Tensor zero = torch::tensor({0}, torch::kLong).to(device);
+    charTrueLen = torch::where(charTrueLen > 0, charTrueLen, torch::ones({1}).to(torch::kLong));
+    neutralTrueLen = torch::where(neutralTrueLen > 0, neutralTrueLen, torch::ones({1}).to(torch::kLong));
+    SVTrueLen = torch::where(SVTrueLen > 0, SVTrueLen, torch::ones({1}).to(torch::kLong));
 
-    chargedSeq = torch::where(chargedSeq == -1, zero, chargedSeq);
-    neutralSeq = torch::where(neutralSeq == -1, zero, neutralSeq);
-    SVSeq = torch::where(SVSeq == -1, zero, SVSeq);
-
-    torch::Tensor batchIndex = torch::arange(0, inputCharged.size(0), torch::kLong).to(device);
+    //Pack sequences
+    torch::nn::utils::rnn::PackedSequence chargedPack = torch::nn::utils::rnn::pack_padded_sequence(inputCharged, charTrueLen, true, false);
+    torch::nn::utils::rnn::PackedSequence neutralPack = torch::nn::utils::rnn::pack_padded_sequence(inputNeutral, neutralTrueLen, true, false);
+    torch::nn::utils::rnn::PackedSequence SVPack = torch::nn::utils::rnn::pack_padded_sequence(inputSV, SVTrueLen, true, false);
 
     //LSTM layer
-    torch::nn::RNNOutput charged = lstmCharged->forward(inputCharged);
-    torch::nn::RNNOutput neutral = lstmNeutral->forward(inputNeutral);
-    torch::nn::RNNOutput SV = lstmSV->forward(inputSV);
-    
-    //Get last hidden state after layer N
-    torch::Tensor chargedHidden = charged.output.index({batchIndex, chargedSeq}).unsqueeze(1);
-    torch::Tensor neutralHidden = neutral.output.index({batchIndex,  neutralSeq}).unsqueeze(1);
-    torch::Tensor SVHidden = SV.output.index({batchIndex, SVSeq}).unsqueeze(1);
+    torch::Tensor chargedHidden = std::get<0>(std::get<1>(lstmCharged->forward_with_packed_input(chargedPack))).transpose(1, 0);
+    torch::Tensor neutralHidden = std::get<0>(std::get<1>(lstmNeutral->forward_with_packed_input(neutralPack))).transpose(1, 0);
+    torch::Tensor SVHidden = std::get<0>(std::get<1>(lstmSV->forward_with_packed_input(SVPack))).transpose(1, 0);
 
-    //Merge them together
     torch::Tensor z = torch::cat({chargedHidden, neutralHidden, SVHidden}, 1);
 
     //Convolution layer
     z = convLayer->forward(z);
-    z = torch::relu(z).view({-1, z.size(1)*z.size(2)});
-
+    z = reluLayer->forward(z);
+    z = torch::flatten(z, 1, 2);
+    
     //Output layer
     z = outLayer->forward(z);
-    z = torch::sigmoid(z);
+    z = sigLayer->forward(z).squeeze();
 
     return z;
 }

@@ -14,9 +14,11 @@ struct HTagger : torch::nn::Module{
 
         //Conv1 layer
         torch::nn::Conv1d convLayer{nullptr};
+        torch::nn::ReLU reluLayer{nullptr};
 
         //Output layer
         torch::nn::Linear outLayer{nullptr};
+        torch::nn::Sigmoid sigLayer{nullptr};
 
         //Other stuff
         int nHidden;
