@@ -52,13 +52,9 @@ void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bk
             //Put signal + background in one vector and split by even or odd numbered event
             std::vector<HTensor> batch;
 
-            //std::cout << signal->size() << std::endl;
-
             for(HTensor& tensor: *signal){
                 if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
             }
-
-          //  std::cout << batch.size() << std::endl;
 
             for(HTensor& tensor: *background){
                 if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
