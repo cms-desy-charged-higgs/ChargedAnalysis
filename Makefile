@@ -32,7 +32,6 @@ PYEXE=$(PYSRC:%.py=$(BINDIR)/%.py)
 ### Target rules ###
 
 all:
-    @echo $(PYEXE)
     @+make --quiet makedir
     @+make --quiet $(SO)
     @+make --quiet $(PYEXE)
