@@ -8,6 +8,6 @@ Source the installation:
 
 `source install.sh`
 
-To source the enviroment on DESY, there are two options. For skimming you need the `CMSSW` key word, for the analysis you need the `StandAlone` key word:
+To source the enviroment on DESY, there are two options. For skimming you need the `CMSSW` key word, for the analysis you need the `Analysis` key word:
 
-`source setenv.sh StandAlone`
+`source /path/to/ChargedHiggs/ChargedAnalysis/setenv.sh Analysis`
