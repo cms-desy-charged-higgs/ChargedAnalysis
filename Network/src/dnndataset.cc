@@ -29,9 +29,6 @@ DNNDataset::DNNDataset(const std::vector<std::string>& files, torch::Device& dev
 torch::optional<size_t> DNNDataset::size() const {
     return nLines;
 }
-
-void DNNDataset::SetMass(const int& mass){this->mass = mass;}
-int DNNDataset::GetMass(){return this->mass;}
         
 DNNTensor DNNDataset::get(size_t index){
     std::string line;
@@ -48,8 +45,6 @@ DNNTensor DNNDataset::get(size_t index){
     }
 
     std::vector<float> paramValues = Utils::SplitString<float>(line, "\t");
-
-    paramValues.push_back(mass);
 
     return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({float(isSignal)}).to(device)};
 }

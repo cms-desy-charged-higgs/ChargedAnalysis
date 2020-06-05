@@ -16,8 +16,6 @@ struct DNNTensor{
 
 class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
     private:
-        int mass = -999.;
-
         std::vector<std::ifstream*> files;
         int fileIndex;
         int nLines = 0;
@@ -31,8 +29,6 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         DNNDataset(const std::vector<std::string>& files, torch::Device& device, const bool& isSignal);
         ~DNNDataset(){}
 
-        void SetMass(const int& mass);
-        int GetMass();
         torch::optional<size_t> size() const;
         DNNTensor get(size_t index);
         static DNNTensor Merge(std::vector<DNNTensor>& tensors);
