@@ -13,6 +13,7 @@ from plotlimit import PlotLimit
 from plotpostfit import PlotPostfit
 from bdt import BDT
 from merge import MergeCSV
+from dnn import DNN
 
 import os
 import argparse
@@ -135,6 +136,9 @@ def dnn(config):
                 CSVTasks = TreeRead.configure(sigConfig, channel, "csv", prefix=evType)
                 mergeTasks.extend(MergeCSV.configure(sigConfig, CSVTasks, channel, prefix=evType))
                 allTasks.extend(CSVTasks)
+
+            dnnTask = DNN.configure(config, channel, mergeTasks, evType)
+            allTasks.extend(dnnTask)
                     
             allTasks.extend(mergeTasks)
 
