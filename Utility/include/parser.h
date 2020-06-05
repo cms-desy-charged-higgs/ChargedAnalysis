@@ -18,7 +18,13 @@ class Parser{
         T GetValue(const std::string& option);
 
         template <typename T>
+        T GetValue(const std::string& option, const T& defaultValue);
+
+        template <typename T>
         std::vector<T> GetVector(const std::string& option);
+
+        template <typename T>
+        std::vector<T> GetVector(const std::string& option, const std::vector<T>& defaultValue);
 };
 
 #endif

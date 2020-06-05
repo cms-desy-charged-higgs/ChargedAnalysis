@@ -35,6 +35,23 @@ Parser::Parser(int argc, char** argv){
 }
 
 template <typename T> 
+T Parser::GetValue(const std::string& option, const T& defaultValue){   
+    try{
+        return GetValue<T>(option);
+    }
+    
+    catch(...){
+        return defaultValue;
+    }
+}
+
+template int Parser::GetValue(const std::string&, const int&);
+template float Parser::GetValue(const std::string&, const float&);
+template double Parser::GetValue(const std::string&, const double&);
+template std::string Parser::GetValue(const std::string&, const std::string&);
+
+
+template <typename T> 
 T Parser::GetValue(const std::string& option){
     T value;
     std::string type = typeid(value).name();
@@ -87,3 +104,19 @@ template std::vector<int> Parser::GetVector(const std::string&);
 template std::vector<float> Parser::GetVector(const std::string&);
 template std::vector<double> Parser::GetVector(const std::string&);
 template std::vector<std::string> Parser::GetVector(const std::string&);
+
+template <typename T> 
+std::vector<T> Parser::GetVector(const std::string& option, const std::vector<T>& defaultValue){
+    try{
+        return GetVector<T>(option);
+    }
+    
+    catch(...){
+        return defaultValue;
+    }
+}
+
+template std::vector<int> Parser::GetVector(const std::string&, const std::vector<int>&);
+template std::vector<float> Parser::GetVector(const std::string&, const std::vector<float>&);
+template std::vector<double> Parser::GetVector(const std::string&, const std::vector<double>&);
+template std::vector<std::string> Parser::GetVector(const std::string&, const std::vector<std::string>&);
