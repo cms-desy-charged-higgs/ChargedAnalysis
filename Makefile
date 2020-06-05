@@ -57,6 +57,7 @@ $(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/exesrc/%.cc
 $(BINDIR)/%.py: $(CHDIR)/ChargedAnalysis/*/exesrc/%.py
     echo "Copy python executable '$<' to bin directory"  
     cp -f $< $(BINDIR)
+    chmod a+rx $@
 
 ### Compile all objects files origin from classes and the shared library ###
 
@@ -64,11 +65,11 @@ $(SO): $(SOOBJ)
     echo "Building shared library $@"
     $(CC) -Wl,--no-undefined -shared -o $@ $^ $(LIBS) $(DEPS)
 
-$(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/src/%.cc
-    echo "Compiling $<"
-    $(CC) $(CFLAGS) -c $^ -o $@ $(CFLAGS) $(INC)
-
 $(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/src/%.cc $(CHDIR)/ChargedAnalysis/*/include/%.h
+    echo "Compiling $<"
+    $(CC) $(CFLAGS) -c $< -o $@ $(CFLAGS) $(INC)
+
+$(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/src/%.cc
     echo "Compiling $<"
     $(CC) $(CFLAGS) -c $^ -o $@ $(CFLAGS) $(INC)
 
