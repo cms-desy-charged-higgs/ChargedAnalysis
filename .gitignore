@@ -1,5 +1,4 @@
 *pyc
-*/lib/*
-*/bin/*
-!*/bin/*.cc
-*/obj/*
+lib/*
+bin/*
+obj/*
