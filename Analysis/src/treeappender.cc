@@ -20,6 +20,10 @@ std::vector<float> TreeAppender::HScore(const int& FJindex, const int& length){
     torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Model/Even/htagger.pt");
     torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
 
+    tagger[0]->eval();
+    tagger[1]->eval();
+    torch::NoGradGuard no_grad;
+
     //Get data set
     HTagDataset data = HTagDataset({oldFile + "/"  + oldTree}, FJindex, device, true);
     std::vector<int> entries;
@@ -55,8 +59,7 @@ std::vector<float> TreeAppender::HScore(const int& FJindex, const int& length){
             if(entry == entries.end()) break; 
         }
 
-        //Prediction
-        torch::NoGradGuard no_grad;
+        //Predictio
         HTensor even, odd; 
         torch::Tensor evenPredict, oddPredict;      
 
@@ -84,50 +87,55 @@ std::vector<float> TreeAppender::HScore(const int& FJindex, const int& length){
 }
 
 std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>& masses, TTree* oldT){
+    //Set values with default values
     std::map<int, std::vector<float>> values;
-
+        
     for(const int& mass: masses){
         values[mass] = std::vector<float>(oldT->GetEntries(), -999.);
     }
 
-
-    /*
-
+    //Path with DNN infos
     std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/"; 
 
-    Event event;
-    TreeReader reader;
+    //Set tree parser and tree functions
+    TreeParser parser;
+    std::vector<TreeFunction> functions;
+    TreeFunction evNr(oldT->GetCurrentFile(), oldT->GetName());
+    evNr.SetFunction("EvNr");
 
-    reader.PrepareEvent<TTree*>(oldT);
-
-    std::vector<Function> functions;
-    std::vector<FuncArgs> args;
-
-    std::ifstream params(dnnPath + "/Even/" + Utils::ChanPaths(oldTree) + "/parameter.txt"); 
+    //Read txt with parameter used in the trainind and set tree function
+    std::ifstream params(dnnPath + "/Even/" + oldTree + "/parameter.txt"); 
     std::string parameter;
   
     while(getline(params, parameter)){
-        Function func; FuncArgs arg;
+        TreeFunction func(oldT->GetCurrentFile(), oldT->GetName());
 
-        reader.GetFunction(parameter, func, arg);
-        reader.GetParticle(parameter, arg);
+        parser.GetParticle(parameter, func);
+        parser.GetFunction(parameter, func);
 
         functions.push_back(func);
-        args.push_back(arg);
     }
     params.close();
 
-    //Tagger
-    torch::Device device(torch::kCPU);
-    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), 2*functions.size(), 2, 0.1, device));
+    //Frame with optimized hyperparameter
+    std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(dnnPath + "/HyperOpt/" + oldTree + "/hyperparameter.csv");
 
-    torch::load(model[0], dnnPath + "/Even/" + Utils::ChanPaths(oldTree) + "/model.pt");
-    torch::load(model[1], dnnPath + "/Odd/" + Utils::ChanPaths(oldTree) + "/model.pt");
+    //Get/load model and set to evaluation mode
+    torch::Device device(torch::kCPU);
+    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperParam->Get("nNodes", 0), hyperParam->Get("nLayers", 0), hyperParam->Get("dropOut", 0), true, device));
+
+    model[0]->eval();
+    model[1]->eval();
+
+    torch::load(model[0], dnnPath + "/Even/" + oldTree + "/model.pt");
+    torch::load(model[1], dnnPath + "/Odd/" + oldTree + "/model.pt");
+
+    torch::NoGradGuard no_grad;
 
     std::vector<int> entries;
-    for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
+    for(int i = 0; i < oldT->GetEntries(); i++){entries.push_back(i);}
     std::vector<int>::iterator entry = entries.begin();
-    int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
+    int batchSize = oldT->GetEntries() > 2500 ? 2500 : oldT->GetEntries();
     int counter = 0;
 
     while(entry != entries.end()){
@@ -135,37 +143,26 @@ std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>&
         std::vector<int> evenIndex, oddIndex;
 
         //Put signal + background in one vector and split by even or odd numbered event
-        std::map<int, std::vector<torch::Tensor>> evenTensors;
-        std::map<int, std::vector<torch::Tensor>> oddTensors;
+        std::vector<torch::Tensor> evenTensors;
+        std::vector<torch::Tensor> oddTensors;
 
         for(int j = 0; j < batchSize; j++){
-            oldT->GetEntry(*entry);
+            TreeFunction::SetEntry(*entry);
 
             //Fill event class with particle content
-            reader.SetEvent(event, JET, NONE);
             std::vector<float> paramValues;
 
             for(int i=0; i < functions.size(); i++){
-                paramValues.push_back(functions[i](event, args[i]));
+                paramValues.push_back(functions[i].Get());
             }
 
-            if((int)TreeFunction::EventNumber(event, args[0]) % 2 == 0){
-                for(const int& mass: masses){
-                    paramValues.push_back(mass);
-                    evenTensors[mass].push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
-                    paramValues.pop_back();
-                }
-
+            if(int(evNr.Get()) % 2 == 0){
+                evenTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 evenIndex.push_back(counter);
             }
 
             else{
-                for(const int& mass: masses){
-                    paramValues.push_back(mass);
-                    oddTensors[mass].push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
-                    paramValues.pop_back();
-                }
-
+                oddTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 oddIndex.push_back(counter);
             }
 
@@ -176,31 +173,29 @@ std::map<int, std::vector<float>> TreeAppender::DNNScore(const std::vector<int>&
 
         for(const int& mass: masses){
             //Prediction
-            torch::NoGradGuard no_grad;
             torch::Tensor even, odd; 
             torch::Tensor evenPredict, oddPredict;
 
-            if(evenTensors[mass].size() != 0){    
-                even = torch::cat(evenTensors[mass], 0);
-                evenPredict = model[1]->forward(even);
+            if(evenTensors.size() != 0){    
+                even = torch::cat(evenTensors, 0);
+                evenPredict = model[1]->forward(even, mass*torch::ones({evenTensors.size(), 1}));
             }  
 
-            if(oddTensors[mass].size() != 0){    
-                odd = torch::cat(oddTensors[mass], 0);
-                oddPredict = model[0]->forward(odd);
+            if(oddTensors.size() != 0){    
+                odd = torch::cat(oddTensors, 0);
+                oddPredict = model[0]->forward(odd, mass*torch::ones({oddTensors.size(), 1}));
             }     
 
             //Put all predictions back in order again
-            for(int j = 0; j < evenTensors[mass].size(); j++){
-                values[mass][evenIndex[j]] = evenPredict[j].item<float>();
+            for(int j = 0; j < evenTensors.size(); j++){
+                values[mass].at(evenIndex.at(j)) = evenPredict[j].item<float>();
             }
 
-            for(int j = 0; j < oddTensors[mass].size(); j++){
-                values[mass][oddIndex[j]] = oddPredict[j].item<float>();
+            for(int j = 0; j < oddTensors.size(); j++){
+                values[mass].at(oddIndex.at(j)) = oddPredict[j].item<float>();
             }
         }
     }
-    */
 
     return values;
 }
@@ -261,7 +256,6 @@ std::map<int, std::vector<float>> TreeAppender::BDTScore(const std::vector<int>&
     }
 
     */
-
     return values;
 }
 

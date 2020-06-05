@@ -12,6 +12,9 @@
 #include <TBranch.h>
 
 #include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/frame.h>
+#include <ChargedAnalysis/Analysis/include/treefunction.h>
+#include <ChargedAnalysis/Analysis/include/treeparser.h>
 #include <ChargedAnalysis/Network/include/bdt.h>
 #include <ChargedAnalysis/Network/include/dnnmodel.h>
 #include <ChargedAnalysis/Network/include/htagger.h>
