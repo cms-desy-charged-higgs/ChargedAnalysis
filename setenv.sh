@@ -1,8 +1,9 @@
 #!/bin/bash
 
-export PATH="$(getconf PATH)"
-export LD_LIBRARY_PATH=""
-export PYTHONPATH=""
+export PATH="$(getconf PATH):/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/bin:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/sbin:/opt/puppetlabs/bin"
+export LD_LIBRARY_PATH="/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/lib64:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/lib:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/lib64:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/lib:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/lib64/dcap"
+
+export PYTHONPATH="/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/lib64/python2.7/site-packages:/cvmfs/grid.cern.ch/centos7-ui-4.0.3-1_umd4v4/usr/lib/python2.7/site-packages"
 
 ##Set analysis dir
 CHDIR=$(readlink -f $BASH_SOURCE)
