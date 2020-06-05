@@ -5,6 +5,8 @@ mkdir -p ChargedHiggs/
 export CHDIR=$(pwd)/ChargedHiggs
 cd $CHDIR
 
+source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
+
 ##Install Anaconda
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
@@ -18,12 +20,15 @@ source $CHDIR/Anaconda3/bin/activate
 ##Install pytorch
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly -y
 
+conda install -c anaconda git make pyyaml cmake pandas -y
 conda install -c conda-forge boost vdt root -y
-conda install -c anaconda git make pyyaml cmake -y
+
+##Install for bayesian optimization
+git clone https://github.com/fmfn/BayesianOptimization.git
+cd BayesianOptimization
+python setup.py install
 
 ##Git standalone analysis code and compile everything
-source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
-
 cd $CHDIR
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
 
