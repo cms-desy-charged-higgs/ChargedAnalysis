@@ -12,7 +12,7 @@ from ROOT import TFile
 from pprint import pprint
 
 def parser():
-    parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description = "Merge skim output", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--skim-dir", action = "store", help = "Path with crab dir")
     return parser.parse_args()
 
