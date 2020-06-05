@@ -23,6 +23,8 @@ class Frame{
         Frame(const std::string& inFile);
         Frame(const std::vector<std::string>& inFiles);
 
+        float Get(const std::string& label, const int& index);
+
         void InitLabels(const std::vector<std::string>& initLabels);
         int GetNLabels();
         bool AddRow(const std::string& label, const std::vector<float>& row);

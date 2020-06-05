@@ -71,6 +71,22 @@ bool Frame::AddColumn(const std::vector<float>& column){
     return true;
 }
 
+float Frame::Get(const std::string& label, const int& index){
+    int rowIndex = -1.;
+
+    if(index >= columns.at(0).size()) throw std::out_of_range(("Index " + std::to_string(index) + "not existing").c_str());
+
+    for(int i = 0; i < labels.size(); i++){
+        if(labels[i] == label){
+            rowIndex = i;
+        }
+    }
+
+    if(rowIndex == -1.) throw std::out_of_range(("No label existing: " + label).c_str());
+
+    return columns.at(index).at(rowIndex);
+}
+
 bool Frame::AddRow(const std::string& label, const std::vector<float>& row){
     if(row.size() != columns[0].size()){
         std::cout << "Length of given row (" << row.size() << ") does not match number of elements of each row in this Frame (" << columns[0].size() << ")!";
