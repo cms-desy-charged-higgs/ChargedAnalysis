@@ -166,7 +166,7 @@ class TaskManager(object):
                     continue
 
                 ##Skip task if already finished and you dont want to rerun
-                if self.checkOutput:
+                if self.checkOutput and task["status"] != "RUNNING":
                     if task.checkOutput():
                         task["status"] = "FINISHED"
                         nFinished+=1
