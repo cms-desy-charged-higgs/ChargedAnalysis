@@ -8,15 +8,18 @@
 struct DNNModel : torch::nn::Module{
     private:
         //Input layer
+        torch::nn::BatchNorm1d inNormLayer{nullptr};
         torch::nn::Linear inputLayer{nullptr};
         torch::nn::ReLU reluInLayer{nullptr};
 
         //Hidden layer
+        std::vector<torch::nn::BatchNorm1d> normLayers;
         std::vector<torch::nn::Linear> hiddenLayers;
-        std::vector<torch::nn::Dropout> dropLayers;
         std::vector<torch::nn::ReLU> activationLayers;
+        std::vector<torch::nn::Dropout> dropLayers;
 
         //Output layer
+        torch::nn::BatchNorm1d outNormLayer{nullptr};
         torch::nn::Linear outLayer{nullptr};
         torch::nn::Sigmoid sigLayer{nullptr};
 
@@ -25,12 +28,13 @@ struct DNNModel : torch::nn::Module{
         int nNodes;
         float dropOut;
         torch::Device device;
+        bool isParametrized;
 
         std::ostringstream modelSummary;
         
     public:
         DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, torch::Device& device);
-        torch::Tensor forward(torch::Tensor input);
+        torch::Tensor forward(torch::Tensor input, torch::Tensor masses);
         void Print();
         int GetNWeights();
 };
