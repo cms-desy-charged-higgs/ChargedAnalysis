@@ -7,13 +7,12 @@ int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
 
-    std::string oldFile = parser.GetValue<std::string>("old-file");
-    std::string oldTree = parser.GetValue<std::string>("old-tree");
-    std::string newFile = parser.GetValue<std::string>("new-file");
+    std::string fileName = parser.GetValue<std::string>("file-name");
+    std::string treeName = parser.GetValue<std::string>("tree-name");
     std::string dCache = parser.GetValue<std::string>("dCache");
-    std::vector<std::string> branchNames = parser.GetVector<std::string>("branch-names");
+    std::vector<std::string> functions = parser.GetVector<std::string>("functions");
 
-    TreeAppender appender(oldFile, oldTree, newFile, branchNames, dCache);
+    TreeAppender appender(fileName, treeName, functions, dCache);
     appender.Append();
 }
 
