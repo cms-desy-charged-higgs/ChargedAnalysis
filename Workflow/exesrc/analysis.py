@@ -154,7 +154,7 @@ def limit(config):
         histConfig = copy.deepcopy(config)
 
         histConfig["dir"] = histConfig["dir"].format("")
-        histConfig["x-parameters"]["all"] = [histConfig["x-parameters"]["all"][0].format(mass) for mass in histConfig["masses"]]
+        histConfig["parameters"]["all"] = [histConfig["parameters"]["all"][0].format(mass) for mass in histConfig["masses"]]
         histConfig["processes"] = histConfig["backgrounds"] + [histConfig["signal"].format(mass) for mass in histConfig["masses"]]
 
         if histConfig["data"]:
@@ -168,7 +168,7 @@ def limit(config):
         for mass in config["masses"]:
             cardConfig = copy.deepcopy(config)
             cardConfig["dir"] = cardConfig["dir"].format(mass)
-            cardConfig["discriminant"] = config["x-parameters"]["all"][0].format(mass)
+            cardConfig["discriminant"] = config["discriminant"].format(mass)
             cardConfig["signal"] = cardConfig["signal"].format(mass)
 
             datacardTasks.extend(Datacard.configure(cardConfig, channel, mass, haddTasks))
@@ -177,7 +177,7 @@ def limit(config):
         limitConfig = copy.deepcopy(config)
         limitConfig["dir"] = limitConfig["dir"].format(mass)
         limitTasks.extend(Limit.configure(limitConfig, mass, datacardTasks))
-        postfitTasks.extend(PlotPostfit.configure(limitConfig, mass))
+      #  postfitTasks.extend(PlotPostfit.configure(limitConfig, mass))
 
     allTasks.extend(datacardTasks+limitTasks+PlotLimit.configure(histConfig)+postfitTasks)
 
