@@ -21,8 +21,8 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
     TH1F* bkgSum = NULL;
 
     //Open file with shape and get histogram
-    TFile* procFile = TFile::Open((histDir + "/" + signal + ".root").c_str());
-    TH1F* hist = (TH1F*)procFile->Get(discriminant.c_str());
+    TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + signal + "/" + signal + ".root").c_str()));
+    TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
     hist->SetName(signal.c_str());
     hist->SetTitle(signal.c_str());
 
@@ -37,8 +37,8 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
 
     for(std::string& process: backgrounds){
         //Open file with shape and get histogram
-        TFile* procFile = TFile::Open((histDir + "/" + process + ".root").c_str());
-        TH1F* hist = (TH1F*)procFile->Get(discriminant.c_str());
+        TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + process + "/" + process + ".root").c_str()));
+        TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
         hist->SetName(process.c_str());
         hist->SetTitle(process.c_str());
 
@@ -55,7 +55,6 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
         delete procFile;
     }
 
-    
     if(useAsimov){
         bkgSum->SetName("data_obs");
         bkgSum->SetTitle("data_obs");
@@ -68,8 +67,8 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
 
     else{
         //Open file with shape and get histogram
-        TFile* procFile = TFile::Open((histDir + "/" + "/" + data + ".root").c_str());
-        TH1F* hist = (TH1F*)procFile->Get(discriminant.c_str());
+        TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + data + "/" + data + ".root").c_str()));
+        TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
         hist->SetName("data_obs");
         hist->SetTitle("data_obs");
 
