@@ -151,8 +151,8 @@ void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
 }
 
 void Plotter::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
-    TH1* b = (TH1*)bkg->Clone();
-    TH1* s = (TH1*)sig->Clone();
+    TH1* b = (TH1*)bkg->Clone(); b->Scale(1./b->Integral());
+    TH1* s = (TH1*)sig->Clone(); s->Scale(1./s->Integral());
     TLegend* l = new TLegend(0., 0., 1, 1);
 
     Plotter::SetPad(canvas);
@@ -174,8 +174,8 @@ void Plotter::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
     b->SetFillColor(kRed);
     b->SetLineWidth(4);
 
-    b->DrawNormalized("HIST");
-    s->DrawNormalized("HIST SAME");
+    b->Draw("HIST");
+    s->Draw("HIST SAME");
 
     l->AddEntry(b, "Bkg", "F");
     l->AddEntry(s, "Sig", "F");
