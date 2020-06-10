@@ -1,0 +1,17 @@
+channels:
+    - Ele4J
+    - Muon4J
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Ele2FJ
+    - Muon2FJ
+
+skim-dir: Skim/Channels/@
+
+dCache: Skim/Channels/@
+
+functions:
+    all:
+        - HReco
+
+run-mode: Condor
