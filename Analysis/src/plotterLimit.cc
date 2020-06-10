@@ -40,7 +40,7 @@ void PlotterLimit::ConfigureHists(){
         //Values
         for(int j=0; j < 5; j++){
             limitValue->GetBranch()->GetEntry(j);
-            limitValues.push_back(*(double*)limitValue->GetValuePointer());
+            limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[masses[i]]);
         }
 
         theory->SetPoint(i, masses[i], xSecs[masses[i]]);
@@ -53,7 +53,7 @@ void PlotterLimit::ConfigureHists(){
         sigmaTwo->SetPoint(i, masses[i], limitValues[2]);
         sigmaTwo->SetPointEYlow(i, limitValues[2] - limitValues[0]);
         sigmaTwo->SetPointEYhigh(i, limitValues[4] - limitValues[1]); 
-
+   
         delete limitTree;
         delete limitFile;
     }
@@ -69,17 +69,21 @@ void PlotterLimit::ConfigureHists(){
 
 	sigmaTwo->SetFillColor(kYellow);
 	sigmaTwo->SetFillStyle(1001);
+
+    float min = std::min(theory->GetHistogram()->GetMinimum(), sigmaTwo->GetHistogram()->GetMinimum());
+    float max = std::max(theory->GetHistogram()->GetMaximum(), sigmaTwo->GetHistogram()->GetMaximum());
+
+    //Set range
+    sigmaTwo->SetMinimum(min*0.5);
+    sigmaTwo->SetMaximum(max*1e1);
+    sigmaTwo->GetHistogram()->GetXaxis()->SetRangeUser(masses[0], masses.back());
 }
 
 void PlotterLimit::Draw(std::vector<std::string> &outdirs){
-    TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 800);
-    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 0.95, 1.);
-    TPad* legendpad = new TPad("legendpad", "legendpad", 0.87, 0.3 , 1., 0.8);
+    TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
+    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 1., 1.);
 
     Plotter::SetStyle();
-
-    //TLegend
-    TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
 
     //Draw main pad
     Plotter::SetPad(mainpad);
@@ -92,6 +96,9 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     expected->Draw("L");
     theory->Draw("L");
 
+    //TLegend
+    TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
+
     //Add legend information
     legend->AddEntry(expected, "Expected", "L");
     legend->AddEntry(theory, "Theo. prediction", "L");
@@ -103,24 +110,15 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     sigmaTwo->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
     sigmaTwo->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
 
-    //Draw legend
-    canvas->cd();
-    legendpad->Draw();
-    legendpad->cd();
-
-    legend->SetTextSize(0.1);
-    legend->Draw();
-
     mainpad->cd();
 
     Plotter::DrawHeader(mainpad, "All channel", "Work in progress");
 
-    //Set range
-    sigmaTwo->SetMinimum(theory->GetMinimum()*1e-2);
-    sigmaTwo->GetHistogram()->GetXaxis()->SetRangeUser(masses[0], masses.back());
-
     //Save canvas in non-log and log scale
     mainpad->SetLogy(1);
+
+    //Draw legend
+    Plotter::DrawLegend(legend, 4);
 
     for(std::string outdir: outdirs){
         canvas->SaveAs((outdir + "/limit.pdf").c_str());
