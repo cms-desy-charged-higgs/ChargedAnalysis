@@ -29,13 +29,13 @@ class Datacard(Task):
 
         cardConf = {
                 "name": "Datacard_{}_{}".format(mass, channel), 
-                "dir":  "{}/{}/{}".format(os.environ["CHDIR"], config["dir"], config["chan-dir"][channel]), 
+                "dir":  "{}/{}/{}".format(os.environ["CHDIR"], config["dir"], channel), 
                 "display-name": "Datacard: {} ({})".format(mass, channel), 
                 "discriminant": config["discriminant"],
                 "dependencies": [t["name"] for t in haddTasks if channel in t["channel"]], 
                 "backgrounds": config["backgrounds"],
                 "signal": config["signal"],
-                "hist-dir": "{}/Hist/{}/{}".format(os.environ["CHDIR"], config["dir"].replace(str(mass), ""),  config["chan-dir"][channel]),
+                "hist-dir": "{}/{}/{}".format(os.environ["CHDIR"], config["dir"].replace(str(mass), ""),  channel),
                 "channel": channel,
                 "data": config["data"].get("channel", "")
         }
