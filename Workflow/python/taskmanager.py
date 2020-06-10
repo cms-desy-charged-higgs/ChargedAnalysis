@@ -70,25 +70,47 @@ class TaskManager(object):
         while queue:
             t = queue.pop(0)
             sortedTasks.append(t)
-        
+
             for i, task in enumerate(self._tasks):
-                if task["name"] in t["dependencies"]:
-                    t.depth = t.depth + 1 if task.depth == t.depth else t.depth
+                if t["name"] in task["dependencies"] and t not in task.dependencies:
+                    task.dependencies.append(t)
+                    in_degrees[i] -= 1
+
+                    if in_degrees[i] == 0:
+                        queue.append(task)
+
+                elif task["name"] in t["dependencies"] and task not in t.dependencies:
                     t.dependencies.append(task)
+                    in_degrees[i] -= 1
 
-                in_degrees[i] -= 1
-                    
-                if in_degrees[i] == 0:
-                    queue.append(task)
-
+                    if in_degrees[i] == 0:
+                        queue.append(task)
+        
             counter+=1
-                
+           
         if counter != len(self._tasks):
             raise RuntimeError("There exists a cyclic dependency in your tasks!")
     
         else:
             self._tasks = sortedTasks
-    
+
+        ##Calculate path lenghts
+        for task in self._tasks:
+            if len(task.dependencies) == 0:
+                continue
+
+            while(True):
+                if task.depth == 0: 
+                    t = task.dependencies[0]
+
+                task.depth += 1
+
+                if len(t.dependencies) == 0:
+                    break
+
+                else:
+                    t = t.dependencies[0]
+                           
     def __printRunStatus(self, time):
         ##Helper function:
         nStatus = lambda tasks, stat: len([1 for task in tasks if task["status"] == stat] if stat != "TOTAL" else tasks)
@@ -143,7 +165,7 @@ class TaskManager(object):
 
         if len(outDirs) != len(self._tasks):
             print("List of task directories")
-            pprint.pprint([task["dir"] for task in self._tasks])
+            pprint.pprint([(task["name"], task["dir"]) for task in self._tasks])
 
             raise RuntimeError("Each job has to have a unique directory! See list of dirs above.")
 
