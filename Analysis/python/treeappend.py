@@ -12,10 +12,9 @@ class TreeAppend(Task):
         self["executable"] = "treeappend"
 
         self["arguments"] = [
-                "--old-file", self["input-file"], 
-                "--old-tree", self["channel"],
-                "--new-file", self["output"],
-                "--branch-names", *self["branch-names"],
+                "--file-name", self["input-file"], 
+                "--tree-name", self["channel"],
+                "--functions", *self["functions"],
                 "--dCache", self["dCache"],
         ]
 
@@ -36,7 +35,7 @@ class TreeAppend(Task):
                 "dir":  "{}/{}/{}/merged".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel), fileName),
                 "input-file": inFile,
                 "channel": channel,
-                "branch-names": config["branch-names"].get("all", []) + config["branch-names"].get(channel, []),
+                "functions": config["functions"].get("all", []) + config["functions"].get(channel, []),
                 "run-mode": config["run-mode"], 
                 "dCache": "{}/{}/merged".format(config["dCache"].replace("@", channel), fileName) if "dCache" in config else "", 
             }
