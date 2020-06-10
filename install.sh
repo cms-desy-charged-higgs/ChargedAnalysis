@@ -40,8 +40,7 @@ cd ..
 git clone https://github.com/cms-desy-charged-higgs/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 cd HiggsAnalysis/CombinedLimit
  
-git remote add original https://github.com/cms-desy-charged-higgs/HiggsAnalysis-CombinedLimit.git
-git pull original 102x
+git remote add original https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git
 
 make -j 20
 
@@ -71,3 +70,5 @@ git cms-merge-topic cms-egamma:EgammaPostRecoTools
 
 ##Compile everthing
 scram b -j 20
+
+cd $CHDIR
