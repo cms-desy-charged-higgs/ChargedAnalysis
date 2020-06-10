@@ -17,7 +17,7 @@
 
 class TreeFunction{
     private:
-        enum Particle{VACUUM, ELECTRON, MUON, BJET, BSUBJET, JET, FATJET, SUBJET, MET};
+        enum Particle{VACUUM, ELECTRON, MUON, BJET, BSUBJET, JET, FATJET, SUBJET, MET, HIGGS, CHAREDHIGGS, W};
         enum WP{NOTCLEAN = -10, NONE, LOOSE, MEDIUM, TIGHT};
         enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
@@ -80,6 +80,7 @@ class TreeFunction{
         void HT();
         void NParticle();
         void HTag();
+        void DNN();
         void DeepAK();
 
     public:
