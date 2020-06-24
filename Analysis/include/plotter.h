@@ -15,6 +15,7 @@
 #include <TCanvas.h>
 #include <TStyle.h>
 #include <TH1.h>
+#include <TH2F.h>
 #include <TPad.h>
 
 class Plotter{

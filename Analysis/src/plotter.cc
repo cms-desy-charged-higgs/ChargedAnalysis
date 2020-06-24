@@ -63,7 +63,7 @@ void Plotter::SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel, cons
     frameHist->GetXaxis()->SetLabelOffset(isRatio ? 0 : labelDistance/padHeight);
     frameHist->GetXaxis()->SetTickLength(tickSize/padHeight);
 
-    frameHist->GetYaxis()->SetTitle(yLabel.c_str());
+    if(!frameHist->InheritsFrom(TH2F::Class())) frameHist->GetYaxis()->SetTitle(yLabel.c_str());
     frameHist->GetYaxis()->SetTitleSize(labelSize/padHeight);
     frameHist->GetYaxis()->SetLabelOffset(labelDistance/padWidth);
     frameHist->GetYaxis()->SetLabelSize(labelSize/padHeight);
@@ -133,14 +133,14 @@ void Plotter::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, co
 
 void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
     //Draw Legend and legend pad
-    TPad* legendPad = new TPad("legendPad", "legendPad", 0.18, 0.88-nColumns*0.02, 0.91, 0.88);
+    TPad* legendPad = new TPad("legendPad", "legendPad", 0.2, 0.88-nColumns*0.05, 0.9, 0.88);
     legendPad->Draw();
     legendPad->cd();
 
     float padWidth = legendPad->GetWw() * legendPad->GetWNDC();
     float padHeight = legendPad->GetWh() * legendPad->GetHNDC();
 
-    float textSize = padHeight > padWidth ? 30./padWidth : 30./padHeight;
+    float textSize = padHeight > padWidth ? 20./padWidth : 20./padHeight;
 
     for(int i=0; i < legend->GetListOfPrimitives()->GetSize(); i++){
         ((TLegendEntry*)legend->GetListOfPrimitives()->At(i))->SetTextSize(textSize);
@@ -151,33 +151,40 @@ void Plotter::DrawLegend(TLegend* legend, const int& nColumns){
 }
 
 void Plotter::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
-    TH1* b = (TH1*)bkg->Clone(); b->Scale(1./b->Integral());
     TH1* s = (TH1*)sig->Clone(); s->Scale(1./s->Integral());
+    TH1* b = nullptr;
+    if(bkg != nullptr){
+        b = (TH1*)bkg->Clone(); b->Scale(1./b->Integral());
+    }
+
     TLegend* l = new TLegend(0., 0., 1, 1);
 
     Plotter::SetPad(canvas);
-    Plotter::SetHist(canvas, b, "Normalized events");
+    Plotter::SetHist(canvas, s, "Normalized events");
 
     canvas->Draw();
 
-    float max = std::max({b->GetMaximum(), s->GetMaximum()});
-    b->SetMaximum(max*(1 + 0.2));
+    float max = std::max({b != nullptr ? b->GetMaximum() : 0, s->GetMaximum()});
+    s->SetMaximum(max*(1 + 0.2));
 
     //Draw Legend and legend pad
     s->SetLineColor(kBlue+1);
     s->SetFillStyle(3335);
     s->SetFillColor(kBlue);
     s->SetLineWidth(4);
-
-    b->SetLineColor(kRed+1);
-    b->SetFillStyle(3353);
-    b->SetFillColor(kRed);
-    b->SetLineWidth(4);
-
-    b->Draw("HIST");
-    s->Draw("HIST SAME");
-
-    l->AddEntry(b, "Bkg", "F");
     l->AddEntry(s, "Sig", "F");
+
+    s->Draw("HIST");
+
+    if(b != nullptr){
+        b->SetLineColor(kRed+1);
+        b->SetFillStyle(3353);
+        b->SetFillColor(kRed);
+        b->SetLineWidth(4);
+        l->AddEntry(b, "Bkg", "F");
+
+        b->Draw("HIST SAME");
+    }
+
     Plotter::DrawLegend(l, 2);
 }
