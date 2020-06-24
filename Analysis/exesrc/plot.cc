@@ -14,8 +14,12 @@ int main(int argc, char *argv[]){
     std::vector<std::string> processes = parser.GetVector<std::string>("processes");
     std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
 
-    //Call and run Plotter1D class
+    //Call and run plotter class
     Plotter1D plotter1D(histDir, channel, processes);
     plotter1D.ConfigureHists();
     plotter1D.Draw(outDirs);
+
+    Plotter2D plotter2D(histDir, channel, processes);
+    plotter2D.ConfigureHists();
+    plotter2D.Draw(outDirs);
 }
