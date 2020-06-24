@@ -18,15 +18,15 @@ int main(){
 
         TreeFunction bkgDeepAK(bkgFile, channel);
         TreeFunction bkgHTag(bkgFile, channel);
-        bkgDeepAK.SetP1("fj", 1, "");
-        bkgDeepAK.SetFunction("DAK8");
-        bkgHTag.SetP1("fj", 1, "");
-        bkgHTag.SetFunction("HTag");
+        bkgDeepAK.SetP1<Axis::X>("fj", 1, "");
+        bkgDeepAK.SetFunction<Axis::X>("DAK8", "top");
+        bkgHTag.SetP1<Axis::X>("fj", 1, "");
+        bkgHTag.SetFunction<Axis::X>("HTag");
         
         for(int i = 0; i < bkgFile->Get<TTree>(channel.c_str())->GetEntries(); i++){
             TreeFunction::SetEntry(i);
-            predDeepAK.push_back(bkgDeepAK.Get());
-            predHTagAK.push_back(bkgHTag.Get());
+            predDeepAK.push_back(bkgDeepAK.Get<Axis::X>());
+            predHTagAK.push_back(bkgHTag.Get<Axis::X>());
             truth.push_back(0);
         }
 
@@ -35,15 +35,15 @@ int main(){
 
             TreeFunction sigDeepAK(sigFile, channel);
             TreeFunction sigHTag(sigFile, channel);
-            sigDeepAK.SetP1("fj", 1, "");
-            sigDeepAK.SetFunction("DAK8");
-            sigHTag.SetP1("fj", 1, "");
-            sigHTag.SetFunction("HTag");
+            sigDeepAK.SetP1<Axis::X>("fj", 1, "");
+            sigDeepAK.SetFunction<Axis::X>("DAK8", "top");
+            sigHTag.SetP1<Axis::X>("fj", 1, "");
+            sigHTag.SetFunction<Axis::X>("HTag");
             
             for(int i = 0; i < sigFile->Get<TTree>(channel.c_str())->GetEntries(); i++){
                 TreeFunction::SetEntry(i);
-                predDeepAK.push_back(sigDeepAK.Get());
-                predHTagAK.push_back(sigHTag.Get());
+                predDeepAK.push_back(sigDeepAK.Get<Axis::X>());
+                predHTagAK.push_back(sigHTag.Get<Axis::X>());
                 truth.push_back(1);
             }
 
