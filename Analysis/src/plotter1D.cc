@@ -16,13 +16,15 @@ void Plotter1D::ConfigureHists(){
 
         if(parameters.empty()){
             for(int i = 0; i < file->GetListOfKeys()->GetSize(); i++){
-                parameters.push_back(file->GetListOfKeys()->At(i)->GetName());
+                if(file->Get(file->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH1F::Class())){
+                    parameters.push_back(file->GetListOfKeys()->At(i)->GetName());  
+                }
             }
         }
 
         for(std::string& param: parameters){
-            TH1F* hist = (TH1F*)file->Get(param.c_str());
-
+            TH1F* hist = file->Get<TH1F>(param.c_str());
+  
             if(hist == NULL){
                 throw std::runtime_error("Did not found histogram '" + param + "' in file '" + fileName + "'");
             }
@@ -172,7 +174,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         delete legend; delete mainPad, delete canvas;
 
         //Draw shape plots if signal is there
-        if(signal.count(param)){
+        if(signal.count(param) and param != "cutflow"){
             for(TH1F* hist: signal[param]){
                 TCanvas* c = new TCanvas("canvas",  "canvas", 1000, 1000);
 
