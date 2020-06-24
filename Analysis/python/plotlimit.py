@@ -11,12 +11,13 @@ class PlotLimit(Task):
 
         self["arguments"] = [
                 "--masses", *self["masses"],
+                "--channels", *self["channels"],
                 "--limit-dir", self["limit-dir"],
                 "--out-dirs", self["dir"]
         ]
 
     def output(self):
-        self["output"] = self["dir"] + "/limit.pdf"
+        self["output"] = [self["dir"] + "/limit.pdf", self["dir"] + "/limit_by_channel.pdf"]
 
     @staticmethod
     def configure(config):
@@ -27,7 +28,8 @@ class PlotLimit(Task):
                     "dir":  os.environ["CHDIR"] + "/CernWebpage/Plots/Limits", 
                     "display-name": "Plot: Limit", 
                     "dependencies": ["Limit_{}".format(mass) for mass in config["masses"]],
-                    "masses": [mass for mass in config["masses"]],
+                    "masses": config["masses"],
+                    "channels": config["channels"]
         }
 
         tasks.append(PlotLimit(plotConf))
