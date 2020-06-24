@@ -16,13 +16,7 @@ void TreeAppender::Append(){
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << treeName << "'" << std::endl;
 
-    //Clone Tree
-    std::string tmpFile = "/tmp/tmp_" + std::to_string(getpid()) + ".root";
-
-    TFile* newF = TFile::Open(tmpFile.c_str(), "RECREATE");
-    TTree* newT = oldT->CloneTree(-1, "fast");;
-
-    //Set new branches
+    //Get values for new branches
     std::map<std::string, TBranch*> branches;
     std::vector<std::string> branchNames;
     std::map<std::string, float> branchValues;
@@ -38,12 +32,20 @@ void TreeAppender::Append(){
         for(const std::pair<std::string, std::vector<float>>& funcValues : expandFunctions.at(function)(oldF, treeName)){
             oldT->SetBranchStatus(funcValues.first.c_str(), 0);
 
-            branchValues[funcValues.first] = -999.;
-            branches[funcValues.first] = newT->Branch(funcValues.first.c_str(), &branchValues[funcValues.first]);
             branchNames.push_back(funcValues.first);
-
             values[funcValues.first] = funcValues.second;  
         }
+    }
+
+    //Clone Tree
+    std::string tmpFile = "/tmp/tmp_" + std::to_string(getpid()) + ".root";
+
+    TFile* newF = TFile::Open(tmpFile.c_str(), "RECREATE");
+    TTree* newT = oldT->CloneTree(-1, "fast");
+
+    for(const std::string& name : branchNames){
+        branchValues[name] = -999.;
+        branches[name] = newT->Branch(name.c_str(), &branchValues[name]);
     }
 
     //Fill branches

@@ -5,39 +5,70 @@ TreeParser::TreeParser(){}
 void TreeParser::GetFunction(const std::string& parameter, TreeFunction& func){
     if(Utils::Find<std::string>(parameter, "f:") == -1) throw std::runtime_error("No function key 'f' in '" + parameter + "'");
 
-    std::string funcName; float value = -999.;
-
-    std::string funcLine = parameter.substr(parameter.find("f:")+2, parameter.substr(parameter.find("f:")).find("/")-2);
+    std::vector lines = Utils::SplitString<std::string>(parameter, "/");
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [&](std::string l){return Utils::Find<std::string>(l, "f:") == -1;}), lines.end());
     
-    for(std::string& funcParam: Utils::SplitString<std::string>(funcLine, ",")){
-        std::vector<std::string> fInfo = Utils::SplitString<std::string>(funcParam, "=");
+    for(const std::string line : lines){
+        std::string funcName; std::string value = ""; bool isX = true;
 
-        if(fInfo[0] == "n") funcName = fInfo[1];
-        else if(fInfo[0] == "v") value = std::stoi(fInfo[1]);
-        else throw std::runtime_error("Invalid key '" + fInfo[0] + "' in parameter '" +  funcLine + "'");
+        std::string funcLine = line.substr(line.find("f:")+2);
+        
+        for(std::string& funcParam: Utils::SplitString<std::string>(funcLine, ",")){
+            std::vector<std::string> fInfo = Utils::SplitString<std::string>(funcParam, "=");
+
+            if(fInfo[0] == "n") funcName = fInfo[1];
+            else if(fInfo[0] == "v") value = fInfo[1];
+            else if(fInfo[0] == "ax") isX = fInfo[1] != "y";
+            else throw std::runtime_error("Invalid key '" + fInfo[0] + "' in parameter '" +  funcLine + "'");
+        }
+
+        if(isX) func.SetFunction<Axis::X>(funcName, value);
+        else{
+            func.SetYAxis();
+            func.SetFunction<Axis::Y>(funcName, value);
+        }
     }
-
-    func.SetFunction(funcName, value); 
 }
 
 void TreeParser::GetParticle(const std::string& parameter, TreeFunction& func){
     if(Utils::Find<std::string>(parameter, "p:") == -1) return;
 
-    std::string partLine = parameter.substr(parameter.find("p:")+2, parameter.substr(parameter.find("p:")).find("/")-2);
+    std::vector lines = Utils::SplitString<std::string>(parameter, "/");
+    lines.erase(std::remove_if(lines.begin(), lines.end(), [&](std::string l){return Utils::Find<std::string>(l, "p:") == -1;}), lines.end());
 
-    for(std::string& particle: Utils::SplitString<std::string>(partLine, "~")){
-        std::string part = ""; std::string wp = ""; int idx = 0;
+    for(const std::string line : lines){
+        std::string partLine = line.substr(line.find("p:")+2);
 
-        for(const std::string& partParam: Utils::SplitString<std::string>(particle, ",")){
+        std::string part = ""; std::string wp = ""; int idx = 0; bool isX = true; int pos = 1;
+
+        for(const std::string& partParam: Utils::SplitString<std::string>(partLine, ",")){
             std::vector<std::string> pInfo = Utils::SplitString<std::string>(partParam, "=");
 
             if(pInfo[0] == "n") part = pInfo[1];
             else if (pInfo[0] == "wp") wp = pInfo[1];
             else if (pInfo[0] == "i") idx = std::atoi(pInfo[1].c_str());
+            else if (pInfo[0] == "pos") pos = std::atoi(pInfo[1].c_str());
+            else if(pInfo[0] == "ax") isX = pInfo[1] != "y";
             else throw std::runtime_error("Invalid key '" + pInfo[0] + "' in parameter '" +  partLine + "'");
         }
 
-        func.SetP1(part, idx, wp);
+        if(pos == 1){
+            if(isX) func.SetP1<Axis::X>(part, idx, wp);
+
+            else{
+                func.SetYAxis();
+                func.SetP1<Axis::Y>(part, idx, wp);
+            } 
+        }
+
+        if(pos == 2){
+            if(isX) func.SetP2<Axis::X>(part, idx, wp);
+
+            else{
+                func.SetYAxis();
+                func.SetP2<Axis::Y>(part, idx, wp);
+            } 
+        }
     }
 }
 
@@ -64,16 +95,21 @@ void TreeParser::GetBinning(const std::string& parameter, TH1* hist){
 
     std::string histLine = parameter.substr(parameter.find("h:")+2, parameter.substr(parameter.find("h:")).find("/")-2);
 
-    int bins = 30; float xlow = 0; float xhigh = 1; 
+    int xBins = 30, yBins = -1.; 
+    float xlow = 0, xhigh = 1, ylow = 0, yhigh = 1; 
 
     for(std::string& histParam: Utils::SplitString<std::string>(histLine, ",")){
         std::vector<std::string> hInfo = Utils::SplitString<std::string>(histParam, "=");
 
-        if(hInfo[0] == "nxb") bins = std::stof(hInfo[1]);
+        if(hInfo[0] == "nxb") xBins = std::stof(hInfo[1]);
         else if(hInfo[0] == "xl") xlow = std::stof(hInfo[1]);
         else if(hInfo[0] == "xh") xhigh = std::stof(hInfo[1]);
+        else if(hInfo[0] == "nyb") yBins = std::stof(hInfo[1]);
+        else if(hInfo[0] == "yl") ylow = std::stof(hInfo[1]);
+        else if(hInfo[0] == "yh") yhigh = std::stof(hInfo[1]);
         else throw std::runtime_error("Invalid key '" + hInfo[0] + " in parameter '" +  histLine + "'");
     }
 
-    hist->SetBins(bins, xlow, xhigh);
+    if(yBins == -1.) hist->SetBins(xBins, xlow, xhigh);
+    else hist->SetBins(xBins, xlow, xhigh, yBins, ylow, yhigh);
 }
