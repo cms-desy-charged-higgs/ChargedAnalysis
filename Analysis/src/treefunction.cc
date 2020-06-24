@@ -13,7 +13,7 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
         {"N", {&TreeFunction::NParticle, "N(@)"}},
         {"EvNr", {&TreeFunction::EventNumber, "Event number"}},
         {"HTag", {&TreeFunction::HTag, "Higgs score(@)"}},
-        {"DAK8", {&TreeFunction::DeepAK, "DeepAK8 Higgs vs Top(@)"}},
+        {"DAK8", {&TreeFunction::DeepAK, "DeepAK8 score(@)"}},
         {"DNN", {&TreeFunction::DNN, "DNN score(m_{H^{#pm}} = @ GeV)"}},
     };
 
@@ -51,7 +51,19 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
 
 TreeFunction::~TreeFunction(){}
 
+const bool TreeFunction::hasYAxis(){return yFunction != nullptr;}
+
+void TreeFunction::SetYAxis(){
+    if(yFunction == nullptr) yFunction = std::make_shared<TreeFunction>(inputFile, inputTree->GetName());
+}
+
+template<Axis A>
 void TreeFunction::SetP1(const std::string& part, const int& idx, const std::string& wp){
+    if(A == Axis::Y){
+        yFunction->SetP1<Axis::X>(part, idx, wp);
+        return;
+    }
+
     part1 = std::get<0>(partInfo.at(part));
     wp1 = std::get<0>(wpInfo.at(wp));
     idx1 = idx-1;
@@ -61,7 +73,16 @@ void TreeFunction::SetP1(const std::string& part, const int& idx, const std::str
     wpName1 = wp;
 }
 
+template void TreeFunction::SetP1<Axis::X>(const std::string&, const int&, const std::string&);
+template void TreeFunction::SetP1<Axis::Y>(const std::string&, const int&, const std::string&);
+
+template<Axis A>
 void TreeFunction::SetP2(const std::string& part, const int& idx, const std::string& wp){
+    if(A == Axis::Y){
+        yFunction->SetP2<Axis::X>(part, idx, wp);
+        return;
+    }
+
     part2 = std::get<0>(partInfo.at(part));
     wp2 = std::get<0>(wpInfo.at(wp));
     idx2 = idx-1;
@@ -71,7 +92,16 @@ void TreeFunction::SetP2(const std::string& part, const int& idx, const std::str
     wpName2 = wp;
 }
 
+template void TreeFunction::SetP2<Axis::X>(const std::string&, const int&, const std::string&);
+template void TreeFunction::SetP2<Axis::Y>(const std::string&, const int&, const std::string&);
+
+template<Axis A>
 void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
+    if(A == Axis::Y){
+        yFunction->SetCleanJet<Axis::X>(part, wp);
+        return;
+    }
+
     if(part1 == JET or part1 == BJET){
         cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", std::get<1>(partInfo.at(part))).c_str());
         cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", std::get<1>(partInfo.at(part))).c_str());
@@ -85,6 +115,9 @@ void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
     }
 }
 
+template void TreeFunction::SetCleanJet<Axis::X>(const std::string&, const std::string&);
+template void TreeFunction::SetCleanJet<Axis::Y>(const std::string&, const std::string&);
+
 void TreeFunction::SetCut(const std::string& comp, const float& compValue){
     this->comp = std::get<0>(comparisons.at(comp));
     this->compValue = compValue;
@@ -96,7 +129,13 @@ void TreeFunction::SetCut(const std::string& comp, const float& compValue){
     cutLabel = axisLabel + " " + std::get<1>(comparisons.at(comp)) + " " + compV;
 }
 
-void TreeFunction::SetFunction(const std::string& funcName, const float& inputValue){
+template<Axis A>
+void TreeFunction::SetFunction(const std::string& funcName, const std::string& inputValue){
+    if(A == Axis::Y){
+        yFunction->SetFunction<Axis::X>(funcName, inputValue);
+        return;
+    }
+
     this->funcPtr = std::get<0>(funcInfo.at(funcName));
     this->inputValue = inputValue;
 
@@ -135,7 +174,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     else if(funcName == "Tau"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + std::to_string(int(inputValue)), partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, partName);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -147,13 +186,14 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     else if(funcName == "DNN"){
-        const std::string branchName = Utils::Format<int>("@", "ML_DNN@", int(inputValue));
+        const std::string branchName = Utils::Format<int>("@", "ML_DNN@", std::atoi(inputValue.c_str()));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "DAK8"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_topVsHiggs", partName);
+        std::string taggerName = Utils::Format<std::string>("$", "@_$VsHiggs", inputValue);
+        const std::string branchName = Utils::Format<std::string>("@", taggerName, partName);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -184,30 +224,45 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
                 ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_ID"));
                 Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_Isolation"));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSF")));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFUp")));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFDown")));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str())));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFUp", wpname).c_str())));
+                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str())));
 
                 break;
 
             case MUON:
                 ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_ID"));
                 Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_isoID"));
+
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSF")));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFUp")));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFDown")));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str())));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFUp", wpname).c_str())));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFDown", wpname).c_str())));
 
                 wpname[0] = std::toupper(wpname[0]); 
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str())));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFUp", wpname).c_str())));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFDown", wpname).c_str())));
                 break;
 
             case BJET:
                 nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_TrueFlavour"));
                 BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_CSVScore"));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str())));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str())));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str())));
                 break;
 
             case BSUBJET:
                 nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
                 BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_CSVScore"));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str())));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str())));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str())));
                 break;
 
             default: break;
@@ -225,11 +280,11 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 
     //Set Name of functions/axis label
-    name = funcName + (inputValue != -999. ? Utils::Format<int>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
+    name = funcName + (inputValue != "" ? Utils::Format<std::string>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
     axisLabel = std::get<1>(funcInfo.at(funcName));;
 
-    if(inputValue != -999.){
-        axisLabel = Utils::Format<int>("@", axisLabel, inputValue, true);
+    if(inputValue != ""){
+        axisLabel = Utils::Format<std::string>("@", axisLabel, inputValue, true);
     }
 
     for(const std::string partLabel : {partLabel1, partLabel2}){
@@ -237,11 +292,17 @@ void TreeFunction::SetFunction(const std::string& funcName, const float& inputVa
     }
 }
 
+template void TreeFunction::SetFunction<Axis::X>(const std::string&, const std::string&);
+template void TreeFunction::SetFunction<Axis::Y>(const std::string&, const std::string&);
+
 void TreeFunction::SetEntry(const int& entry){
     TreeFunction::entry = entry;
 }
 
+template<Axis A>
 const float TreeFunction::Get(){
+    if(A == Axis::Y) return yFunction->Get<Axis::X>();
+    
     if(idx1 != -1){
         if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
         const char* n = (char*)nPart->GetValuePointer();
@@ -278,6 +339,11 @@ const float TreeFunction::Get(){
         }
     }
 }
+
+template const float TreeFunction::Get<Axis::X>();
+template const float TreeFunction::Get<Axis::Y>();
+
+const int TreeFunction::GetNWeights(){return scaleFactors.size();}
 
 const float TreeFunction::GetWeight(){
     weight = 1.;
@@ -329,31 +395,39 @@ const float TreeFunction::GetWeight(){
 const bool TreeFunction::GetPassed(){
     switch(comp){
         case BIGGER:
-            return this->Get() > compValue;
+            return this->Get<Axis::X>() > compValue;
 
         case SMALLER:
-            return this->Get() < compValue;
+            return this->Get<Axis::X>() < compValue;
 
         case EQUAL:
-            return this->Get() == compValue;
+            return this->Get<Axis::X>() == compValue;
 
         case DIVISIBLE:
-            return int(this->Get()) % int(compValue) == 0;
+            return int(this->Get<Axis::X>()) % int(compValue) == 0;
 
         case NOTDIVISIBLE:
-            return int(this->Get()) % int(compValue) != 0;
+            return int(this->Get<Axis::X>()) % int(compValue) != 0;
     }
 }
 
+template<Axis A>
 const std::string TreeFunction::GetAxisLabel(){
+    if(A == Axis::Y) return yFunction->GetAxisLabel<Axis::X>();
+
     return axisLabel;
 }
+
+template const std::string TreeFunction::GetAxisLabel<Axis::X>();
+template const std::string TreeFunction::GetAxisLabel<Axis::Y>();
 
 const std::string TreeFunction::GetCutLabel(){
     return cutLabel;
 }
 
+template<Axis A>
 const std::string TreeFunction::GetName(){
+    if(A == Axis::Y) return yFunction->GetName<Axis::X>();
     return name;
 }
 
@@ -419,6 +493,9 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
         default: return NONE;
     }
 }
+
+template const std::string TreeFunction::GetName<Axis::X>();
+template const std::string TreeFunction::GetName<Axis::Y>();
 
 bool TreeFunction::isCleanJet(const int& idx){
     if(cleanPhi->GetBranch()->GetReadEntry() != entry) cleanPhi->GetBranch()->GetEntry(entry);

@@ -15,6 +15,8 @@
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 
+enum class Axis{X, Y};
+
 class TreeFunction{
     private:
         enum Particle{VACUUM, ELECTRON, MUON, BJET, BSUBJET, JET, FATJET, SUBJET, MET, HIGGS, CHAREDHIGGS, W};
@@ -22,7 +24,10 @@ class TreeFunction{
         enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
         void(TreeFunction::*funcPtr)();
-        float inputValue;
+        std::string inputValue;
+
+        //Define another TreeFunction if wants to make 2D distributions
+        std::shared_ptr<TreeFunction> yFunction = nullptr;
 
         Comparison comp;
         float compValue;
@@ -52,6 +57,8 @@ class TreeFunction{
         TLeaf* BScore;
         TLeaf* nTrueB;
         std::vector<TLeaf*> scaleFactors;
+        std::vector<TLeaf*> scaleFactorsUp;
+        std::vector<TLeaf*> scaleFactorsDown;
 
         //BTag Histo
         TH2F* effBTag = nullptr;
@@ -88,19 +95,38 @@ class TreeFunction{
         ~TreeFunction();
 
         //Setter function
+        template<Axis A>
         void SetP1(const std::string& part, const int& idx = 0, const std::string& wp = "");
+
+        template<Axis A>
         void SetP2(const std::string& part, const int& idx = 0, const std::string& wp = "");
+
+        template<Axis A>
+        void SetFunction(const std::string& funcName, const std::string& inputValue = "");
+
+        template<Axis A>
         void SetCleanJet(const std::string& part, const std::string& wp);
+
         void SetCut(const std::string& comp, const float& compValue);
-        void SetFunction(const std::string& funcName, const float& inputValue = -999.);
 
         //Getter function
+        template<Axis A>
         const float Get();
+
+        template<Axis A>
+        const std::string GetAxisLabel();
+
+        template<Axis A>
+        const std::string GetName();
+
+        const int GetNWeights();
         const float GetWeight();
         const bool GetPassed();
-        const std::string GetAxisLabel();
         const std::string GetCutLabel();
-        const std::string GetName();
+
+        //Set y axis
+        void SetYAxis();
+        const bool hasYAxis();
 
         //Static function for global configuration of all instances
         static void SetEntry(const int& entry);
