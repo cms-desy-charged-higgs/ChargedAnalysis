@@ -26,15 +26,18 @@ class TreeReader {
         std::string outname;
         std::string channel;
 
-        std::vector<TH1F*> hists;
-        std::vector<TreeFunction> histFunctions;
+        std::vector<TH1F*> hists1D;
+        std::vector<TreeFunction> hist1DFunctions;
 
-        TTree* outTree = NULL;
+        std::vector<TH2F*> hists2D;
+        std::vector<TreeFunction> hist2DFunctions;
+
+        TTree* outTree = nullptr;
         std::vector<TreeFunction> treeFunctions;
         std::vector<std::string> branchNames;
         std::vector<float> treeValues;
 
-        Frame* frame = NULL;
+        Frame* frame = nullptr;
         std::vector<TreeFunction> CSVFunctions;
         std::vector<std::string> CSVNames;
 
