@@ -2,10 +2,11 @@
 
 PlotterLimit::PlotterLimit() : Plotter(){}
 
-PlotterLimit::PlotterLimit(std::string &limitDir, std::vector<int> masses) : 
+PlotterLimit::PlotterLimit(std::string &limitDir, const std::vector<int>& masses, const std::vector<std::string>& channels) : 
     Plotter(),
     limitDir(limitDir),
-    masses(masses){
+    masses(masses),
+    channels(channels){
 
         xSecs = {
                 {200, 0.03208},
@@ -18,110 +19,148 @@ PlotterLimit::PlotterLimit(std::string &limitDir, std::vector<int> masses) :
                 {550, 0.001431},
                 {600, 0.001063},
         };
-
-        theory = new TGraph();
-        expected = new TGraph();
-        sigmaOne = new TGraphAsymmErrors();
-        sigmaTwo = new TGraphAsymmErrors();
     }
 
 
 void PlotterLimit::ConfigureHists(){
-    for(unsigned int i=0; i < masses.size(); i++){
-        //Read file and tree with limits
-        TFile* limitFile = TFile::Open((limitDir + "/" + std::to_string(masses[i]) + "/limit.root").c_str(), "READ");
-        TTree* limitTree = (TTree*)limitFile->Get("limit");
+    for(const std::string& channel : Utils::Merge<std::string>({""}, channels)){
+        expected[channel] = new TGraph();
+        sigmaOne[channel] = new TGraphAsymmErrors();
+        sigmaTwo[channel] = new TGraphAsymmErrors();
 
-        //Set branch for reading limits
-        std::vector<double> limitValues;
+        if(channel == "") theory = new TGraph();
 
-        TLeaf* limitValue = limitTree->GetLeaf("limit");       
+        for(unsigned int i=0; i < masses.size(); i++){
+            //Read file and tree with limits
+            TFile* limitFile = TFile::Open((limitDir + "/" + std::to_string(masses[i]) + "/" + channel + "/limit.root").c_str(), "READ");
+            TTree* limitTree = (TTree*)limitFile->Get("limit");
 
-        //Values
-        for(int j=0; j < 5; j++){
-            limitValue->GetBranch()->GetEntry(j);
-            limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[masses[i]]);
+            //Set branch for reading limits
+            std::vector<double> limitValues;
+            
+            TLeaf* limitValue = limitTree->GetLeaf("limit");       
+
+            //Values
+            for(int j=0; j < 5; j++){
+                limitValue->GetBranch()->GetEntry(j);
+                limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[masses[i]]);
+            }
+
+            expected[channel]->SetPoint(i, masses[i], limitValues[2]);
+
+            sigmaOne[channel]->SetPoint(i, masses[i], limitValues[2]);
+            sigmaOne[channel]->SetPointEYlow(i, limitValues[2] - limitValues[1]);
+            sigmaOne[channel]->SetPointEYhigh(i, limitValues[3] - limitValues[1]);     
+
+            sigmaTwo[channel]->SetPoint(i, masses[i], limitValues[2]);
+            sigmaTwo[channel]->SetPointEYlow(i, limitValues[2] - limitValues[0]);
+            sigmaTwo[channel]->SetPointEYhigh(i, limitValues[4] - limitValues[1]);
+
+            if(channel == "") theory->SetPoint(i, masses[i], xSecs[masses[i]]);
+       
+            delete limitTree;
+            delete limitFile;
         }
-
-        theory->SetPoint(i, masses[i], xSecs[masses[i]]);
-        expected->SetPoint(i, masses[i], limitValues[2]);
-
-        sigmaOne->SetPoint(i, masses[i], limitValues[2]);
-        sigmaOne->SetPointEYlow(i, limitValues[2] - limitValues[1]);
-        sigmaOne->SetPointEYhigh(i, limitValues[3] - limitValues[1]);     
-
-        sigmaTwo->SetPoint(i, masses[i], limitValues[2]);
-        sigmaTwo->SetPointEYlow(i, limitValues[2] - limitValues[0]);
-        sigmaTwo->SetPointEYhigh(i, limitValues[4] - limitValues[1]); 
-   
-        delete limitTree;
-        delete limitFile;
     }
-
-    //Marker/lines styles
-	expected->SetLineWidth(3);
-
-	theory->SetLineWidth(3);
-	theory->SetLineStyle(2);
-
-	sigmaOne->SetFillColor(kGreen);
-	sigmaOne->SetFillStyle(1001);
-
-	sigmaTwo->SetFillColor(kYellow);
-	sigmaTwo->SetFillStyle(1001);
-
-    float min = std::min(theory->GetHistogram()->GetMinimum(), sigmaTwo->GetHistogram()->GetMinimum());
-    float max = std::max(theory->GetHistogram()->GetMaximum(), sigmaTwo->GetHistogram()->GetMaximum());
-
-    //Set range
-    sigmaTwo->SetMinimum(min*0.5);
-    sigmaTwo->SetMaximum(max*1e1);
-    sigmaTwo->GetHistogram()->GetXaxis()->SetRangeUser(masses[0], masses.back());
 }
 
 void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
-    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 1., 1.);
+    TPad* mainPad = new TPad("mainPad", "mainPad", 0., 0. , 1., 1.);
 
     Plotter::SetStyle();
 
     //Draw main pad
-    Plotter::SetPad(mainpad);
-    mainpad->Draw();
-    mainpad->cd();
+    Plotter::SetPad(mainPad);
+    mainPad->Draw();
+    mainPad->cd();
+
+    //Marker/lines styles
+    expected.at("")->SetLineWidth(3);
+
+    theory->SetLineWidth(3);
+    theory->SetLineStyle(2);
+
+    sigmaOne.at("")->SetFillColor(kGreen);
+    sigmaOne.at("")->SetFillStyle(1001);
+
+    sigmaTwo.at("")->SetFillColor(kYellow);
+    sigmaTwo.at("")->SetFillStyle(1001);
+
+    float min = std::min(theory->GetHistogram()->GetMinimum(), sigmaTwo.at("")->GetHistogram()->GetMinimum());
+    float max = std::max(theory->GetHistogram()->GetMaximum(), sigmaTwo.at("")->GetHistogram()->GetMaximum());
+
+    //Set range
+    sigmaTwo.at("")->SetMinimum(min*0.5);
+    sigmaTwo.at("")->SetMaximum(max*1e1);
+    sigmaTwo.at("")->GetHistogram()->GetXaxis()->SetRangeUser(masses[0], masses.back());
 
     //Draw all the things
-    sigmaTwo->Draw("A3");
-    sigmaOne->Draw("3");
-    expected->Draw("L");
+    sigmaTwo.at("")->Draw("A3");
+    sigmaOne.at("")->Draw("3");
+    expected.at("")->Draw("L");
     theory->Draw("L");
 
     //TLegend
     TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
 
     //Add legend information
-    legend->AddEntry(expected, "Expected", "L");
+    legend->AddEntry(expected.at(""), "Expected", "L");
     legend->AddEntry(theory, "Theo. prediction", "L");
-    legend->AddEntry(sigmaOne, "68% expected", "F");
-    legend->AddEntry(sigmaTwo, "95% expected", "F");
+    legend->AddEntry(sigmaOne.at(""), "68% expected", "F");
+    legend->AddEntry(sigmaTwo.at(""), "95% expected", "F");
     
     //Configure labels
-    Plotter::SetHist(mainpad, sigmaTwo->GetHistogram());
-    sigmaTwo->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
-    sigmaTwo->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
+    Plotter::SetHist(mainPad, sigmaTwo.at("")->GetHistogram());
+    sigmaTwo.at("")->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
+    sigmaTwo.at("")->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
 
-    mainpad->cd();
+    mainPad->cd();
 
-    Plotter::DrawHeader(mainpad, "All channel", "Work in progress");
+    Plotter::DrawHeader(mainPad, "All channel", "Work in progress");
 
     //Save canvas in non-log and log scale
-    mainpad->SetLogy(1);
+    mainPad->SetLogy(1);
 
     //Draw legend
-    Plotter::DrawLegend(legend, 4);
+    Plotter::DrawLegend(legend, 2);
 
     for(std::string outdir: outdirs){
         canvas->SaveAs((outdir + "/limit.pdf").c_str());
         canvas->SaveAs((outdir + "/limit.png").c_str());
+    }
+
+    //Draw for each channel
+    mainPad->Clear();
+    legend->Clear();
+    
+    TH1F* frameHist = dynamic_cast<TH1F*>(sigmaTwo.at("")->GetHistogram()->Clone());
+    frameHist->Clear();
+    frameHist->SetMaximum(max*1e2);
+    frameHist->Draw();
+
+    theory->Draw("L SAME");
+    expected.at("")->Draw("L SAME");
+
+    legend->AddEntry(expected.at(""), "Combined", "L");
+    legend->AddEntry(theory, "Theo. prediction", "L");
+
+    std::vector<int> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kMagenta};
+    std::vector<int>::iterator color = colors.begin();
+    
+    for(const std::string& channel : channels){
+        expected[channel]->SetLineWidth(3);
+        expected[channel]->SetLineColor(*color); ++color;
+
+        legend->AddEntry(expected.at(channel), channelHeader.at(channel).c_str(), "L");
+
+        expected.at(channel)->Draw("L SAME");
+    }
+
+    Plotter::DrawLegend(legend, 3);
+
+    for(std::string outdir: outdirs){
+        canvas->SaveAs((outdir + "/limit_by_channel.pdf").c_str());
+        canvas->SaveAs((outdir + "/limit_by_channel.png").c_str());
     }
 }
