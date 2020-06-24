@@ -80,11 +80,11 @@ std::map<std::string, std::vector<float>> Extension::HScore(TFile* file, const s
 
             //Put all predictions back in order again
             for(int j = 0; j < evenTensors.size(); j++){
-                values[branchNames[i]][evenIndex[j]] = evenPredict[j].item<float>();
+                values[branchNames[i]].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict[j].item<float>() : evenPredict.item<float>();
             }
 
             for(int j = 0; j < oddTensors.size(); j++){
-                values[branchNames[i]][oddIndex[j]] = oddPredict[j].item<float>();
+                values[branchNames[i]].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict[j].item<float>() : oddPredict.item<float>();
             }
         }
     }
@@ -114,7 +114,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(TFile* file, const
     TreeParser parser;
     std::vector<TreeFunction> functions;
     TreeFunction evNr(file, channel);
-    evNr.SetFunction("EvNr");
+    evNr.SetFunction<Axis::X>("EvNr");
 
     //Read txt with parameter used in the trainind and set tree function
     std::ifstream params(dnnPath + "/Even/" + channel + "/parameter.txt"); 
@@ -166,10 +166,10 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(TFile* file, const
             std::vector<float> paramValues;
 
             for(int i=0; i < functions.size(); i++){
-                paramValues.push_back(functions[i].Get());
+                paramValues.push_back(functions[i].Get<Axis::X>());
             }
 
-            if(int(evNr.Get()) % 2 == 0){
+            if(int(evNr.Get<Axis::X>()) % 2 == 0){
                 evenTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 evenIndex.push_back(counter);
             }
@@ -214,77 +214,106 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(TFile* file, const
 }
 
 std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file, const std::string& channel){
+    typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> PolarLV;
+    typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
+    typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;
+
+    std::function<float(const float, const float)> smear = [&](const float& nominal, const float& sigma){
+        std::random_device rd;
+        std::default_random_engine generator(rd());
+        std::normal_distribution<double> distribution(nominal, sigma);
+
+        return distribution(generator);
+    };
+
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
-    std::vector<std::string> branchNames = {"W_Pt", "W_Eta", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Eta", "HPlus_Phi", "HPlus_Mass"};
-        
+    std::vector<std::string> branchNames = {"W_Mass", "W_Pt", "W_Eta", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Eta", "HPlus_Phi", "HPlus_Mass"};
+
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
     for(const std::string& branchName: branchNames){
         values[branchName] = std::vector<float>(nEntries, -999.);
     }
     
-    std::string lepName = Utils::Find<std::string>(channel, "Muon") != 1. ? "mu" : "e";
+    std::string lepName = Utils::Find<std::string>(channel, "Muon") != -1. ? "mu" : "e";
     float lepMass = Utils::Find<std::string>(channel, "Muon") != - 1. ? 0.10565: 0.000510;
 
     TreeFunction LepPt(file, channel), LepEta(file, channel), LepPhi(file, channel);
-    LepPt.SetP1(lepName, 1); LepEta.SetP1(lepName, 1); LepPhi.SetP1(lepName, 1);
-    LepPt.SetFunction("Pt"); LepEta.SetFunction("Eta"); LepPhi.SetFunction("Phi");
+    LepPt.SetP1<Axis::X>(lepName, 1); LepEta.SetP1<Axis::X>(lepName, 1); LepPhi.SetP1<Axis::X>(lepName, 1);
+    LepPt.SetFunction<Axis::X>("Pt"); LepEta.SetFunction<Axis::X>("Eta"); LepPhi.SetFunction<Axis::X>("Phi");
 
     TreeFunction METPt(file, channel), METPhi(file, channel);
-    METPt.SetP1("met"); METPhi.SetP1("met");
-    METPt.SetFunction("Pt"); METPhi.SetFunction("Phi");
+    METPt.SetP1<Axis::X>("met"); METPhi.SetP1<Axis::X>("met");
+    METPt.SetFunction<Axis::X>("Pt"); METPhi.SetFunction<Axis::X>("Phi");
     
     TreeFunction nJet(file, channel), nFatJet(file, channel);
-    nJet.SetP1("j"); nFatJet.SetP1("fj");
-    nJet.SetFunction("N"); nFatJet.SetFunction("N");
+    nJet.SetP1<Axis::X>("j"); nFatJet.SetP1<Axis::X>("fj");
+    nJet.SetFunction<Axis::X>("N"); nFatJet.SetFunction<Axis::X>("N");
 
     TreeFunction JetPt(file, channel), JetEta(file, channel), JetPhi(file, channel), JetMass(file, channel);
-    JetPt.SetP1("j"); JetEta.SetP1("j"); JetPhi.SetP1("j"); JetMass.SetP1("j");
-    JetPt.SetFunction("Pt"); JetEta.SetFunction("Eta"); JetPhi.SetFunction("Phi"); JetMass.SetFunction("Mass");
+    JetPt.SetP1<Axis::X>("j"); JetEta.SetP1<Axis::X>("j"); JetPhi.SetP1<Axis::X>("j"); JetMass.SetP1<Axis::X>("j");
+    JetPt.SetFunction<Axis::X>("Pt"); JetEta.SetFunction<Axis::X>("Eta"); JetPhi.SetFunction<Axis::X>("Phi"); JetMass.SetFunction<Axis::X>("Mass");
 
     TreeFunction FatJetPt(file, channel), FatJetEta(file, channel), FatJetPhi(file, channel), FatJetMass(file, channel);
-    FatJetPt.SetP1("fj"); FatJetEta.SetP1("fj"); FatJetPhi.SetP1("fj"); FatJetMass.SetP1("fj");
-    FatJetPt.SetFunction("Pt"); FatJetEta.SetFunction("Eta"); FatJetPhi.SetFunction("Phi"); FatJetMass.SetFunction("Mass");
+    FatJetPt.SetP1<Axis::X>("fj"); FatJetEta.SetP1<Axis::X>("fj"); FatJetPhi.SetP1<Axis::X>("fj"); FatJetMass.SetP1<Axis::X>("fj");
+    FatJetPt.SetFunction<Axis::X>("Pt"); FatJetEta.SetFunction<Axis::X>("Eta"); FatJetPhi.SetFunction<Axis::X>("Phi"); FatJetMass.SetFunction<Axis::X>("Mass");
 
     for(int i = 0; i < nEntries; i++){
         TreeFunction::SetEntry(i);
 
-        ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> LepLV(LepPt.Get(), LepEta.Get(), LepPhi.Get(), lepMass);
-        
-        float pXNu = METPt.Get()*std::cos(METPhi.Get());
-        float pYNu = METPt.Get()*std::sin(METPhi.Get());
-        float mW = 80.399;
+        PolarLV LepLV(LepPt.Get<Axis::X>(), LepEta.Get<Axis::X>(), LepPhi.Get<Axis::X>(), lepMass);
+
+        float pZNu1, pZNu2, pXNu, pYNu, pXLep, pYLep, pZLep, mW;
+        int counter = 0;
+
+        while(true){
+            counter++;
+
+            pXNu = smear(METPt.Get<Axis::X>()*std::cos(METPhi.Get<Axis::X>()), 1. + counter*2);
+            pYNu = smear(METPt.Get<Axis::X>()*std::sin(METPhi.Get<Axis::X>()), 1. + counter*2);
+
+            pXLep = smear(LepLV.Px(), 1. + counter);
+            pYLep = smear(LepLV.Py(), 1. + counter);
+            pZLep = smear(LepLV.Pz(), 1. + counter);
+
+            mW = smear(80.399, 10.);
         
         //Analytic solutions to quadratic problem
-        float pZNu1 = (-LepLV.E()*std::sqrt(-4*LepLV.E()*LepLV.E()*pXNu*pXNu - 4*LepLV.E()*LepLV.E()*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*LepLV.Px()*pXNu + 4*mW*mW*LepLV.Py()*pYNu + 4*LepLV.Px()*LepLV.Px()*pXNu*pXNu + 8*LepLV.Px()*pXNu*LepLV.Py()*pYNu + 4*pXNu*pXNu*LepLV.Pz()*LepLV.Pz() + 4*LepLV.Py()*LepLV.Py()*pYNu*pYNu + 4*pYNu*pYNu*LepLV.Pz()*LepLV.Pz())/2 + mW*mW*LepLV.Pz()/2 + LepLV.Px()*pXNu*LepLV.Pz() + LepLV.Py()*pYNu*LepLV.Pz())/(LepLV.E()*LepLV.E() - LepLV.Pz()*LepLV.Pz());
+      //  float pZNu1 = pZLep*sqrt(std::pow(pXNu, 2) + std::pow(pYNu, 2))/sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2));
+      //  float pZNu2 = - pZLep*sqrt(std::pow(pXNu, 2) + std::pow(pYNu, 2))/sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2));
 
-        float pZNu2 = (LepLV.E()*std::sqrt(-4*LepLV.E()*LepLV.E()*pXNu*pXNu - 4*LepLV.E()*LepLV.E()*pYNu*pYNu + mW*mW*mW*mW + 4*mW*mW*LepLV.Px()*pXNu + 4*mW*mW*LepLV.Py()*pYNu + 4*LepLV.Px()*LepLV.Px()*pXNu*pXNu + 8*LepLV.Px()*pXNu*LepLV.Py()*pYNu + 4*pXNu*pXNu*LepLV.Pz()*LepLV.Pz() + 4*LepLV.Py()*LepLV.Py()*pYNu*pYNu + 4*pYNu*pYNu*LepLV.Pz()*LepLV.Pz())/2 + mW*mW*LepLV.Pz()/2 + LepLV.Px()*pXNu*LepLV.Pz() + LepLV.Py()*pYNu*LepLV.Pz())/(LepLV.E()*LepLV.E() - LepLV.Pz()*LepLV.Pz());
+            pZNu1 = pZLep*(std::pow(mW, 2) - std::pow(lepMass, 2) + 2*pXLep*pXNu + 2*pYLep*pYNu)/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2))) - sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2) + std::pow(pZLep, 2))*sqrt(std::pow(mW, 4) - 2*std::pow(mW, 2)*std::pow(lepMass, 2) + 4*std::pow(mW, 2)*pXLep*pXNu + 4*std::pow(mW, 2)*pYLep*pYNu + std::pow(lepMass, 4) - 4*std::pow(lepMass, 2)*pXLep*pXNu - 4*std::pow(lepMass, 2)*std::pow(pXNu, 2) - 4*std::pow(lepMass, 2)*pYLep*pYNu - 4*std::pow(lepMass, 2)*std::pow(pYNu, 2) - 4*std::pow(pXLep, 2)*std::pow(pYNu, 2) + 8*pXLep*pXNu*pYLep*pYNu - 4*std::pow(pXNu, 2)*std::pow(pYLep, 2))/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2)));
+            pZNu2 = pZLep*(std::pow(mW, 2) - std::pow(lepMass, 2) + 2*pXLep*pXNu + 2*pYLep*pYNu)/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2))) + sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2) + std::pow(pZLep, 2))*sqrt(std::pow(mW, 4) - 2*std::pow(mW, 2)*std::pow(lepMass, 2) + 4*std::pow(mW, 2)*pXLep*pXNu + 4*std::pow(mW, 2)*pYLep*pYNu + std::pow(lepMass, 4) - 4*std::pow(lepMass, 2)*pXLep*pXNu - 4*std::pow(lepMass, 2)*std::pow(pXNu, 2) - 4*std::pow(lepMass, 2)*pYLep*pYNu - 4*std::pow(lepMass, 2)*std::pow(pYNu, 2) - 4*std::pow(pXLep, 2)*std::pow(pYNu, 2) + 8*pXLep*pXNu*pYLep*pYNu - 4*std::pow(pXNu, 2)*std::pow(pYLep, 2))/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2)));
+
+            if(!std::isnan(pZNu1)) break;
+        }
 
         //Neutrino candidates from solutions above
-        ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> v1(pXNu, pYNu, pZNu1, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu1*pZNu1));
-        ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> v2(pXNu, pYNu, pZNu2, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu2*pZNu2));
+        CartLV v1(pXNu, pYNu, pZNu1, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu1*pZNu1));
+        CartLV v2(pXNu, pYNu, pZNu2, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu2*pZNu2));
 
         //Take neutrino which gives physical reasonabel result
-        ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> W;
-        W = abs((LepLV + v1).M() - mW) < abs((LepLV + v2).M() - mW) ? LepLV + v1 : LepLV + v2;
+        CartLV smearLep(pXLep, pYLep, pZLep, std::sqrt(pXLep*pXLep + pYLep*pYLep + pZLep*pZLep + lepMass*lepMass));
+        CartLV W1 = smearLep + v1, W2 = smearLep + v2;
+        CartLV W = std::pow(W1.M() - mW, 2) < std::pow(W2.M() - mW, 2) ? W1 : W2;
 
+        values["W_Mass"][i] = W.M();
         values["W_Pt"][i] = W.Pt();
         values["W_Phi"][i] = W.Phi();
         values["W_Eta"][i] = W.Eta();
 
+        std::vector<PolarLV> jets;
+        std::vector<PolarLV> fatJets;
 
-        std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>> jets;
-        std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>> fatJets;
-
-        for(unsigned int k = 0; k < nJet.Get(); k++){
-            JetPt.SetP1("j", k+1); JetEta.SetP1("j", k+1); JetPhi.SetP1("j", k+1); JetMass.SetP1("j", k+1);
-            jets.push_back(ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>(JetPt.Get(), JetEta.Get(), JetPhi.Get(), JetMass.Get()));
+        for(unsigned int k = 0; k < nJet.Get<Axis::X>(); k++){
+            JetPt.SetP1<Axis::X>("j", k+1); JetEta.SetP1<Axis::X>("j", k+1); JetPhi.SetP1<Axis::X>("j", k+1); JetMass.SetP1<Axis::X>("j", k+1);
+            jets.push_back(PolarLV(JetPt.Get<Axis::X>(), JetEta.Get<Axis::X>(), JetPhi.Get<Axis::X>(), JetMass.Get<Axis::X>()));
         }
 
-        for(unsigned int k = 0; k < nFatJet.Get(); k++){
-            FatJetPt.SetP1("fj", k+1); FatJetEta.SetP1("fj", k+1); FatJetPhi.SetP1("fj", k+1); FatJetMass.SetP1("fj", k+1);
-            fatJets.push_back(ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>(FatJetPt.Get(), FatJetEta.Get(), FatJetPhi.Get(), FatJetMass.Get()));
+        for(unsigned int k = 0; k < nFatJet.Get<Axis::X>(); k++){
+            FatJetPt.SetP1<Axis::X>("fj", k+1); FatJetEta.SetP1<Axis::X>("fj", k+1); FatJetPhi.SetP1<Axis::X>("fj", k+1); FatJetMass.SetP1<Axis::X>("fj", k+1);
+            fatJets.push_back(PolarLV(FatJetPt.Get<Axis::X>(), FatJetEta.Get<Axis::X>(), FatJetPhi.Get<Axis::X>(), FatJetMass.Get<Axis::X>()));
         }
 
         //Intermediate step to save all possible combinations of two jets from jet collection
@@ -297,7 +326,6 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file
         }
 
         //Vector of candPairs
-        typedef std::vector<std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>>> hCandVec;
         hCandVec hCands; 
     
         //If 4 jets and no fat jets
@@ -309,7 +337,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file
                     std::set<int> check = {combi[k].first, combi[k].second, combi[j].first, combi[j].second};
                    
                     if(check.size() == 4){
-                        hCands.push_back({jets[combi[k].first], jets[combi[k].second], jets[combi[j].first], jets[combi[j].second]});
+                        hCands.push_back({jets[combi[k].first] + jets[combi[k].second], jets[combi[j].first] + jets[combi[j].second]});
                     }
                 }
             }
@@ -318,7 +346,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file
         //If 2 jets and one fat jet
         else if(jets.size() >= 2 and fatJets.size() == 1){
             for(std::pair<int, int> jetIndex: combi){
-                hCands.push_back({fatJets[0], jets[jetIndex.first], jets[jetIndex.second]});
+                hCands.push_back({fatJets[0], jets[jetIndex.first] + jets[jetIndex.second]});
             }
         }
 
@@ -327,67 +355,59 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file
             hCands.push_back({fatJets[0], fatJets[1]});
         }
 
+        //If not right jet configuration is given
+        else continue;
+
         //Sort candPairs for mass diff of jet pairs, where index 0 is the best pair
-        std::function<bool(std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>>, std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>>)> sortFunc = [&](std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>> cands1, std::vector<ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>> cands2){
-            if(cands1.size()==4){
-                return std::abs((cands1[0]+cands1[1]).M() - (cands1[2]+cands1[3]).M()) < std::abs((cands2[0]+cands2[1]).M() - (cands2[2]+cands2[3]).M());
-            }
+        std::function<bool(std::pair<PolarLV, PolarLV>, std::pair<PolarLV, PolarLV>)> sortFunc = [&](std::pair<PolarLV, PolarLV> cands1, std::pair<PolarLV, PolarLV> cands2){
+            int goodFeat1 = 0, goodFeat2 = 0;
 
-            else if(cands1.size()==3){
-                return std::abs(cands1[0].M() - (cands1[1]+cands1[2]).M()) < std::abs(cands2[0].M() - (cands2[1]+cands2[2]).M());
-            }
+            if(ROOT::Math::VectorUtil::DeltaPhi(cands1.first, cands1.second) > ROOT::Math::VectorUtil::DeltaPhi(cands2.first, cands2.second)) goodFeat1++;
+            else goodFeat2++;
 
-            else return true;
-        };
+            if(std::pow(cands1.first.M() - cands1.second.M(), 2)  < std::pow(cands2.first.M() - cands2.second.M(), 2)) goodFeat1++;
+            else goodFeat2++;
 
-        std::function<bool(ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>, ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>>)> sortPt = [&](ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> p1, ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> p2){
-            return p1.Pt() > p2.Pt();
+            if(cands1.first.M() < 150) goodFeat1++;
+            if(cands1.second.M() < 150) goodFeat1++;
+            if(cands2.first.M() < 150) goodFeat2++;
+            if(cands2.second.M() < 150) goodFeat2++;
+
+            return goodFeat1 > goodFeat2;
         };
 
         std::sort(hCands.begin(), hCands.end(), sortFunc);
 
-        ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> hCand1 = hCands[0].size()==4 ? hCands[0][0] + hCands[0][1]: hCands[0][0];
+        PolarLV Hc1 = hCands[0].first + W;
+        PolarLV Hc2 = hCands[0].second + W;
 
-        ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> hCand2 = hCands[0].size()==4 ? hCands[0][2] + hCands[0][3]: hCands[0].size()==3 ? hCands[0][1] + hCands[0][2] : hCands[0][1];
-
-        ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> Hc1 = hCand1; Hc1 += W;
-        ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> Hc2 = hCand2; Hc2 += W;
-
-        if(ROOT::Math::VectorUtil::DeltaPhi(Hc1, hCand2) > ROOT::Math::VectorUtil::DeltaPhi(Hc2, hCand1) and ROOT::Math::VectorUtil::DeltaPhi(Hc1, hCand1) < ROOT::Math::VectorUtil::DeltaPhi(Hc2, hCand2)){
-
-            ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> h1 = hCands[0].size()==4 ? hCands[0][0]+hCands[0][1] : hCands[0][0];
-            ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> h2 = hCands[0].size()==4 ? hCands[0][2]+hCands[0][3] : hCands[0].size()==3 ? hCands[0][1]+hCands[0][2] : hCands[0][1];   
-    
-            values["H1_Pt"][i] = h1.Pt();
-            values["H1_Eta"][i] = h1.Eta();
-            values["H1_Phi"][i] = h1.Phi();
-            values["H1_Mass"][i] = h1.M();
-            values["H2_Pt"][i] = h2.Pt();
-            values["H2_Eta"][i] = h2.Eta();
-            values["H2_Phi"][i] = h2.Phi();
-            values["H2_Mass"][i] = h2.M();
+        if(ROOT::Math::VectorUtil::DeltaPhi(hCands[0].first, Hc1) < ROOT::Math::VectorUtil::DeltaPhi(hCands[0].second, Hc2)){
+            values["H1_Pt"][i] = hCands[0].first.Pt();
+            values["H1_Eta"][i] = hCands[0].first.Eta();
+            values["H1_Phi"][i] = hCands[0].first.Phi();
+            values["H1_Mass"][i] = hCands[0].first.M();
+            values["H2_Pt"][i] = hCands[0].second.Pt();
+            values["H2_Eta"][i] = hCands[0].second.Eta();
+            values["H2_Phi"][i] = hCands[0].second.Phi();
+            values["H2_Mass"][i] = hCands[0].second.M();
             values["HPlus_Pt"][i] = Hc1.Pt();
-            values["HPlus_Eta"][i] = Hc1.Eta();
             values["HPlus_Phi"][i] = Hc1.Phi();
+            values["HPlus_Eta"][i] = Hc1.Eta();
             values["HPlus_Mass"][i] = Hc1.M();
         }
 
         else{
-            ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> h1 = hCands[0].size()==4 ? hCands[0][2]+hCands[0][3] : hCands[0].size()==3 ? hCands[0][1]+hCands[0][2] : hCands[0][1];
-
-            ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> h2 = hCands[0].size()==4 ? hCands[0][0]+hCands[0][1] : hCands[0][0];
-
-            values["H1_Pt"][i] = h1.Pt();
-            values["H1_Eta"][i] = h1.Eta();
-            values["H1_Phi"][i] = h1.Phi();
-            values["H1_Mass"][i] = h1.M();
-            values["H2_Pt"][i] = h2.Pt();
-            values["H2_Eta"][i] = h2.Eta();
-            values["H2_Phi"][i] = h2.Phi();
-            values["H2_Mass"][i] = h2.M();
+            values["H1_Pt"][i] = hCands[0].second.Pt();
+            values["H1_Eta"][i] = hCands[0].second.Eta();
+            values["H1_Phi"][i] = hCands[0].second.Phi();
+            values["H1_Mass"][i] = hCands[0].second.M();
+            values["H2_Pt"][i] = hCands[0].first.Pt();
+            values["H2_Eta"][i] = hCands[0].first.Eta();
+            values["H2_Phi"][i] = hCands[0].first.Phi();
+            values["H2_Mass"][i] = hCands[0].first.M();
             values["HPlus_Pt"][i] = Hc2.Pt();
-            values["HPlus_Eta"][i] = Hc2.Eta();
             values["HPlus_Phi"][i] = Hc2.Phi();
+            values["HPlus_Eta"][i] = Hc2.Eta();
             values["HPlus_Mass"][i] = Hc2.M();
         }
     }
