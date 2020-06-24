@@ -2,122 +2,100 @@
 
 Plotter2D::Plotter2D() : Plotter(){}
 
-Plotter2D::Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel, std::vector<std::string>& processes) :
-    Plotter(histdir),
-    xParameters(xParameters),
-    yParameters(yParameters),
+Plotter2D::Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes) :
+    Plotter(histdir), 
     channel(channel),
-    processes(processes),
-    background({}),
-    signal({}),
-    data({})
- {}
-
+    processes(processes){}
 
 void Plotter2D::ConfigureHists(){
-    for(unsigned int i = 0; i < xParameters.size(); i++){
-        //Define Vector for processes
-        std::vector<std::vector<TH2F*>> bkgHistVec;
-        std::vector<std::vector<TH2F*>> sigHistVec;
+    for(std::string process: processes){
+        std::string fileName = histdir + "/" + process + "/" + process + ".root";
+        TFile* file = TFile::Open(fileName.c_str());
 
-        for(unsigned int j = 0; j < yParameters.size(); j++){
-            std::vector<TH2F*> bkgHists;
-            std::vector<TH2F*> sigHists;
+        std::cout << "Read histograms from file: '" + fileName + "'" << std::endl;
 
-            for(std::string process: processes){
-                //Get Histogram for parameter
-                std::string filename = histdir + "/" + process + ".root";
-                TFile* file = TFile::Open(filename.c_str());
-                
-                //Get hist names because only non redundant plots are saved
-                TList* histNames = file->GetListOfKeys();
-
-                if(histNames->Contains((xParameters[i] + "_VS_" + yParameters[j]).c_str())){
-                    TH2F* hist = (TH2F*)file->Get((xParameters[i] + "_VS_" + yParameters[j]).c_str());
-
-                    if(Utils::Find<std::string>(process, "HPlus") != -1.){
-                        hist->SetMarkerColor(kBlue);
-                        hist->SetMarkerStyle(20);
-                        sigHists.push_back(hist);
-                    }
-
-                    else{
-                        hist->SetMarkerColor(kRed);
-                        hist->SetMarkerStyle(20);
-                        bkgHists.push_back(hist);
-                    }
+        if(parameters.empty()){
+            for(int i = 0; i < file->GetListOfKeys()->GetSize(); i++){
+                if(file->Get(file->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH2F::Class())){
+                    parameters.push_back(file->GetListOfKeys()->At(i)->GetName());  
                 }
-                
-                sigHistVec.push_back(sigHists);
-                bkgHistVec.push_back(bkgHists);
             }
         }
 
-        signal.push_back(sigHistVec);
-        background.push_back(bkgHistVec);
+        for(std::string& param: parameters){
+            TH2F* hist = file->Get<TH2F>(param.c_str());  
+
+            if(Utils::Find<std::string>(process, "HPlus") != -1.){
+                std::vector<std::string> massStrings = Utils::SplitString<std::string>(process, "_");
+                hist->SetName(("H^{#pm}_{" + massStrings[0].substr(5,7) + "}+h_{" + massStrings[1].substr(1,3) + "}").c_str());
+
+                signal[param].push_back(hist);
+            }
+
+            else{       
+                hist->SetName(process.c_str());            
+                background[param].push_back(hist);
+            }   
+        }
     }
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
     Plotter::SetStyle();
 
-    TCanvas *canvas = new TCanvas("canvas2D", "canvas2D", 1000, 800); 
-    TPad* mainpad = new TPad("mainpad", "mainpad", 0., 0. , 1., 1.);
-
     //Save pairs of XY parameters to avoid redundant plots
-   std::vector<std::string> parameterPairs;
+    for(std::string& param: parameters){
+        TCanvas *canvas = new TCanvas("canvas2D", "canvas2D", 1000, 1000); 
+        TPad* mainPad = new TPad("mainpad", "mainpad", 0., 0. , 1., 1.);
 
-    for(unsigned int i = 0; i < xParameters.size(); i++){
-        for(unsigned int j = 0; j < background[i].size(); j++){
-            canvas->cd();
+        for(std::string outdir: outdirs) std::system(("mkdir -p " + outdir).c_str());
 
-            //Draw main pad
-            Plotter::SetPad(mainpad);
-            mainpad->SetRightMargin(0.15);
-            mainpad->Draw();
-            mainpad->cd();
-
-            if(background[i][j].size() == 0) continue;
-
-            TH2F* bkgSum =  (TH2F*)background[i][j][0]->Clone();
+        //Draw main pad
+        Plotter::SetPad(mainPad);
+        mainPad->SetRightMargin(0.15);
+        mainPad->Draw();
+        mainPad->cd();
+    
+        if(background.count(param)){
+            TH2F* bkgSum =  (TH2F*)background[param][0]->Clone();
             bkgSum->Clear();
 
-            for(TH2F* hist: background[i][j]){
+            for(TH2F* hist: background[param]){
                 bkgSum->Add(hist);
             }
-                       
-            Plotter::SetHist(mainpad, bkgSum);
-            bkgSum->DrawNormalized("colz");
-            Plotter::DrawHeader(mainpad, channelHeader[channel], "Work in progress");
+
+            Plotter::SetHist(mainPad, bkgSum);
+            bkgSum->DrawNormalized("CONT4Z");    
+            Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
 
             for(std::string outdir: outdirs){
-                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_bkg.pdf").c_str());
-                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_bkg.png").c_str());
+                canvas->SaveAs((outdir + "/" + param + "_bkg.pdf").c_str());
+                canvas->SaveAs((outdir + "/" + param + "_bkg.png").c_str());
+
+                std::cout << "Saved plot: '" + outdir + "/" + param  + "_bkg.pdf'" << std::endl;
             }
+        }
 
-            canvas->cd();
+        if(signal.count(param)){
+            for(TH2F* hist: signal[param]){
+                mainPad->Clear();
+                Plotter::SetHist(mainPad, hist);
 
-            //Draw main pad
-            Plotter::SetPad(mainpad);
-            mainpad->SetRightMargin(0.15);
-            mainpad->Draw();
-            mainpad->cd();
+                std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 
-            if(signal[i][j].size() == 0) continue;
+                hist->DrawNormalized("CONT4Z");
+                Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
 
-            Plotter::SetHist(mainpad, signal[i][j][0]);
-            signal[i][j][0]->DrawNormalized("colz");
-            Plotter::DrawHeader(mainpad, channelHeader[channel], "Work in progress");
+                for(std::string outdir: outdirs){
+                    canvas->SaveAs((outdir + "/" + param + "_" + mass + "_sig.pdf").c_str());
+                    canvas->SaveAs((outdir + "/" + param + "_" + mass + "_sig.png").c_str());
 
-            for(std::string outdir: outdirs){
-                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_sig.pdf").c_str());
-                canvas->SaveAs((outdir + "/" + std::string(background[i][j][0]->GetName()) + "_sig.png").c_str());
+                    std::cout << "Saved plot: '" + outdir + "/" + param + "_" + mass + "_sig.pdf'" << std::endl;
+                }
             }
+        }
 
-            std::cout << "Plot created for: " << std::string(background[i][j][0]->GetName()) << std::endl;
-        }   
+        delete mainPad;
+        delete canvas;
     }
-
-    delete mainpad;
-    delete canvas;
 }

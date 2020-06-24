@@ -11,18 +11,17 @@
 class Plotter2D : public Plotter{
     
     private:
-        std::vector<std::vector<std::vector<TH2F*>>> background;
-        std::vector<std::vector<std::vector<TH2F*>>> signal;
-        std::vector<TH2F*> data;
+        std::map<std::string, std::vector<TH2F*>> background;
+        std::map<std::string, std::vector<TH2F*>> signal;
+        std::map<std::string, TH2F*> data;
 
         std::string channel;
-        std::vector<std::string> xParameters;
-        std::vector<std::string> yParameters;
         std::vector<std::string> processes;
+        std::vector<std::string> parameters;
 
     public:
         Plotter2D();
-        Plotter2D(std::string &histdir, std::vector<std::string> &xParameters, std::vector<std::string> &yParameters, std::string &channel, std::vector<std::string>& processes);
+        Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         
