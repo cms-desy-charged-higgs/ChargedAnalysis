@@ -10,7 +10,7 @@ TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::ve
     outname(outname),
     channel(channel){}
 
-void TreeReader::PrepareLoop(TFile* outFile, TTree* inputTree){
+void TreeReader::PrepareLoop(std::unique_ptr<TFile>& outFile, std::unique_ptr<TTree>& inputTree){
     TreeParser parser;
 
     for(const std::string& parameter: parameters){
@@ -23,39 +23,39 @@ void TreeReader::PrepareLoop(TFile* outFile, TTree* inputTree){
 
         if(Utils::Find<std::string>(parameter, "h:") != -1){
             if(!function.hasYAxis()){
-                TH1F* hist1D = new TH1F();
-                parser.GetBinning(parameter, hist1D);
+                std::unique_ptr<TH1F> hist1D = std::make_unique<TH1F>();
+                parser.GetBinning(parameter, hist1D.get());
 
                 hist1D->SetName((function.GetName<Axis::X>()).c_str());       
                 hist1D->SetTitle((function.GetName<Axis::X>()).c_str());
-                hist1D->SetDirectory(outFile);
+                hist1D->SetDirectory(outFile.get());
 
-                hist1D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::Y>().c_str());
+                hist1D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
 
-                hists1D.push_back(hist1D);
+                hists1D.push_back(std::move(hist1D));
                 hist1DFunctions.push_back(function);    
             }
 
             else{
-                TH2F* hist2D = new TH2F();
-                parser.GetBinning(parameter, hist2D);
+                std::unique_ptr<TH2F> hist2D = std::make_unique<TH2F>();
+                parser.GetBinning(parameter, hist2D.get());
 
                 hist2D->SetName((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());       
                 hist2D->SetTitle((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());
-                hist2D->SetDirectory(outFile);
+                hist2D->SetDirectory(outFile.get());
 
                 hist2D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
                 hist2D->GetYaxis()->SetTitle(function.GetAxisLabel<Axis::Y>().c_str());
 
-                hists2D.push_back(hist2D);
+                hists2D.push_back(std::move(hist2D));
                 hist2DFunctions.push_back(function);    
             }
         }
 
         if(Utils::Find<std::string>(parameter, "t:") != -1){
-            if(outTree == NULL){
-                outTree = new TTree(channel.c_str(), channel.c_str());
-                outTree->SetDirectory(outFile);
+            if(outTree == nullptr){
+                outTree = std::make_unique<TTree>(channel.c_str(), channel.c_str());
+                outTree->SetDirectory(outFile.get());
             }
 
             branchNames.push_back(function.GetName<Axis::X>());
@@ -78,7 +78,7 @@ void TreeReader::PrepareLoop(TFile* outFile, TTree* inputTree){
 
     //Declare columns in CSV file if wished
     if(!CSVNames.empty()){
-        frame = new Frame();
+        frame = std::make_unique<Frame>();
         frame->InitLabels(CSVNames);
     }
 
@@ -101,10 +101,10 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     Utils::RunTime timer;
 
     //Get input tree
-    TFile* inputFile = Utils::CheckNull<TFile>(TFile::Open(fileName.c_str(), "READ"));
-    TTree* inputTree = Utils::CheckNull<TTree>(inputFile->Get<TTree>(channel.c_str()));
+    std::unique_ptr<TFile> inputFile(Utils::CheckNull<TFile>(TFile::Open(fileName.c_str(), "READ")));
+    std::unique_ptr<TTree> inputTree(Utils::CheckNull<TTree>(inputFile->Get<TTree>(channel.c_str())));
 
-    TLeaf* nTrueInter = inputTree->GetLeaf("Misc_TrueInteraction");
+    std::unique_ptr<TLeaf> nTrueInter(inputTree->GetLeaf("Misc_TrueInteraction"));
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << channel << "' from " << entryStart << " to " << entryEnd << std::endl;
@@ -115,7 +115,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     if(name.find("csv") != std::string::npos) name.replace(name.find("csv"), 3, "root");
 
     //Open output file and set up all histograms/tree and their function to call
-    TFile* outFile = TFile::Open(name.c_str(), "RECREATE");
+    std::unique_ptr<TFile> outFile(TFile::Open(name.c_str(), "RECREATE"));
     PrepareLoop(outFile, inputTree);
 
     //Determine what to clean from jets
@@ -162,37 +162,35 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     bool isData = true;
 
     //Calculate pile up weight histogram
-    TH1F* pileUpWeight=nullptr;
-    TH1F* pileUpWeightUp=nullptr;
-    TH1F* pileUpWeightDown=nullptr;
+    std::unique_ptr<TH1F> pileUpWeight = nullptr, pileUpWeightUp = nullptr, pileUpWeightDown = nullptr;
 
     if(inputFile->GetListOfKeys()->Contains("puMC")){
         isData = false;
-        TH1F* puMC = (TH1F*)inputFile->Get("puMC");
-        TH1F* puReal = (TH1F*)inputFile->Get("pileUp");
-        TH1F* puRealUp = (TH1F*)inputFile->Get("pileUpUp");
-        TH1F* puRealDown = (TH1F*)inputFile->Get("pileUpDown");
 
-        pileUpWeight = (TH1F*)puReal->Clone();
-        pileUpWeightUp = (TH1F*)puRealUp->Clone();
-        pileUpWeightDown = (TH1F*)puRealDown->Clone();
+        std::unique_ptr<TH1F> puMC(static_cast<TH1F*>(inputFile->Get("puMC")));
+        std::unique_ptr<TH1F> puReal(static_cast<TH1F*>(inputFile->Get("pileUp")));
+        std::unique_ptr<TH1F> puRealUp(static_cast<TH1F*>(inputFile->Get("pileUpUp")));
+        std::unique_ptr<TH1F> puRealDown(static_cast<TH1F*>(inputFile->Get("pileUpDown")));
+
+        pileUpWeight.reset(static_cast<TH1F*>(puReal->Clone()));
+        pileUpWeightUp.reset(static_cast<TH1F*>(puRealUp->Clone()));
+        pileUpWeightDown.reset(static_cast<TH1F*>(puRealDown->Clone()));
 
         pileUpWeight->Scale(1./pileUpWeight->Integral());
         pileUpWeightUp->Scale(1./pileUpWeightUp->Integral());
         pileUpWeightDown->Scale(1./pileUpWeightDown->Integral());
         puMC->Scale(1./puMC->Integral());
 
-        pileUpWeight->Divide(puMC);
-        pileUpWeightUp->Divide(puMC);
-        pileUpWeightDown->Divide(puMC);
-        delete puMC; delete puReal;
+        pileUpWeight->Divide(puMC.get());
+        pileUpWeightUp->Divide(puMC.get());
+        pileUpWeightDown->Divide(puMC.get());
     }
 
     //Weight with all variations
-    std::vector<float> weight(xSec*lumi, std::accumulate(cutFunctions.begin(), cutFunctions.end(), 2, [&](int v, TreeFunction cut){return v + 2*cut.GetNWeights();}));
+ //   std::vector<float> weight(xSec*lumi, std::accumulate(cutFunctions.begin(), cutFunctions.end(), 2, [&](int v, TreeFunction cut){return v + 2*cut.GetNWeights();}));
 
     //Cutflow
-    TH1F* cutflow = inputFile->Get<TH1F>(("cutflow_" + channel).c_str());
+    std::unique_ptr<TH1F> cutflow(inputFile->Get<TH1F>(("cutflow_" + channel).c_str()));
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
     if(inputTree->GetEntries() != 0) cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
     else cutflow->Scale(1./nGen);
@@ -207,7 +205,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         nTrueInter->GetBranch()->GetEntry(i);
 
         //Multiply all common weights
-        float weight = 1./nGen;
+        float weight = xSec*lumi/nGen;
         if(pileUpWeight!=nullptr) weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(*(float*)nTrueInter->GetValuePointer()));
 
         //Check if event passed all cuts
@@ -256,16 +254,14 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
 
     //Write all histograms and delete everything
     outFile->cd();
-    for(TH1F* hist: hists1D){
+    for(std::unique_ptr<TH1F>& hist: hists1D){
         hist->Write(); 
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
-        delete hist;
     }
 
-    for(TH2F* hist: hists2D){
+    for(std::unique_ptr<TH2F>& hist: hists2D){
         hist->Write(); 
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
-        delete hist;
     }
 
     if(outTree != nullptr){
@@ -276,8 +272,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         for(std::string& branchName: branchNames){
             std::cout << branchName << std::endl;
         }
-
-        delete outTree;
     }
 
     //Remove empty bins and write cutflow
@@ -290,13 +284,9 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     cutflow->SetAxisRange(0, nonEmpty); 
     cutflow->Write();
 
-    if(frame!=NULL){
+    if(frame!=nullptr){
         frame->WriteCSV(outname);
-        delete frame;
     }
-
-    //Delete everything
-    delete cutflow; delete inputTree; delete inputFile; delete outFile;
 
     std::cout << "Closed output file: '" << outname << "'" << std::endl;
     std::cout << "Time passed for complete processing: " << timer.Time() << " s" << std::endl;
