@@ -51,7 +51,8 @@ class TreeFunction{
         std::vector<TLeaf*> quantities;
 
         //Particle specific
-        TLeaf* nPart;
+        TLeaf* nPart1;
+        TLeaf* nPart2;
         TLeaf* ID;
         TLeaf* Isolation;
         TLeaf* BScore;
@@ -69,6 +70,7 @@ class TreeFunction{
         int idx1 = -1., idx2 = -1., realIdx1, realIdx2;
 
         WP whichWP(const Particle& part, const int& idx);
+        int whichIndex(TLeaf* nPart, const Particle& part, const int& idx, const WP& wp);
         bool isCleanJet(const int& idx);
 
         Particle cleanPart = VACUUM; WP cleanedWP = NONE;        
@@ -82,6 +84,8 @@ class TreeFunction{
         void Phi();
         void Eta();
         void Mass();
+        void DeltaR();
+        void DeltaPhi();
         void JetSubtiness();
         void EventNumber();
         void HT();

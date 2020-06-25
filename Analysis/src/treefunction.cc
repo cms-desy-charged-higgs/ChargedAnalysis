@@ -8,6 +8,8 @@ TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
         {"Phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
         {"Eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
         {"Mass", {&TreeFunction::Mass, "m(@) [GeV]"}},
+        {"dR", {&TreeFunction::DeltaR, "#Delta R(@, @) [rad]"}},
+        {"dPhi", {&TreeFunction::DeltaPhi, "#Delta #phi(@, @) [rad]"}},
         {"Tau", {&TreeFunction::JetSubtiness, "#tau_{@}(@)"}},
         {"HT", {&TreeFunction::HT, "H_{T} [GeV]"}},
         {"N", {&TreeFunction::NParticle, "N(@)"}},
@@ -139,30 +141,44 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
     this->funcPtr = std::get<0>(funcInfo.at(funcName));
     this->inputValue = inputValue;
 
-    const std::string& partName = std::get<1>(partInfo[partName1]);
-
     if(funcName == "Pt"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Pt", partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Pt", std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Eta"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Eta", partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Eta", std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Phi"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Phi", partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Phi", std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Mass"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
+    }
+
+    else if(funcName == "dPhi"){
+        for(const std::string part : {std::get<1>(partInfo[partName1]), std::get<1>(partInfo[partName2])}){
+            TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
+            quantities.push_back(std::move(phi));
+        }
+    }
+
+    else if(funcName == "dR"){
+        for(const std::string part : {std::get<1>(partInfo[partName1]), std::get<1>(partInfo[partName2])}){
+            TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
+            TLeaf* eta = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", part).c_str()));
+            quantities.push_back(std::move(phi));
+            quantities.push_back(std::move(eta));
+        }
     }
 
     else if(funcName == "HT"){
@@ -174,7 +190,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
     }
 
     else if(funcName == "Tau"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, partName);
+        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -193,7 +209,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
     else if(funcName == "DAK8"){
         std::string taggerName = Utils::Format<std::string>("$", "@_$VsHiggs", inputValue);
-        const std::string branchName = Utils::Format<std::string>("@", taggerName, partName);
+        const std::string branchName = Utils::Format<std::string>("@", taggerName, std::get<1>(partInfo[partName1]));
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -213,8 +229,11 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         }
     }
 
-    const std::string branchName = Utils::Format<std::string>("@", "@_Size", partName);
-    nPart = inputTree->GetLeaf(branchName.c_str());
+    const std::string branchName1 = Utils::Format<std::string>("@", "@_Size", std::get<1>(partInfo[partName1]));
+    nPart1 = inputTree->GetLeaf(branchName1.c_str());
+
+    const std::string branchName2 = Utils::Format<std::string>("@", "@_Size", std::get<1>(partInfo[partName1]));
+    nPart2 = inputTree->GetLeaf(branchName2.c_str());
 
     if(part1 < JET and wp1 != NONE){
         std::string wpname = std::get<1>(wpInfo[wpName1]);
@@ -302,41 +321,17 @@ void TreeFunction::SetEntry(const int& entry){
 template<Axis A>
 const float TreeFunction::Get(){
     if(A == Axis::Y) return yFunction->Get<Axis::X>();
-    
-    if(idx1 != -1){
-        if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart->GetValuePointer();
-             
-        if(idx1 >= *n) return -999.;
-        realIdx1 = 0; int counter = idx1;
 
-        while(counter != 0){
-            if(whichWP(part1, realIdx1) >= wp1) counter--;
+    realIdx1 = whichIndex(nPart1, part1, idx1, wp1);
+    realIdx2 = whichIndex(nPart2, part2, idx2, wp2);
 
-            realIdx1++; 
-            if(realIdx1 >= *n) return -999.;
-        }
+    try{
+        (this->*funcPtr)();
+        return value;
+    } 
 
-        try{
-            (this->*funcPtr)();
-            return value;
-        } 
-
-        catch(const std::exception& e){
-            return -999.;    
-        }
-    }
-
-    else{
-        try{
-            realIdx1 = -1.;
-            (this->*funcPtr)();
-            return value;
-        } 
-
-        catch(const std::exception& e){
-            return value;    
-        }
+    catch(const std::exception& e){
+        return -999.;    
     }
 }
 
@@ -397,7 +392,7 @@ const bool TreeFunction::GetPassed(){
         case BIGGER:
             return this->Get<Axis::X>() > compValue;
 
-        case SMALLER:
+            case SMALLER:
             return this->Get<Axis::X>() < compValue;
 
         case EQUAL:
@@ -429,6 +424,26 @@ template<Axis A>
 const std::string TreeFunction::GetName(){
     if(A == Axis::Y) return yFunction->GetName<Axis::X>();
     return name;
+}
+
+int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx, const WP& wp){
+    if(nPart == nullptr or idx == -1) return -1.;
+
+    if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
+    const char* n = (char*)nPart->GetValuePointer();
+    if(idx >= *n) return -1.;
+
+    int realIdx = 0;
+    int counter = idx;
+             
+    while(counter != 0){
+        if(whichWP(part, realIdx) >= wp) counter--;
+
+        realIdx++; 
+        if(realIdx >= *n) return -1.;
+    }
+
+    return realIdx;
 }
 
 TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
@@ -572,6 +587,29 @@ void TreeFunction::Eta(){
     }
 }
 
+void TreeFunction::DeltaPhi(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+    if(quantities[1]->GetBranch()->GetReadEntry() != entry) quantities[1]->GetBranch()->GetEntry(entry);
+
+    float phi1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[0]->GetValuePointer())->at(realIdx1) : *(float*)quantities[0]->GetValuePointer();
+    float phi2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[1]->GetValuePointer())->at(realIdx2) : *(float*)quantities[1]->GetValuePointer();
+
+    value = std::acos(std::cos(phi1)*std::cos(phi2) + std::sin(phi1)*std::sin(phi2));
+}
+
+void TreeFunction::DeltaR(){
+    for(TLeaf* quan: quantities){
+        if(quan->GetBranch()->GetReadEntry() != entry) quan->GetBranch()->GetEntry(entry);
+    }
+
+    float phi1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[0]->GetValuePointer())->at(realIdx1) : *(float*)quantities[0]->GetValuePointer();
+    float phi2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[1]->GetValuePointer())->at(realIdx2) : *(float*)quantities[1]->GetValuePointer();
+    float eta1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[2]->GetValuePointer())->at(realIdx1) : *(float*)quantities[2]->GetValuePointer();
+    float eta2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[3]->GetValuePointer())->at(realIdx2) : *(float*)quantities[3]->GetValuePointer();
+
+    value = std::sqrt(std::pow(phi1-phi2, 2) + std::pow(eta1-eta2, 2));
+}
+
 void TreeFunction::JetSubtiness(){
     if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
     const std::vector<float>* tau = (std::vector<float>*)quantities[0]->GetValuePointer();
@@ -633,8 +671,8 @@ void TreeFunction::NParticle(){
     }
 
     else if(part1 == JET){
-        if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart->GetValuePointer();
+        if(nPart1->GetBranch()->GetReadEntry() != entry) nPart1->GetBranch()->GetEntry(entry);
+        const char* n = (char*)nPart1->GetValuePointer();
 
         for(int i = 0; i < *n; i++){
             if(whichWP(part1, i) >= wp1) value++;       
@@ -653,8 +691,8 @@ void TreeFunction::NParticle(){
     }
 
     else{
-        if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart->GetValuePointer();
+        if(nPart1->GetBranch()->GetReadEntry() != entry) nPart1->GetBranch()->GetEntry(entry);
+        const char* n = (char*)nPart1->GetValuePointer();
 
         value = *n;
     }
