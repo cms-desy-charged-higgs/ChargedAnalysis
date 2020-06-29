@@ -27,27 +27,29 @@ class TreeReader {
         std::string outname;
         std::string channel;
 
-        std::vector<std::unique_ptr<TH1F>> hists1D;
+        std::shared_ptr<TFile> inputFile;
+        std::shared_ptr<TTree> inputTree;
+
+        std::vector<std::shared_ptr<TH1F>> hists1D;
+        std::vector<std::shared_ptr<TH2F>> hists2D;
+        std::shared_ptr<TTree> outTree;
+        std::shared_ptr<Frame> frame;
+
         std::vector<TreeFunction> hist1DFunctions;
-
-        std::vector<std::unique_ptr<TH2F>> hists2D;
         std::vector<TreeFunction> hist2DFunctions;
-
-        std::unique_ptr<TTree> outTree = nullptr;
+        std::vector<TreeFunction> cutFunctions;
         std::vector<TreeFunction> treeFunctions;
-        std::vector<std::string> branchNames;
-        std::vector<float> treeValues;
-
-        std::unique_ptr<Frame> frame = nullptr;
         std::vector<TreeFunction> CSVFunctions;
+
+        std::vector<std::string> branchNames;
         std::vector<std::string> CSVNames;
 
-        std::vector<TreeFunction> cutFunctions;
+        std::vector<float> treeValues;
 
         int nGen = 1, nTrue = 0;
         float lumi = 1., xSec = 1.;
 
-        void PrepareLoop(std::unique_ptr<TFile>& outFile, std::unique_ptr<TTree>& inputTree);
+        void PrepareLoop(std::shared_ptr<TFile>& outFile, std::shared_ptr<TTree>& inputTree);
 
     public:
         TreeReader();
