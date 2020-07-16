@@ -27,25 +27,35 @@ class TreeSlim(Task):
         tasks = []
 
         for fileName in os.listdir("{}/{}".format(os.environ["CHDIR"], config["skim-dir"])):
-            inFile = "{}/{}/{}/merged/{}.root".format(os.environ["CHDIR"], config["skim-dir"], fileName, fileName)
+            for syst in [""] + config["shape-systs"]:
+                for shift in ["Up", "Down"]:
+                    if(syst == "" and shift == "Down"):
+                        continue
 
-            for (outChannel, inChannel) in config["channels"].items():
-                outDir = "{}/{}/{}/merged".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName)
+                    systName = "" if syst == "" else "_{}{}".format(syst, shift)
+                    systDir = "" if syst == "" else "Syst/{}/".format(systName.replace("_", ""))
 
-                ##Configuration for treeread Task
-                task = {
-                    "name": "{}_{}".format(fileName, outChannel) + ("_{}".format(prefix) if prefix else ""), 
-                    "display-name": "Slim: {}".format(outChannel),
-                    "input-name": inFile,
-                    "input-channel": inChannel,
-                    "out-channel": outChannel, 
-                    "cuts": config["cuts"].get(outChannel, []),
-                    "out-name": "{}.root".format(fileName), 
-                    "dir": "{}/{}/{}/merged".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName),
-                    "dCache": "{}/{}/merged".format(config["dCache"].replace("@", outChannel), fileName) if "dCache" in config else "", 
-                    "run-mode": config["run-mode"],
-                }
+                    inFile = "{}/{}/{}/merged/{}{}.root".format(os.environ["CHDIR"], config["skim-dir"], fileName, fileName, systName)
+                    if not os.path.isfile(inFile):
+                        continue
 
-                tasks.append(TreeSlim(task))
+                    for (outChannel, inChannel) in config["channels"].items():
+                        outDir = "{}/{}/{}/merged".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName)
+
+                        ##Configuration for treeread Task
+                        task = {
+                            "name": "{}_{}{}".format(fileName, outChannel, systName) + ("_{}".format(prefix) if prefix else ""), 
+                            "display-name": "Slim: {}".format(outChannel),
+                            "input-name": inFile,
+                            "input-channel": inChannel,
+                            "out-channel": outChannel, 
+                            "cuts": config["cuts"].get(outChannel, []),
+                            "out-name": "{}{}.root".format(fileName, systName), 
+                            "dir": "{}/{}/{}/merged/{}".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName, systDir),
+                            "dCache": "{}/{}/merged/{}".format(config["dCache"].replace("@", outChannel), fileName, systDir) if "dCache" in config else "", 
+                            "run-mode": config["run-mode"],
+                        }
+
+                        tasks.append(TreeSlim(task))
 
         return tasks
