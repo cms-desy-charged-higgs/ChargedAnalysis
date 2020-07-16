@@ -57,8 +57,6 @@ def main():
         if not os.path.exists("{}/outputFiles.txt".format(path)):
             continue
 
-        nFilesInParell = 3
-
         os.makedirs("{}/merged".format(path), exist_ok=True)
         subprocess.call("command rm -fv {}/merged/*".format(path), shell=True)
 
@@ -67,68 +65,85 @@ def main():
 
         subprocess.call(["gfal-mkdir", "-p", tierTwo])
 
-        wave = 0
-        fileBunch = []
-        tmpFiles = []
+        for syst in ["", "energyScale", "energySigma", "JECTotal", "JER"]:
+            for shift in ["Up", "Down"]:
+                if syst == "" and shift == "Down":
+                    continue
 
-        with open("{}/outputFiles.txt".format(path), "r") as outTxt:
-            jobs = []
-            lines = list(outTxt.readlines())
+                nFilesInParell = 3
 
-            for line in lines:
-                fileBunch.append(line.replace("\n", ""))
-
-                if len(fileBunch) >= nFilesInParell:
-                    tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave, len(jobs)) 
-                    tmpFiles.append(tmpFile)
-    
-                    jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch, True)))
-
-                    fileBunch = []
-
-            [job.get() for job in jobs]
-
-        while(True):
-            nFilesInParell = 40
-
-            jobs = []
-            oldTmpFiles = copy.deepcopy(tmpFiles)
-            tmpFiles = []
-
-            if len(oldTmpFiles) <= nFilesInParell:
-                outFile =  "{}/merged/{}.root".format(path, path.split("/")[-1])
-
-
-                jobs.append(pool.apply_async(merge, args=(outFile, oldTmpFiles)))
-                [job.get() for job in jobs]
-
-                subprocess.call(["gfal-copy", "-f", "-p", outFile, tierTwo])
-
-                subprocess.call(["cp", "-fv", "-s",  "{}/{}.root".format(mountedTier, path.split("/")[-1]), outFile])
-
-                break
-
-            else:
+                wave = 0
                 fileBunch = []
+                tmpFiles = []
 
-                for f in oldTmpFiles:
-                    fileBunch.append(f)
+                with open("{}/outputFiles.txt".format(path), "r") as outTxt:
+                    jobs = []
+                    lines = list(outTxt.readlines())
 
-                    if len(fileBunch) >= nFilesInParell:
-                        tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave+1, len(jobs))
-                        tmpFiles.append(tmpFile)
+                    for line in lines:
+                        if syst != "":
+                            if syst in line and shift in line:
+                                fileBunch.append(line.replace("\n", ""))
 
-                        jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch)))
+                        else:
+                            if "Up" not in line and "Down" not in line:
+                                fileBunch.append(line.replace("\n", ""))
+
+                        if len(fileBunch) >= nFilesInParell and len(fileBunch) != 0:
+                            tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave, len(jobs)) 
+                            tmpFiles.append(tmpFile)
+            
+                            jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch, True)))
+
+                            fileBunch = []
+
+                    [job.get() for job in jobs]
+
+                if(len(jobs) == 0): 
+                    continue
+
+                while(True):
+                    nFilesInParell = 40
+
+                    jobs = []
+                    oldTmpFiles = copy.deepcopy(tmpFiles)
+                    tmpFiles = []
+
+                    if len(oldTmpFiles) <= nFilesInParell:
+                        systName = "_{}{}".format(syst, shift) if syst != "" else ""
+                        outFile =  "{}/merged/{}{}.root".format(path, path.split("/")[-1], systName)
+
+
+                        jobs.append(pool.apply_async(merge, args=(outFile, oldTmpFiles)))
+                        [job.get() for job in jobs]
+
+                        subprocess.call(["gfal-copy", "-f", "-p", outFile, tierTwo])
+
+                        subprocess.call(["cp", "-fv", "-s",  "{}/{}{}.root".format(mountedTier, path.split("/")[-1], systName), outFile])
+
+                        break
+
+                    else:
                         fileBunch = []
 
-                if fileBunch:
-                    tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave+1, len(jobs))
-                    tmpFiles.append(tmpFile)
+                        for f in oldTmpFiles:
+                            fileBunch.append(f)
 
-                    jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch)))
-                    
-            wave+=1
-            [job.get() for job in jobs]
+                            if len(fileBunch) >= nFilesInParell:
+                                tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave+1, len(jobs))
+                                tmpFiles.append(tmpFile)
+
+                                jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch)))
+                                fileBunch = []
+
+                        if fileBunch:
+                            tmpFile = "{}/merged/tmp_{}_{}.root".format(path, wave+1, len(jobs))
+                            tmpFiles.append(tmpFile)
+
+                            jobs.append(pool.apply_async(merge, args=(tmpFile, fileBunch)))
+                            
+                    wave+=1
+                    [job.get() for job in jobs]
         
 if __name__=="__main__":
     main()
