@@ -1,15 +1,20 @@
+/**
+* @file extension.cc
+* @brief Source file for Extension name space, see extension.h
+*/
+
 #include <ChargedAnalysis/Utility/include/extension.h>
 
-std::map<std::string, std::vector<float>> Extension::HScore(TFile* file, const std::string& channel){
-    at::set_num_interop_threads(1);
-    at::set_num_threads(1);
-
+std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFile>& file, const std::string& channel){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
     std::vector<std::string> branchNames;
     
     if(Utils::Find<std::string>(channel, "2FJ") == -1.) branchNames = {"ML_HTagFJ1"};
     else branchNames = {"ML_HTagFJ1", "ML_HTagFJ2"};   
+
+    //Path with DNN infos
+    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN"; 
 
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
@@ -18,12 +23,14 @@ std::map<std::string, std::vector<float>> Extension::HScore(TFile* file, const s
     }
 
     for(int i = 0; i < branchNames.size(); i++){
+        std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(dnnPath + "/Tagger/HyperOpt/hyperparameter.csv");
+
         //Tagger
         torch::Device device(torch::kCPU);
-        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06, device));
+        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, hyperParam->Get("nHidden", 0), hyperParam->Get("nConvFilter", 0), hyperParam->Get("kernelSize", 0), hyperParam->Get("dropOut", 0), device));
 
-        torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Model/Even/htagger.pt");
-        torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Model/Odd/htagger.pt");
+        torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Tagger/Even/htagger.pt");
+        torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Tagger/Odd/htagger.pt");
 
         tagger[0]->eval();
         tagger[1]->eval();
@@ -92,10 +99,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(TFile* file, const s
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::DNNScore(TFile* file, const std::string& channel){
-    at::set_num_interop_threads(1);
-    at::set_num_threads(1);
-
+std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TFile>& file, const std::string& channel){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
     std::vector<int> masses = {200, 300, 400, 500, 600};
@@ -213,7 +217,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(TFile* file, const
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::HReconstruction(TFile* file, const std::string& channel){
+std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel){
     typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> PolarLV;
     typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
     typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;
