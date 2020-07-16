@@ -11,6 +11,8 @@ channels:
     Muon2J1FJ: MuonIncl
     Muon2FJ: MuonIncl
 
+shape-systs: []
+
 cuts:
     Ele4J:
         - f:n=N/p:n=fj/c:n=equal,v=0
