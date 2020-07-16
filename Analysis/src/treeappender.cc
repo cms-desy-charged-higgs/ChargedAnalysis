@@ -1,17 +1,24 @@
+/**
+* @file treeappender.cc
+* @brief Source file for TreeAppender class, see treeappender.h
+*/
+
 #include <ChargedAnalysis/Analysis/include/treeappender.h>
 
 TreeAppender::TreeAppender() {}
 
-TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeName, const std::vector<std::string>& appendFunctions, const std::string& dCacheDir) :
+TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeName, const std::vector<std::string>& appendFunctions) :
         fileName(fileName), 
         treeName(treeName),
-        appendFunctions(appendFunctions),
-        dCacheDir(dCacheDir){}
+        appendFunctions(appendFunctions){}
 
-void TreeAppender::Append(){
+void TreeAppender::Append(const std::string& outName){
+    at::set_num_interop_threads(1);
+    at::set_num_threads(1);
+
     //Get old Tree
-    TFile* oldF = TFile::Open(fileName.c_str(), "READ");
-    TTree* oldT = (TTree*)oldF->Get(treeName.c_str());
+    std::shared_ptr<TFile> oldF(TFile::Open(fileName.c_str(), "READ"));
+    std::shared_ptr<TTree> oldT(oldF->Get<TTree>(treeName.c_str()));
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << treeName << "'" << std::endl;
@@ -22,7 +29,7 @@ void TreeAppender::Append(){
     std::map<std::string, float> branchValues;
     std::map<std::string, std::vector<float>> values;
 
-    std::map<std::string, std::map<std::string, std::vector<float>>(*)(TFile*, const std::string&)> expandFunctions = {
+    std::map<std::string, std::map<std::string, std::vector<float>>(*)(std::shared_ptr<TFile>&, const std::string&)> expandFunctions = {
         {"HTagger", &Extension::HScore}, 
         {"DNN", &Extension::DNNScore}, 
         {"HReco", &Extension::HReconstruction}, 
@@ -38,10 +45,8 @@ void TreeAppender::Append(){
     }
 
     //Clone Tree
-    std::string tmpFile = "/tmp/tmp_" + std::to_string(getpid()) + ".root";
-
-    TFile* newF = TFile::Open(tmpFile.c_str(), "RECREATE");
-    TTree* newT = oldT->CloneTree(-1, "fast");
+    std::shared_ptr<TFile> newF(TFile::Open(outName.c_str(), "RECREATE"));
+    std::shared_ptr<TTree> newT(oldT->CloneTree(-1, "fast"));
 
     for(const std::string& name : branchNames){
         branchValues[name] = -999.;
@@ -65,24 +70,14 @@ void TreeAppender::Append(){
 
     std::cout << "Sucessfully append branches " << branchNames << " in tree " << treeName << std::endl;
 
-    TList* keys = oldF->GetListOfKeys();
+    TList* keys(oldF->GetListOfKeys());
 
     for(int i=0; i < keys->GetSize(); i++){
         bool skipKey = false;
 
-        TObject* obj = oldF->Get(keys->At(i)->GetName());
+        TObject* obj(oldF->Get(keys->At(i)->GetName()));
         if(obj->InheritsFrom(TTree::Class())) continue;
 
         obj->Write();
     }
-    
-
-    delete oldT;
-    delete oldF;
-    delete newT;
-    delete newF;
-
-    std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
-
-    if(dCacheDir != "") Utils::CopyToCache(fileName, dCacheDir);
 }
