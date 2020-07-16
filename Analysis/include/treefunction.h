@@ -1,5 +1,5 @@
-#ifndef TREEFUNCTION
-#define TREEFUNCTION
+#ifndef TREEFUNCTION_H
+#define TREEFUNCTION_H
 
 #include <string>
 #include <vector>
@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cctype>
 #include <tuple>
+#include <memory>
 
 #include <TLeaf.h>
 #include <TTree.h>
@@ -26,9 +27,12 @@ class TreeFunction{
         void(TreeFunction::*funcPtr)();
         std::string inputValue;
 
-        //Define another TreeFunction if wants to make 2D distributions
-        std::shared_ptr<TreeFunction> yFunction = nullptr;
+        std::shared_ptr<TFile> inputFile;
+        TTree* inputTree;
 
+        //Define another TreeFunction if wants to make 2D distributions
+        std::shared_ptr<TreeFunction> yFunction;
+    
         Comparison comp;
         float compValue;
 
@@ -46,23 +50,19 @@ class TreeFunction{
         std::map<std::string, std::tuple<Comparison, std::string>> comparisons;
 
         //General TLeafes
-        TFile* inputFile;
-        TTree* inputTree;
         std::vector<TLeaf*> quantities;
 
         //Particle specific
-        TLeaf* nPart1;
+        TLeaf* nPart1; 
         TLeaf* nPart2;
         TLeaf* ID;
         TLeaf* Isolation;
         TLeaf* BScore;
         TLeaf* nTrueB;
-        std::vector<TLeaf*> scaleFactors;
-        std::vector<TLeaf*> scaleFactorsUp;
-        std::vector<TLeaf*> scaleFactorsDown;
+        std::vector<TLeaf*> scaleFactors, scaleFactorsUp, scaleFactorsDown;
 
         //BTag Histo
-        TH2F* effBTag = nullptr;
+        TH2F* effBTag;
 
         //Particle information
         Particle part1 = VACUUM, part2 = VACUUM;
@@ -74,10 +74,10 @@ class TreeFunction{
         bool isCleanJet(const int& idx);
 
         Particle cleanPart = VACUUM; WP cleanedWP = NONE;        
-        TLeaf* cleanPhi = nullptr; 
-        TLeaf* cleanEta = nullptr;
-        TLeaf* jetPhi = nullptr; 
-        TLeaf* jetEta = nullptr;
+        TLeaf* cleanPhi;
+        TLeaf* cleanEta;
+        TLeaf* jetPhi;
+        TLeaf* jetEta;
 
         //TreeFunction to get wished values
         void Pt();
@@ -95,7 +95,7 @@ class TreeFunction{
         void DeepAK();
 
     public:
-        TreeFunction(TFile* inputFile, const std::string& treeName);
+        TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName);
         ~TreeFunction();
 
         //Setter function

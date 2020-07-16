@@ -1,6 +1,6 @@
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 
-TreeFunction::TreeFunction(TFile* inputFile, const std::string& treeName) :
+TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName) :
     inputFile(inputFile),
     inputTree(inputFile->Get<TTree>(treeName.c_str())){
     funcInfo = {
@@ -56,7 +56,7 @@ TreeFunction::~TreeFunction(){}
 const bool TreeFunction::hasYAxis(){return yFunction != nullptr;}
 
 void TreeFunction::SetYAxis(){
-    if(yFunction == nullptr) yFunction = std::make_shared<TreeFunction>(inputFile, inputTree->GetName());
+    if(this == nullptr) yFunction = std::make_shared<TreeFunction>(inputFile, inputTree->GetName());
 }
 
 template<Axis A>
@@ -390,19 +390,19 @@ const float TreeFunction::GetWeight(){
 const bool TreeFunction::GetPassed(){
     switch(comp){
         case BIGGER:
-            return this->Get<Axis::X>() > compValue;
+            return yFunction->Get<Axis::X>() > compValue;
 
             case SMALLER:
-            return this->Get<Axis::X>() < compValue;
+            return yFunction->Get<Axis::X>() < compValue;
 
         case EQUAL:
-            return this->Get<Axis::X>() == compValue;
+            return yFunction->Get<Axis::X>() == compValue;
 
         case DIVISIBLE:
-            return int(this->Get<Axis::X>()) % int(compValue) == 0;
+            return int(yFunction->Get<Axis::X>()) % int(compValue) == 0;
 
         case NOTDIVISIBLE:
-            return int(this->Get<Axis::X>()) % int(compValue) != 0;
+            return int(yFunction->Get<Axis::X>()) % int(compValue) != 0;
     }
 }
 
@@ -479,7 +479,7 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
 
 
         case JET:
-            if(cleanPhi != nullptr){
+            if(cleanPart != VACUUM){
                 if(isCleanJet(idx)) return NONE;
                 else return NOTCLEAN;
             }
@@ -487,7 +487,7 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             return NONE;
 
         case BJET:
-            if(cleanPhi != nullptr){
+            if(cleanPart != VACUUM){
                 if(!isCleanJet(idx)) return NOTCLEAN;
             }
 
