@@ -10,12 +10,12 @@ TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::ve
     outname(outname),
     channel(channel){}
 
-void TreeReader::PrepareLoop(std::shared_ptr<TFile>& outFile, std::shared_ptr<TTree>& inputTree){
+void TreeReader::PrepareLoop(){
     TreeParser parser;
 
     for(const std::string& parameter: parameters){
         //Functor structure and arguments
-        TreeFunction function(inputTree->GetCurrentFile(), inputTree->GetName());
+        TreeFunction function(inputFile, inputTree->GetName());
         
         //Read in everything, orders matter
         parser.GetParticle(parameter, function);
@@ -84,7 +84,7 @@ void TreeReader::PrepareLoop(std::shared_ptr<TFile>& outFile, std::shared_ptr<TT
 
     for(const std::string& cut: cutStrings){
         //Functor structure and arguments
-        TreeFunction function(inputTree->GetCurrentFile(), inputTree->GetName());
+        TreeFunction function(inputFile, inputTree->GetName());
 
         parser.GetParticle(cut, function);
         parser.GetFunction(cut, function);
@@ -104,7 +104,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     inputFile.reset(Utils::CheckNull<TFile>(TFile::Open(fileName.c_str(), "READ")));
     inputTree.reset(Utils::CheckNull<TTree>(inputFile->Get<TTree>(channel.c_str())));
 
-    std::shared_ptr<TLeaf> nTrueInter(inputTree->GetLeaf("Misc_TrueInteraction"));
+    TLeaf* nTrueInter = inputTree->GetLeaf("Misc_TrueInteraction");
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << channel << "' from " << entryStart << " to " << entryEnd << std::endl;
@@ -115,8 +115,8 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     if(name.find("csv") != std::string::npos) name.replace(name.find("csv"), 3, "root");
 
     //Open output file and set up all histograms/tree and their function to call
-    std::shared_ptr<TFile> outFile(TFile::Open(name.c_str(), "RECREATE"));
-    PrepareLoop(outFile, inputTree);
+    outFile.reset(TFile::Open(name.c_str(), "RECREATE"));
+    PrepareLoop();
 
     //Determine what to clean from jets
     std::vector<std::string> cleanInfo = Utils::SplitString<std::string>(cleanJet, "/");
@@ -263,9 +263,6 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
         hist->Write(); 
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
     }
-
-    hists1D.clear();
-    hists2D.clear();
 
     hist1DFunctions.clear();
     cutFunctions.clear();

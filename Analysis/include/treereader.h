@@ -30,6 +30,7 @@ class TreeReader {
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
 
+        std::shared_ptr<TFile> outFile;
         std::vector<std::shared_ptr<TH1F>> hists1D;
         std::vector<std::shared_ptr<TH2F>> hists2D;
         std::shared_ptr<TTree> outTree;
@@ -49,7 +50,7 @@ class TreeReader {
         int nGen = 1, nTrue = 0;
         float lumi = 1., xSec = 1.;
 
-        void PrepareLoop(std::shared_ptr<TFile>& outFile, std::shared_ptr<TTree>& inputTree);
+        void PrepareLoop();
 
     public:
         TreeReader();
