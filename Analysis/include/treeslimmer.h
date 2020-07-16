@@ -19,7 +19,7 @@ class TreeSlimmer{
     public:
         TreeSlimmer(const std::string& inputFile, const std::string& inputChannel);
     
-        void DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const std::string& dCacheDir = "");
+        void DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts);
 };
 
 #endif

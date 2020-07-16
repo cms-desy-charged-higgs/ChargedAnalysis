@@ -4,22 +4,22 @@ TreeSlimmer::TreeSlimmer(const std::string& inputFile, const std::string& inputC
     inputFile(inputFile),
     inputChannel(inputChannel){}
 
-void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const std::string& dCacheDir){
+void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts){
     //Get input tree
-    TFile* inFile = TFile::Open(inputFile.c_str(), "READ");
-    TTree* inTree = inFile->Get<TTree>(inputChannel.c_str());
+    std::shared_ptr<TFile> inFile(TFile::Open(inputFile.c_str(), "READ"));
+    std::shared_ptr<TTree> inTree(inFile->Get<TTree>(inputChannel.c_str()));
 
     std::cout << "Read file: '" << inputFile << "'" << std::endl;
     std::cout << "Read tree '" << inputChannel << "'" << std::endl;
 
     //Prepare output tree and cutflow
-    TFile* outFile = TFile::Open(outputFile.c_str(), "RECREATE");
-    TTree* outTree = inTree->CloneTree(0, "fast");
+    std::shared_ptr<TFile> outFile(TFile::Open(outputFile.c_str(), "RECREATE"));
+    std::shared_ptr<TTree> outTree(inTree->CloneTree(0, "fast"));
     outTree->SetName(outChannel.c_str()); 
     outTree->SetTitle(outChannel.c_str()); 
 
-    TH1F* cutflow = (TH1F*)inFile->Get<TH1F>(("cutflow_" + inputChannel).c_str())->Clone();
-    cutflow->SetDirectory(outFile);
+    TH1F* cutflow(inFile->Get<TH1F>(("cutflow_" + inputChannel).c_str()));
+    cutflow->SetDirectory(outFile.get());
     cutflow->SetName(("cutflow_" + outChannel).c_str()); 
     cutflow->SetTitle(("cutflow_" + outChannel).c_str()); 
 
@@ -75,22 +75,19 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
 
     //Write everything
     outTree->Write();
+
     cutflow->Write();
 
-    TList* keys = inFile->GetListOfKeys();
+    TList* keys = static_cast<TList*>(inFile->GetListOfKeys());
 
     for(int i=0; i < keys->GetSize(); i++){
         bool skipKey = false;
 
-        TObject* obj = inFile->Get(keys->At(i)->GetName());
+        TObject* obj(inFile->Get(keys->At(i)->GetName()));
 
         if(obj->InheritsFrom(TTree::Class())) continue;
         if(Utils::Find<std::string>(obj->GetName(), "cutflow") == -1) obj->Write();
     }
 
     std::cout << "Saved tree: '" << outTree->GetName() << "' with " << outTree->GetEntries() << " entries" << std::endl;
-
-    delete inFile; delete outFile;
-
-    if(dCacheDir != "") Utils::CopyToCache(outputFile, dCacheDir);
 }
