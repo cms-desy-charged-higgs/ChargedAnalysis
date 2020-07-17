@@ -390,19 +390,19 @@ const float TreeFunction::GetWeight(){
 const bool TreeFunction::GetPassed(){
     switch(comp){
         case BIGGER:
-            return yFunction->Get<Axis::X>() > compValue;
+            return this->Get<Axis::X>() > compValue;
 
             case SMALLER:
-            return yFunction->Get<Axis::X>() < compValue;
+            return this->Get<Axis::X>() < compValue;
 
         case EQUAL:
-            return yFunction->Get<Axis::X>() == compValue;
+            return this->Get<Axis::X>() == compValue;
 
         case DIVISIBLE:
-            return int(yFunction->Get<Axis::X>()) % int(compValue) == 0;
+            return int(this->Get<Axis::X>()) % int(compValue) == 0;
 
         case NOTDIVISIBLE:
-            return int(yFunction->Get<Axis::X>()) % int(compValue) != 0;
+            return int(this->Get<Axis::X>()) % int(compValue) != 0;
     }
 }
 
