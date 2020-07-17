@@ -1,3 +1,9 @@
+/**
+* @file dnndataset.cc
+* @brief Source file for DNNDataset class, see dnndataset.h
+*/
+
+
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 
 DNNDataset::DNNDataset(const std::vector<std::string>& files, torch::Device& device, const bool& isSignal) :
