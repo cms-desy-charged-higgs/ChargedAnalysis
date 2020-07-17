@@ -18,40 +18,35 @@ namespace StrUtil{
     * @brief Concept that check if object is streamable
     */
     template <typename T>
-    concept bool Streamable(){
-        return requires(T x, std::stringstream stream) {stream << x;};
-    };
+    concept Streamable = requires(T x, std::stringstream stream) {stream << x;};
 
     /**
-    * @brief Replace substring in a string with another substring
+    * @brief Find first occurrence of streamable object in string
     *
     * Example:
     * @code
-    * std::string s = StrUtil::Replace("Bye World", "Bye", "Hello"); //output "Hello World"
+    * int pos = StrUtil::Find("Where is my purse?", "purse"); //output "12"
     * @endcode
     *
-    * @param[in] initial initial string on which the replacement will be performed
-    * @param[in] label Substring which will be replaced
-    * @param[in] replace Replacement for label, can be any streamable type
-    * @param[in] ignoreMissing If false, a missing label in the string will result in std::out_of_range error
-    * @return Replaced string
+    * @param string String which will be searched
+    * @param itemToFind Streamble object which will searched for
+    * @return Position of first occurence, if nothing is find -1 is returned
     */
-    template <typename T>
-    std::string Replace(const std::string& initial, const std::string& label, const T& replace, const bool& ignoreMissing = false){
-        std::string result = initial;
+    template <Streamable T>
+    std::vector<int> Find(const std::string& string, const T& itemToFind){
+        std::vector<int> position;
 
-        std::stringstream repl;
-        repl << replace;
+        std::stringstream item;
+        item << itemToFind;
 
-        if(result.find(label) != std::string::npos){
-            result.replace(result.find(label), label.size(), repl.str());
+        int pos = string.find(item.str());
+        
+        while(pos != std::string::npos){   
+            position.push_back(pos);
+            pos = string.find(item.str(), pos+1);
         }
 
-        else{
-            if(!ignoreMissing) throw std::out_of_range("Did not found '" + label + "' in string '" + result + "'");
-        }
-
-        return result;
+        return position;
     }
 
     /**
@@ -62,10 +57,10 @@ namespace StrUtil{
     * std::string s = StrUtil::Merge("Answer to", "all questions: ", 42); //output "Answer to all questions: 42"
     * @endcode
     *
-    * @param[in] mergeObjects Parameter pack with sequence of object which will be merged into one string
+    * @param mergeObjects Parameter pack with sequence of object which will be merged into one string
     * @return Merged string
     */
-    template <int prec = 3, typename... Args>
+    template <int prec = 3, Streamable... Args>
     std::string Merge(Args&&... mergeObjects){
         std::stringstream result;
         result << std::setprecision(prec);
@@ -74,28 +69,37 @@ namespace StrUtil{
     }
 
     /**
-    * @brief Find first occurrence of streamable object in string
+    * @brief Replace substring in a string with another substring
     *
     * Example:
     * @code
-    * int pos = StrUtil::Find("Where is my purse?", "purse"); //output "12"
+    * std::string s = StrUtil::Replace("Bye World", "Bye", "Hello"); //output "Hello World"
     * @endcode
     *
-    * @param[in] string String which will be searched
-    * @param[in] itemToFind Streamble object which will searched for
-    * @return Position of first occurence, if nothing is find -1 is returned
+    * @param initial initial string on which the replacement will be performed
+    * @param label Substring which will be replaced
+    * @param replace Replacement for label, can be any streamable type
+    * @param ignoreMissing If false, a missing label in the string will result in std::out_of_range error
+    * @return Replaced string
     */
-    template <typename T>
-    int Find(const std::string& string, const T& itemToFind){
-        int position = -1;
+    template <Streamable... Args>
+    std::string Replace(const std::string& initial, const std::string& label, Args&&... replace){
+        std::string result = initial;
 
-        std::stringstream item;
-        item << itemToFind;
+        std::vector<int> occurences = Find(initial, label);
 
-        if(string.find(item.str()) != std::string::npos){
-            position=string.find(item.str());
+        if(occurences.empty()) throw std::out_of_range(Merge("Did not found '", label, "' in string '", result, "'"));
+        if(occurences.size() < (... +  (sizeof(replace)/sizeof(replace)))) throw std::out_of_range(Merge("String '", initial, "' has less occurences of label '", label, "' than items given for replacement"));
+
+
+        std::vector<std::string> toReplace;
+        (toReplace.push_back(static_cast<std::ostringstream&&>(std::ostringstream() << replace).str()), ...);
+
+        for(int i = 0, shift = 0; i < toReplace.size(); i++){
+            result.replace(occurences[i]+shift, label.size(), toReplace[i]);
+            shift+=toReplace[i].size()-label.size();
         }
 
-        return position;
+        return result;
     }
 };
