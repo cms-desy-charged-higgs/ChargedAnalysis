@@ -2,7 +2,7 @@
 
 ##Compiler/Linking flags
 CC      = g++
-CFLAGS  = -fPIC -w -std=c++17 -g -D_GLIBCXX_USE_CXX11_ABI=0
+CFLAGS  = -fPIC -w -std=c++17 -fconcepts -g -D_GLIBCXX_USE_CXX11_ABI=0 -O2
 
 ##Ouput directories
 BINDIR=$(CHDIR)/ChargedAnalysis/bin
