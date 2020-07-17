@@ -1,26 +1,46 @@
+/**
+* @file htagdataset.cc
+* @brief Source file for HTagDataset class, see htagdataset.h
+*/
+
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 
-HTagDataset::HTagDataset(const std::vector<std::string>& files, const int& fatIndex, torch::Device& device, const bool& isSignal) :
+HTagDataset::HTagDataset(const std::vector<std::string>& files, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart) :
     fatIndex(fatIndex),
     device(device),
-    isSignal(isSignal){
+    isSignal(isSignal),
+    matchedPart(matchedPart){
 
-    chain = new TChain();
+    chain = std::make_shared<TChain>();
 
-    //Load  files to chain
+    //Load files to chain
     for(const std::string& file: files){
         chain->Add(file.c_str());
     }
+
+    if(matchedPart == -1) nEntries = chain->GetEntries();   
+    else{
+        for(int i = 0; i < chain->GetEntries(); i++){
+            int entry = chain->LoadTree(i);
+            TLeaf* jetTrue = chain->GetLeaf("FatJet_ParticleID");
+            jetTrue->GetBranch()->GetEntry(entry);
+
+            std::vector<char>* trueValue = static_cast<std::vector<char>*>(jetTrue->GetValuePointer());
+
+            if(trueValue->at(fatIndex) == matchedPart){
+                trueIndex.push_back(i);
+                nEntries++; 
+            }
+        }
+    }
 }
 
-HTagDataset::~HTagDataset(){}
-
 torch::optional<size_t> HTagDataset::size() const {
-    return chain->GetEntries();
+    return nEntries;
 }
         
 HTensor HTagDataset::get(size_t index){
-    int entry = chain->LoadTree(index);
+    int entry = chain->LoadTree(matchedPart == -1 ? index : trueIndex[index]);
     TLeaf* evNr = chain->GetLeaf("Misc_eventNumber");
     jetPart.clear();
     vtx.clear();
@@ -145,6 +165,3 @@ HTensor HTagDataset::PadAndMerge(std::vector<HTensor>& tensors){
 
     return {torch::cat(charged, 0), torch::cat(neutral, 0), torch::cat(SV, 0), torch::cat(label, 0), torch::cat(isEven, 0)};
 }
-
-void HTagDataset::clear(){delete chain;}
-
