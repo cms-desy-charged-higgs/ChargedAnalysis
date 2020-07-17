@@ -14,6 +14,12 @@ namespace VUtil{
     concept Invocable = std::is_invocable_r<outType, Func, inType>::value;
 
     /**
+    * @brief Concept that checks object is a std::vector
+    */
+    template <typename Object, typename T>
+    concept Vector = std::is_same<std::vector<T>, Object>::value;
+
+    /**
     * @brief Perform python like map function with help of C++ lambdas.
     *
     * Example:
@@ -25,8 +31,8 @@ namespace VUtil{
     * @param function Generic callable function, which executables elementwise on the input vector  
     * @return Return vector of type outType
     */
-    template <typename outType, typename inType>
-    std::vector<outType> Transform(const std::vector<inType>& vec, const Invocable<inType, outType>& function){
+    template <typename outType, typename inType, Invocable<inType, outType> Func>
+    std::vector<outType> Transform(const std::vector<inType>& vec, const Func& function){
         std::vector<outType> out;
 
         for(const inType& component : vec){
@@ -34,14 +40,6 @@ namespace VUtil{
         }
     
         return out;
-    }
-
-    template <typename outType, typename inType>
-    std::vector<outType> Transform(const std::initializer_list<inType>&& vec, const Invocable<inType, outType>& function){
-        std::vector<inType> out; 
-        out.insert(out.end(), std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
-
-        return Transform<outType, inType>(out, function);
     }
 
     /**
@@ -58,28 +56,33 @@ namespace VUtil{
     * @param toMerge Parameter pack of vectors which should be merged with input vector
     * @return Return Merged vector
     */
-    template <typename T, typename... Vectors>
-    std::vector<T> Merge(const std::vector<T>& vec = {}, Vectors&&... toMerge){
+    template <typename T, Vector<T>... Vectors>
+    std::vector<T> Merge(const std::vector<T>& vec, Vectors&&... toMerge){
         std::vector<T> out = vec;
-  
-        if(!vec.empty()){
-            std::vector<T> merge = Merge<T>(std::forward<Vectors>(toMerge)...);
-            out.insert(out.end(), merge.begin(), merge.end());  
-        }
+        (out.insert(out.end(), std::forward<Vectors>(toMerge).begin(), std::forward<Vectors>(toMerge).end()), ...);
     
         return out;
     }
 
     /**
-    * @brief Overload of Merge function with std::initializer_list
-    * See Merge() 
+    * @brief Merge values into vector
+    *
+    * Example:
+    * @code
+    * std::vector v = {1, 2};
+    * std::vector<int> merged = VUtil::Merge(v, 3, 4); //output {1, 2, 3, 4}
+    * @endcode
+    *
+    * @param vec Input vector which should be merged values
+    * @param toMerge Parameter pack of values to be merged into the vector
+    * @return Return Merged vector
     */
-    template <typename T, typename... Vectors>
-    std::vector<T> Merge(const std::initializer_list<T>&& vec, Vectors&&... toMerge){
-        std::vector<T> out; 
-        out.insert(out.end(), std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
+    template <typename T, typename... Args>
+    std::vector<T> Merge(const std::vector<T>& vec, Args&&... toMerge){
+        std::vector<T> out = vec; 
+        (out.push_back(std::forward<Args>(toMerge)), ...);
 
-        return Merge<T>(out, std::forward<Vectors>(toMerge)...);
+        return out;
     }
 
     /**
