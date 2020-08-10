@@ -8,125 +8,168 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
+#include <ChargedAnalysis/Utility/include/frame.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 
-void Train(std::shared_ptr<HTagger> tagger, HTagDataset& sigSet, HTagDataset& bkgSet, torch::Device& device, int batchSize, bool trainEven){
+typedef torch::disable_if_t<false, std::unique_ptr<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>, std::default_delete<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>>>> DataLoader;
+
+float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, std::vector<HTagDataset>& bkgSets, torch::Device& device, int batchSize, const float& lr, bool trainEven, bool optimize){
     //Create directories
-    std::string scorePath = std::string(std::getenv("CHDIR")) + "/DNN/Model/" + (trainEven ? "Even/" : "Odd/");
-    std::system((std::string("mkdir -p ") + scorePath).c_str());
+    std::string scorePath = StrUtil::Merge(std::getenv("CHDIR"), "/DNN/Tagger/", (trainEven ? "Even/" : "Odd/"));
+    std::system(StrUtil::Merge("mkdir -p ", scorePath).c_str());
     
     //Set batch size
-    int nSig = sigSet.size().value(); int nBkg = bkgSet.size().value();
+    int nSig = std::accumulate(sigSets.begin(), sigSets.end(), 0, [&](int i, HTagDataset set){return i+set.size().value();}); 
+    int nBkg = std::accumulate(bkgSets.begin(), bkgSets.end(), 0, [&](int i, HTagDataset set){return i+set.size().value();}); 
     int nBatches = nSig+nBkg % batchSize == 0 ? (nSig+nBkg)/batchSize -1 : std::ceil((nSig+nBkg)/batchSize);
-    float forTest = 0.05;
 
     float wSig = (nSig+nBkg)/float(nSig);
     float wBkg = (nSig+nBkg)/float(nBkg);
 
     //Optimizer
-    float lr = 0.001;
     torch::optim::Adam optimizer(tagger->parameters(), torch::optim::AdamOptions(lr).weight_decay(lr/10.));
 
     //Create dataloader for sig and bkg
-    auto sigLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(sigSet, 1./wSig*batchSize);
-    auto bkgLoader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, 1./wBkg*batchSize);
+    std::vector<DataLoader> signal, background; 
+
+    for(HTagDataset set : sigSets){
+        float ratio = set.size().value()/float(nSig);
+        signal.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wSig*batchSize)));
+    }
+
+    for(HTagDataset set : bkgSets){
+        float ratio = set.size().value()/float(nBkg);
+        background.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wBkg*batchSize)));
+    }
 
     //Initial best loss for later early stopping
     float bestLoss = 1e7;
+    //Measure time
+    Utils::RunTime timer;
 
     for(int i=0; i < 10000; i++){
-        //Measure time
-        Utils::RunTime timer;
+        int startTime = timer.Time();
 
         //Iterator returning batched data
-        torch::data::Iterator<std::vector<HTensor>> signal = sigLoader->begin();
-        torch::data::Iterator<std::vector<HTensor>> background = bkgLoader->begin();
-    
-        float meanTrainLoss=0., meanTestLoss=0.;
+        std::vector<torch::data::Iterator<std::vector<HTensor>>> sigIter;
+        std::vector<torch::data::Iterator<std::vector<HTensor>>> bkgIter;
 
-        for(int j=0; j <= nBatches; j++){
+        for(DataLoader& sig : signal){
+            sigIter.push_back(sig->begin());
+        }
+
+        for(DataLoader& bkg : background){
+            bkgIter.push_back(bkg->begin());
+        }
+    
+        int finishedBatches = 0;   
+        float meanTrainLoss=0., meanTestLoss=0.;
+        HTensor train, test;
+        std::vector<float> trainWeight, testWeight;
+
+        if(optimize and timer.Time() > 60*10) break;
+
+        while(nBatches - finishedBatches  != 0){
+            //Do fewer n of batches for hyperopt
+            if(optimize and finishedBatches == 5) break;
+
             //Set gradients to zero
             tagger->zero_grad();
             optimizer.zero_grad();
 
             //Put signal + background in one vector and split by even or odd numbered event
             std::vector<HTensor> batch;
+            std::vector<float> weights;
 
-            for(HTensor& tensor: *signal){
-                if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
+            for(int k = 0; k < sigSets.size(); k++){
+                for(HTensor& tensor : *sigIter[k]){
+                    if(tensor.isEven.item<bool>() == trainEven){        
+                        batch.push_back(tensor);
+                        weights.push_back(wSig);     
+                    }
+                }
             }
 
-            for(HTensor& tensor: *background){
-                if(tensor.isEven.item<bool>() == trainEven) batch.push_back(tensor);
+            for(int k = 0; k < bkgSets.size(); k++){
+                for(HTensor& tensor : *bkgIter[k]){
+                    if(tensor.isEven.item<bool>() == trainEven){        
+                        batch.push_back(tensor);
+                        weights.push_back(wBkg);     
+                    }
+                }
             }
-
+    
             //Shuffle batch
+            int seed = int(std::time(0));
+
+            std::srand(seed);
             std::random_shuffle (batch.begin(), batch.end());
 
-            //Split to train and test data
-            std::vector<HTensor> trainData = {batch.begin(), batch.end()-forTest*batchSize};
-            std::vector<HTensor> testData = {batch.end()+1-forTest*batchSize, batch.end()};
+            std::srand(seed);
+            std::random_shuffle (weights.begin(), weights.end());
 
-            //Do padding
-            HTensor train = HTagDataset::PadAndMerge(trainData);
-            HTensor test = HTagDataset::PadAndMerge(testData);
-
-            //Weight
-            std::vector<float> weightsTrain;
-            std::vector<float> weightsTest;
-            
-            for(int i = 0; i < train.label.size(0); i++){
-                weightsTrain.push_back(train.label[i].item<float>() == 1 ? wSig : wBkg);
+            //Set batch for testing and go to next iteration
+            if(finishedBatches == 0){
+                test = HTagDataset::PadAndMerge(batch);
+                testWeight = weights;
+    
+                finishedBatches++;
+                continue;
             }
 
-            for(int i = 0; i < test.label.size(0); i++){
-                weightsTest.push_back(test.label[i].item<float>() == 1 ? wSig : wBkg);
-            }
-
-            torch::Tensor weightTrain = torch::from_blob(weightsTrain.data(), {weightsTrain.size()}).clone().to(device);
-            torch::Tensor weightTest = torch::from_blob(weightsTest.data(), {weightsTest.size()}).clone().to(device);
+            //Set batch for training
+            train = HTagDataset::PadAndMerge(batch);
+            trainWeight = weights;
 
             //Prediction
+            torch::Tensor weightTrain = torch::from_blob(trainWeight.data(), {trainWeight.size()}).clone().to(device);
             torch::Tensor predictionTrain = tagger->forward(train.charged, train.neutral, train.SV);
             torch::Tensor lossTrain = torch::binary_cross_entropy(predictionTrain, train.label, weightTrain);
 
+            torch::Tensor weightTest = torch::from_blob(testWeight.data(), {testWeight.size()}).clone().to(device);
             torch::Tensor predictionTest = tagger->forward(test.charged, test.neutral, test.SV);
             torch::Tensor lossTest = torch::binary_cross_entropy(predictionTest, test.label, weightTest);
 
-            if(j % 20 == 0) Utils::DrawScore(predictionTrain, train.label, scorePath);
+            if(finishedBatches % 20 == 0) Utils::DrawScore(predictionTrain, train.label, scorePath);
 
-            meanTrainLoss = (meanTrainLoss*j + lossTrain.item<float>())/(j+1);
-            meanTestLoss = (meanTestLoss*j + lossTest.item<float>())/(j+1);
+            meanTrainLoss = (meanTrainLoss*finishedBatches + lossTrain.item<float>())/(finishedBatches+1);
+            meanTestLoss = (meanTestLoss*finishedBatches + lossTest.item<float>())/(finishedBatches+1);
 
             //Back propagation
             lossTrain.backward();
             optimizer.step();
 
             //Increment iterators
-            ++signal;
-            ++background;
+            for(int k = 0; k < bkgIter.size(); k++) ++bkgIter[k];
+            for(int k = 0; k < sigIter.size(); k++) ++sigIter[k];
 
             //Progess bar
-            std::string barString = "Epoch: " + std::to_string(i+1) + 
-                                    " | Batch: " + std::to_string(j) + "/" + std::to_string(nBatches) + 
-                                    " | Batch size: " + std::to_string(train.charged.size(0)) +
-                                    " | Mean Loss: " + std::to_string(meanTrainLoss).substr(0, 5) +
-                                    "/" + std::to_string(meanTestLoss).substr(0, 5) 
-                                    + " | Time: " + std::to_string(timer.Time()).substr(0, 4) + " s";
+            std::string barString = StrUtil::Merge<4>("Epoch: ", i+1,
+                                                   " | Batch: ", finishedBatches, "/", nBatches - 1, 
+                                                   " | Mean Loss: ", meanTrainLoss, "/", meanTestLoss, 
+                                                   " | Time: ", timer.Time()-startTime, " s"
+                                    );
 
-            Utils::ProgressBar(float(j)/nBatches*100, barString);
+            finishedBatches++;
+
+            Utils::ProgressBar(float(finishedBatches)/nBatches*100, barString);
         }
 
         //Early stopping
-        if(meanTrainLoss > bestLoss) break;
-        else bestLoss = meanTrainLoss;
+        if(meanTestLoss > bestLoss) break;
+        else bestLoss = meanTestLoss;
 
         //Save model
-        tagger->to(torch::kCPU);
-        torch::save(tagger, scorePath + "/htagger.pt");
-        std::cout << "Model was saved: " + scorePath + "/htagger.pt" << std::endl;
-        tagger->to(device);
+        if(!optimize){
+            tagger->to(torch::kCPU);
+            torch::save(tagger, scorePath + "/htagger.pt");
+            std::cout << "Model was saved: " + scorePath + "/htagger.pt" << std::endl;
+            tagger->to(device);
+        }
     }
+
+    return bestLoss;
 }
 
 int main(int argc, char** argv){
@@ -134,7 +177,29 @@ int main(int argc, char** argv){
     Parser parser(argc, argv);
     bool optimize = parser.GetValue<bool>("optimize");  
     bool trainEven = parser.GetValue<bool>("even"); 
-    int batchSize = 2*parser.GetValue<int>("batch-size");
+
+    std::string optParam = parser.GetValue<std::string>("opt-param", "");
+    std::unique_ptr<Frame> hyperParam;
+
+    if(optParam != "") hyperParam = std::make_unique<Frame>(optParam);
+
+    int batchSize = 2*parser.GetValue<int>("batch-size", optParam != "" ? hyperParam->Get("batchSize", 0) : 2000);
+    int nHidden = parser.GetValue<int>("n-hidden", optParam != ""  ? hyperParam->Get("nHidden", 0) : 140);
+    int nConvFilter = parser.GetValue<int>("n-convfilter", optParam != "" ? hyperParam->Get("nConvFilter", 0) : 130);
+    int kernelSize = parser.GetValue<int>("n-kernelsize", optParam != "" ? hyperParam->Get("kernelSize", 0) : 57);
+    float dropOut = parser.GetValue<float>("drop-out", optParam != "" ? hyperParam->Get("dropOut", 0) : 0.1);
+    float lr = parser.GetValue<float>("lr", optParam != "" ? hyperParam->Get("lr", 0) : 1e-4);
+
+    //Check if you are on CPU or GPU
+    torch::Device device(optimize ? torch::kCPU : torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
+    at::set_num_interop_threads(1);
+    at::set_num_threads(1);
+
+    //Model for Htaggers
+    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, nHidden, nConvFilter, kernelSize, dropOut, device);
+    tagger->Print();
+
+    if(tagger->GetNWeights() > 200000) throw std::runtime_error("Number of weights too big");
 
     //File names and channels for training
     std::vector<std::string> sigNames = {
@@ -149,31 +214,34 @@ int main(int argc, char** argv){
                 "TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8",                   
     };
 
-    std::vector<std::string> sigFiles;
-    std::vector<std::string> bkgFiles;
+    //Pytorch dataset class
+    std::vector<HTagDataset> sigSets, bkgSets;
+    std::vector<std::shared_ptr<TFile>> files;
+    std::vector<std::shared_ptr<TTree>> trees;
 
     for(const std::string& chan: {"Ele2J1FJ", "Muon2J1FJ", "Ele2FJ", "Muon2FJ"}){
+        std::vector<std::string> sigFiles;
+        std::vector<std::string> bkgFiles;
+
         for(const std::string& name: sigNames){
-            sigFiles.push_back(std::string(std::getenv("CHDIR")) + "/Skim/Channels/" + chan + "/" + name + "/merged/" + name + ".root/" + chan);
+            files.push_back(std::make_shared<TFile>(StrUtil::Merge(std::getenv("CHDIR"), "/Skim/Channels/", chan, "/", name, "/merged/", name, ".root").c_str(), "READ"));
+            trees.push_back(std::shared_ptr<TTree>(files.back()->Get<TTree>(chan.c_str())));
+
+            sigSets.push_back(HTagDataset(trees.back(), 0, device, true, 25));
+
+            if(!StrUtil::Find(chan, "2FJ").empty()){
+                sigSets.push_back(HTagDataset(trees.back(), 1, device, true, 25));
+            }
         }
 
         for(const std::string& name: bkgNames){
-            bkgFiles.push_back(std::string(std::getenv("CHDIR")) + "/Skim/Channels/" + chan + "/" + name + "/merged/" + name + ".root/" + chan);
+            files.push_back(std::make_shared<TFile>(StrUtil::Merge(std::getenv("CHDIR"), "/Skim/Channels/", chan, "/", name, "/merged/", name, ".root").c_str(), "READ"));
+            trees.push_back(std::shared_ptr<TTree>(files.back()->Get<TTree>(chan.c_str())));
+
+            bkgSets.push_back(HTagDataset(trees.back(), 0, device, false, 6));
         }
     }
 
-    //Check if you are on CPU or GPU
-    torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
-
-    //Pytorch dataset class
-    HTagDataset sigSet = HTagDataset(sigFiles, 0, device, true);
-    HTagDataset bkgSet = HTagDataset(bkgFiles, 0, device, false);
-
-    //Model for Htaggers
-    std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, 140, 1, 130, 57, 0.06, device);
-    tagger->Print();
-
-    Train(tagger, sigSet, bkgSet, device, batchSize, trainEven);
-
-    return 0;
+    float bestLoss = Train(tagger, sigSets, bkgSets, device, batchSize, lr, trainEven, optimize);
+    if(optimize) std::cout << "Best loss value: " << bestLoss << std::endl;
 }
