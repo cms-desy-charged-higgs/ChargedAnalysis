@@ -10,6 +10,7 @@
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
 
 typedef torch::disable_if_t<false, std::unique_ptr<torch::data::StatelessDataLoader<DNNDataset, torch::data::samplers::SequentialSampler>, std::default_delete<torch::data::StatelessDataLoader<DNNDataset, torch::data::samplers::SequentialSampler>>>> DataLoader;
@@ -30,15 +31,10 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
     int nBatches = nSig+nBkg % batchSize == 0 ? (nSig+nBkg)/batchSize -1 : std::ceil((nSig+nBkg)/batchSize);
 
     //Get dataloader
-    int nSigWeighted;
-
     std::vector<DataLoader> signal;
     DataLoader background;
 
     for(DNNDataset& set : sigSets){
-        //Equalize each mass hypotheses and calculate weighted number of signal
-        nSigWeighted += nSig/float(set.size().value()) * set.size().value();
-
         float ratio = set.size().value()/float(nSig);
         signal.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wSig*batchSize)));
     }
@@ -46,6 +42,7 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
     background = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, (1./wBkg*batchSize));
 
     //Recalculate class weights after equalizing all signal mass hypotheses
+    int nSigWeighted = 6*nSig;
     wBkg = (nSigWeighted + nBkg)/float(nBkg);
 
     std::vector<float> wSigWeighted;
@@ -158,11 +155,12 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
             optimizer.step();
 
             //Progess bar
-            std::string barString = "Epoch: " + std::to_string(i+1) + 
-                                    " | Batch: " + std::to_string(finishedBatches) + "/" + std::to_string(nBatches - 1) + 
-                                    " | Mean Loss: " + std::to_string(meanTrainLoss).substr(0, 5) +
-                                    "/" + std::to_string(meanTestLoss).substr(0, 5) 
-                                    + " | Time: " + std::to_string(timer.Time()).substr(0, 4) + " s";
+            std::string barString = StrUtil::Merge<4>("Epoch: ", i+1,
+                                                   " | Batch: ", finishedBatches, "/", nBatches - 1, 
+                                                   " | Mean Loss: ", meanTrainLoss, "/", meanTestLoss,
+                                                   " | Overtrain count: ", notBetter, "/", patience, 
+                                                   " | Time: ", timer.Time(), " s"
+                                    );
 
             finishedBatches++;
 
@@ -173,10 +171,10 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
             for(int k = 0; k < sigIter.size(); k++) ++sigIter[k];
         }
 
-        //Early stopping
-        if(meanTestLoss > bestLoss) notBetter++;
+        //Early stopping        
+        if(meanTrainLoss > bestLoss or std::abs(meanTrainLoss-meanTestLoss)/meanTrainLoss > 0.1) notBetter++;
         else{
-            bestLoss = meanTestLoss;
+            bestLoss = meanTrainLoss;
             notBetter = 0;
 
             //Save model
