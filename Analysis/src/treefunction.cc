@@ -5,6 +5,7 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
     inputTree(inputFile->Get<TTree>(treeName.c_str())){
     funcInfo = {
         {"Pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
+        {"Mt", {&TreeFunction::Mt, "m_{T}(@) [GeV]"}},
         {"Phi", {&TreeFunction::Phi, "#phi(@) [rad]"}},
         {"Eta", {&TreeFunction::Eta, "#eta(@) [rad]"}},
         {"Mass", {&TreeFunction::Mass, "m(@) [GeV]"}},
@@ -60,26 +61,27 @@ void TreeFunction::SetYAxis(){
 }
 
 template<Axis A>
-void TreeFunction::SetP1(const std::string& part, const int& idx, const std::string& wp){
+void TreeFunction::SetP1(const std::string& part, const int& idx, const std::string& wp, const int& genMother){
     if(A == Axis::Y){
-        yFunction->SetP1<Axis::X>(part, idx, wp);
+        yFunction->SetP1<Axis::X>(part, idx, wp, genMother);
         return;
     }
 
     part1 = std::get<0>(partInfo.at(part));
     wp1 = std::get<0>(wpInfo.at(wp));
     idx1 = idx-1;
+    genMother1 = genMother;
 
     partLabel1 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
     partName1 = part;
     wpName1 = wp;
 }
 
-template void TreeFunction::SetP1<Axis::X>(const std::string&, const int&, const std::string&);
-template void TreeFunction::SetP1<Axis::Y>(const std::string&, const int&, const std::string&);
+template void TreeFunction::SetP1<Axis::X>(const std::string&, const int&, const std::string&, const int&);
+template void TreeFunction::SetP1<Axis::Y>(const std::string&, const int&, const std::string&, const int&);
 
 template<Axis A>
-void TreeFunction::SetP2(const std::string& part, const int& idx, const std::string& wp){
+void TreeFunction::SetP2(const std::string& part, const int& idx, const std::string& wp, const int& genMother){
     if(A == Axis::Y){
         yFunction->SetP2<Axis::X>(part, idx, wp);
         return;
@@ -88,14 +90,15 @@ void TreeFunction::SetP2(const std::string& part, const int& idx, const std::str
     part2 = std::get<0>(partInfo.at(part));
     wp2 = std::get<0>(wpInfo.at(wp));
     idx2 = idx-1;
+    genMother2 = genMother;
 
     partLabel2 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
     partName2 = part;
     wpName2 = wp;
 }
 
-template void TreeFunction::SetP2<Axis::X>(const std::string&, const int&, const std::string&);
-template void TreeFunction::SetP2<Axis::Y>(const std::string&, const int&, const std::string&);
+template void TreeFunction::SetP2<Axis::X>(const std::string&, const int&, const std::string&, const int&);
+template void TreeFunction::SetP2<Axis::Y>(const std::string&, const int&, const std::string&, const int&);
 
 template<Axis A>
 void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
@@ -138,42 +141,56 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         return;
     }
 
+    if(genMother1 != -1.){
+        particleID = inputTree->GetLeaf("GenParticle_ParticleID");
+        motherID = inputTree->GetLeaf("GenParticle_MotherID");
+    }
+
     this->funcPtr = std::get<0>(funcInfo.at(funcName));
     this->inputValue = inputValue;
 
+    std::string part1Prefix = genMother1 == -1. ? std::get<1>(partInfo[partName1]) : "GenParticle";
+    std::string part2Prefix = genMother1 == -1. ? std::get<1>(partInfo[partName2]) : "GenParticle";
+
     if(funcName == "Pt"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Pt", std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", "@_Pt", part1Prefix);
+        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        quantities.push_back(std::move(leaf));
+    }
+
+    else if(funcName == "Mt"){
+        const std::string branchName = Utils::Format<std::string>("@", "@_Mt", part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Eta"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Eta", std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", "@_Eta", part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Phi"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Phi", std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", "@_Phi", part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Mass"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "dPhi"){
-        for(const std::string part : {std::get<1>(partInfo[partName1]), std::get<1>(partInfo[partName2])}){
+        for(const std::string part : {part1Prefix, part2Prefix}){
             TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
             quantities.push_back(std::move(phi));
         }
     }
 
     else if(funcName == "dR"){
-        for(const std::string part : {std::get<1>(partInfo[partName1]), std::get<1>(partInfo[partName2])}){
+        for(const std::string part : {part1Prefix, part2Prefix}){
             TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
             TLeaf* eta = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", part).c_str()));
             quantities.push_back(std::move(phi));
@@ -190,7 +207,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
     }
 
     else if(funcName == "Tau"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -209,7 +226,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
     else if(funcName == "DAK8"){
         std::string taggerName = Utils::Format<std::string>("$", "@_$VsHiggs", inputValue);
-        const std::string branchName = Utils::Format<std::string>("@", taggerName, std::get<1>(partInfo[partName1]));
+        const std::string branchName = Utils::Format<std::string>("@", taggerName, part1Prefix);
         TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
         quantities.push_back(std::move(leaf));
     }
@@ -229,13 +246,13 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         }
     }
 
-    const std::string branchName1 = Utils::Format<std::string>("@", "@_Size", std::get<1>(partInfo[partName1]));
+    const std::string branchName1 = Utils::Format<std::string>("@", "@_Size", part1Prefix);
     nPart1 = inputTree->GetLeaf(branchName1.c_str());
 
-    const std::string branchName2 = Utils::Format<std::string>("@", "@_Size", std::get<1>(partInfo[partName1]));
+    const std::string branchName2 = Utils::Format<std::string>("@", "@_Size", part2Prefix);
     nPart2 = inputTree->GetLeaf(branchName2.c_str());
 
-    if(part1 < JET and wp1 != NONE){
+    if(wp1 != NONE){
         std::string wpname = std::get<1>(wpInfo[wpName1]);
 
         switch(part1){
@@ -280,8 +297,8 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
                 nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
                 BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_CSVScore"));
                 scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str())));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str())));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str())));
+                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFUp", wpname).c_str())));
+                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFDown", wpname).c_str())));
                 break;
 
             default: break;
@@ -300,7 +317,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
     //Set Name of functions/axis label
     name = funcName + (inputValue != "" ? Utils::Format<std::string>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
-    axisLabel = std::get<1>(funcInfo.at(funcName));;
+    axisLabel = (genMother1 != -1. ? "Gen " : "") + std::get<1>(funcInfo.at(funcName));;
 
     if(inputValue != ""){
         axisLabel = Utils::Format<std::string>("@", axisLabel, inputValue, true);
@@ -322,8 +339,8 @@ template<Axis A>
 const float TreeFunction::Get(){
     if(A == Axis::Y) return yFunction->Get<Axis::X>();
 
-    realIdx1 = whichIndex(nPart1, part1, idx1, wp1);
-    realIdx2 = whichIndex(nPart2, part2, idx2, wp2);
+    realIdx1 = whichIndex(nPart1, part1, idx1, wp1, genMother1);
+    if(part2 != VACUUM) realIdx2 = whichIndex(nPart2, part2, idx2, wp2, genMother2);
 
     try{
         (this->*funcPtr)();
@@ -426,24 +443,42 @@ const std::string TreeFunction::GetName(){
     return name;
 }
 
-int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx, const WP& wp){
-    if(nPart == nullptr or idx == -1) return -1.;
-
-    if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
-    const char* n = (char*)nPart->GetValuePointer();
-    if(idx >= *n) return -1.;
+int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx, const WP& wp, const int& genMother){
+    if((nPart == nullptr or idx == -1) and genMother == -1.) return -1.;
 
     int realIdx = 0;
     int counter = idx;
-             
-    while(counter != 0){
-        if(whichWP(part, realIdx) >= wp) counter--;
 
-        realIdx++; 
-        if(realIdx >= *n) return -1.;
+    if(genMother != -1.){
+        if(particleID->GetBranch()->GetReadEntry() != entry) particleID->GetBranch()->GetEntry(entry);
+        if(motherID->GetBranch()->GetReadEntry() != entry) motherID->GetBranch()->GetEntry(entry);
+
+        std::vector<char>* partID = static_cast<std::vector<char>*>(particleID->GetValuePointer());
+        std::vector<char>* mothID = static_cast<std::vector<char>*>(motherID->GetValuePointer());
+    
+        for(int i = 0; i < partID->size(); i++){
+            if(partID->at(i) == part and mothID->at(i) == genMother){
+                counter--;
+                realIdx = i;
+                if(counter <= 0) return realIdx;
+            }
+        }
     }
 
-    return realIdx;
+    else{
+        if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
+        const char* n = (char*)nPart->GetValuePointer();
+        if(idx >= *n) return -1.;
+        
+        while(counter != 0){
+            if(whichWP(part, realIdx) >= wp) counter--;
+   
+            realIdx++; 
+            if(realIdx >= *n) return -1.;
+        }
+
+        return realIdx;
+    }
 }
 
 TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
@@ -571,6 +606,13 @@ void TreeFunction::Mass(){
         const float* mass = (float*)quantities[0]->GetValuePointer();
         value = *mass;
     }
+}
+
+void TreeFunction::Mt(){
+    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
+
+    const float* mt = (float*)quantities[0]->GetValuePointer();
+    value = *mt;
 }
 
 void TreeFunction::Eta(){

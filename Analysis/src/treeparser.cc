@@ -39,7 +39,7 @@ void TreeParser::GetParticle(const std::string& parameter, TreeFunction& func){
     for(const std::string line : lines){
         std::string partLine = line.substr(line.find("p:")+2);
 
-        std::string part = ""; std::string wp = ""; int idx = 0; bool isX = true; int pos = 1;
+        std::string part = ""; std::string wp = ""; int idx = 0; bool isX = true; int pos = 1; int genMother = -1.;
 
         for(const std::string& partParam: Utils::SplitString<std::string>(partLine, ",")){
             std::vector<std::string> pInfo = Utils::SplitString<std::string>(partParam, "=");
@@ -47,26 +47,27 @@ void TreeParser::GetParticle(const std::string& parameter, TreeFunction& func){
             if(pInfo[0] == "n") part = pInfo[1];
             else if (pInfo[0] == "wp") wp = pInfo[1];
             else if (pInfo[0] == "i") idx = std::atoi(pInfo[1].c_str());
+            else if (pInfo[0] == "gen") genMother = std::atoi(pInfo[1].c_str());
             else if (pInfo[0] == "pos") pos = std::atoi(pInfo[1].c_str());
             else if(pInfo[0] == "ax") isX = pInfo[1] != "y";
             else throw std::runtime_error("Invalid key '" + pInfo[0] + "' in parameter '" +  partLine + "'");
         }
 
         if(pos == 1){
-            if(isX) func.SetP1<Axis::X>(part, idx, wp);
+            if(isX) func.SetP1<Axis::X>(part, idx, wp, genMother);
 
             else{
                 func.SetYAxis();
-                func.SetP1<Axis::Y>(part, idx, wp);
+                func.SetP1<Axis::Y>(part, idx, wp, genMother);
             } 
         }
 
         if(pos == 2){
-            if(isX) func.SetP2<Axis::X>(part, idx, wp);
+            if(isX) func.SetP2<Axis::X>(part, idx, wp, genMother);
 
             else{
                 func.SetYAxis();
-                func.SetP2<Axis::Y>(part, idx, wp);
+                func.SetP2<Axis::Y>(part, idx, wp, genMother);
             } 
         }
     }
