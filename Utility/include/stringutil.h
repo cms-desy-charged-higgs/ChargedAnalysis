@@ -3,6 +3,9 @@
 * @brief Header file for StrUtil namespace
 */
 
+#ifndef STRINGUTIL_H
+#define STRINGUTIL_H
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -103,3 +106,5 @@ namespace StrUtil{
         return result;
     }
 };
+
+#endif

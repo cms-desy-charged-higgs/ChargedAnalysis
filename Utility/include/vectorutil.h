@@ -1,3 +1,6 @@
+#ifndef VECTORUTIL_H
+#define VECTORUTIL_H
+
 #include <vector>
 #include <functional>
 #include <iostream>
@@ -102,10 +105,12 @@ namespace VUtil{
     std::vector<T> Range(const T& start, const T& end, const int& steps){
         std::vector<T> out;
 
-        for(int step=0; step <= steps; step++){
-            out.push_back(start+step*(end-start)/steps);
+        for(int step=0; step < steps; step++){
+            out.push_back(start+step*(end-start)/(steps-1));
         }        
 
         return out;
     }
 };
+
+#endif
