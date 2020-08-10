@@ -55,10 +55,6 @@ void TreeAppender::Append(const std::string& outName){
 
     //Fill branches
     for(int i=0; i < oldT->GetEntries(); i++){
-        if(i % 100000 == 0 and i != 0){
-            std::cout << "Processed events: " << i << std::endl;
-        }
-
         for(std::string& branchName: branchNames){
             branchValues[branchName] = values[branchName][i];       
             branches[branchName]->Fill();
