@@ -37,7 +37,7 @@ struct HTensor{
 
 class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
     private:
-        std::shared_ptr<TChain> chain;
+        std::shared_ptr<TTree> inTree;
 
         int fatIndex;
         torch::Device device;
@@ -47,6 +47,7 @@ class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
         std::vector<TLeaf*> jetPart;
         std::vector<TLeaf*> vtx;
 
+        TLeaf* evNr;
         TLeaf* jetCharge;
         TLeaf* jetIdx;  
         TLeaf* vtxIdx;
@@ -59,12 +60,13 @@ class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
     public:
         /**
         * @brief Constructor for HTagDataset
-        * @param files Vector with ROOT file names
-        * @param end fatIndex Index which indicates which fat jet of the event should be used
+        * @param inTree Vector with ROOT file names
+        * @param fatIndex Index which indicates which fat jet of the event should be used
         * @param device Pytorch class for usage of CPU/GPU
         * @param isSignal Boolean to check if files are signal files
+        * @param matchedPart MC particle ID for wished gen matched particle
         */
-        HTagDataset(const std::vector<std::string>& files, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart = -1);
+        HTagDataset(std::shared_ptr<TTree>& inTree, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart = -1);
 
         /**
         * @brief Function to get number of fat jets in the dataset

@@ -5,25 +5,19 @@
 
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 
-HTagDataset::HTagDataset(const std::vector<std::string>& files, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart) :
+HTagDataset::HTagDataset(std::shared_ptr<TTree>& inTree, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart) :
+    inTree(inTree),
     fatIndex(fatIndex),
     device(device),
     isSignal(isSignal),
     matchedPart(matchedPart){
 
-    chain = std::make_shared<TChain>();
-
-    //Load files to chain
-    for(const std::string& file: files){
-        chain->Add(file.c_str());
-    }
-
-    if(matchedPart == -1) nEntries = chain->GetEntries();   
+    if(matchedPart == -1) nEntries = inTree->GetEntries();   
     else{
-        for(int i = 0; i < chain->GetEntries(); i++){
-            int entry = chain->LoadTree(i);
-            TLeaf* jetTrue = chain->GetLeaf("FatJet_ParticleID");
-            jetTrue->GetBranch()->GetEntry(entry);
+        TLeaf* jetTrue = inTree->GetLeaf("FatJet_ParticleID");
+
+        for(int i = 0; i < inTree->GetEntries(); i++){
+            jetTrue->GetBranch()->GetEntry(i);
 
             std::vector<char>* trueValue = static_cast<std::vector<char>*>(jetTrue->GetValuePointer());
 
@@ -33,6 +27,21 @@ HTagDataset::HTagDataset(const std::vector<std::string>& files, const int& fatIn
             }
         }
     }
+
+    std::vector<std::string> partVar = {"Pt", "Eta", "Phi", "Mass", "Vx", "Vy", "Vz"};
+    
+    for(std::string& var: partVar){
+        jetPart.push_back(inTree->GetLeaf(("JetParticle_" + var).c_str()));
+    }
+
+    for(std::string& var: partVar){
+        vtx.push_back(inTree->GetLeaf(("SecondaryVertex_" + var).c_str()));
+    }
+
+    jetCharge = inTree->GetLeaf("JetParticle_Charge");
+    jetIdx = inTree->GetLeaf("JetParticle_FatJetIdx");
+    vtxIdx = inTree->GetLeaf("SecondaryVertex_FatJetIdx");
+    evNr = inTree->GetLeaf("Misc_eventNumber");
 }
 
 torch::optional<size_t> HTagDataset::size() const {
@@ -40,24 +49,7 @@ torch::optional<size_t> HTagDataset::size() const {
 }
         
 HTensor HTagDataset::get(size_t index){
-    int entry = chain->LoadTree(matchedPart == -1 ? index : trueIndex[index]);
-    TLeaf* evNr = chain->GetLeaf("Misc_eventNumber");
-    jetPart.clear();
-    vtx.clear();
-
-    std::vector<std::string> partVar = {"Pt", "Eta", "Phi", "Mass", "Vx", "Vy", "Vz"};
-    
-    for(std::string& var: partVar){
-        jetPart.push_back(chain->GetLeaf(("JetParticle_" + var).c_str()));
-    }
-
-    jetCharge = chain->GetLeaf("JetParticle_Charge");
-    jetIdx = chain->GetLeaf("JetParticle_FatJetIdx");
-    vtxIdx = chain->GetLeaf("SecondaryVertex_FatJetIdx");
-
-    for(std::string& var: partVar){
-        vtx.push_back(chain->GetLeaf(("SecondaryVertex_" + var).c_str()));
-    }
+    int entry = matchedPart == -1 ? index : trueIndex[index];
 
     evNr->GetBranch()->GetEntry(entry);
     jetCharge->GetBranch()->GetEntry(entry);
