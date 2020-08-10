@@ -23,6 +23,9 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
     }
 
     for(int i = 0; i < branchNames.size(); i++){
+        //Take time
+        Utils::RunTime timer;
+
         std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(dnnPath + "/Tagger/HyperOpt/hyperparameter.csv");
 
         //Tagger
@@ -36,8 +39,10 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
         tagger[1]->eval();
         torch::NoGradGuard no_grad;
 
+        std::shared_ptr<TTree> tree(static_cast<TTree*>(file->Get<TTree>(channel.c_str())->Clone()));
+
         //Get data set
-        HTagDataset data = HTagDataset({std::string(file->GetName()) + "/"  + channel}, i, device, true);
+        HTagDataset data = HTagDataset(tree, i, device, true);
         std::vector<int> entries;
 
         for(int i = 0; i < nEntries; i++){entries.push_back(i);}
@@ -54,6 +59,10 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
             std::vector<HTensor> oddTensors;
 
             for(int k = 0; k < batchSize; k++){
+                if(*entry % 1000 == 0 and *entry != 0){
+                    std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
+                }
+
                 HTensor tensor = data.get(*entry);
 
                 if(tensor.isEven.item<bool>() == true){
@@ -104,6 +113,9 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     std::map<std::string, std::vector<float>> values;
     std::vector<int> masses = {200, 300, 400, 500, 600};
     std::vector<std::string> branchNames = {"ML_DNN200", "ML_DNN300", "ML_DNN400", "ML_DNN500", "ML_DNN600"};
+
+    //Take time
+    Utils::RunTime timer;
         
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
@@ -164,6 +176,10 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
         std::vector<torch::Tensor> oddTensors;
 
         for(int j = 0; j < batchSize; j++){
+            if(*entry % 1000 == 0 and *entry != 0){
+                    std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
+            }
+
             TreeFunction::SetEntry(*entry);
 
             //Fill event class with particle content
@@ -222,17 +238,9 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
     typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
     typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;
 
-    std::function<float(const float, const float)> smear = [&](const float& nominal, const float& sigma){
-        std::random_device rd;
-        std::default_random_engine generator(rd());
-        std::normal_distribution<double> distribution(nominal, sigma);
-
-        return distribution(generator);
-    };
-
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
-    std::vector<std::string> branchNames = {"W_Mass", "W_Pt", "W_Eta", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Eta", "HPlus_Phi", "HPlus_Mass"};
+    std::vector<std::string> branchNames = {"W_Mass", "W_Pt", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Mass", "HPlus_Phi"};
 
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
@@ -263,49 +271,17 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
     FatJetPt.SetP1<Axis::X>("fj"); FatJetEta.SetP1<Axis::X>("fj"); FatJetPhi.SetP1<Axis::X>("fj"); FatJetMass.SetP1<Axis::X>("fj");
     FatJetPt.SetFunction<Axis::X>("Pt"); FatJetEta.SetFunction<Axis::X>("Eta"); FatJetPhi.SetFunction<Axis::X>("Phi"); FatJetMass.SetFunction<Axis::X>("Mass");
 
+    float pXNu, pYNu, pXLep, pYLep, pZLep, mW;
+
     for(int i = 0; i < nEntries; i++){
         TreeFunction::SetEntry(i);
 
         PolarLV LepLV(LepPt.Get<Axis::X>(), LepEta.Get<Axis::X>(), LepPhi.Get<Axis::X>(), lepMass);
-
-        float pZNu1, pZNu2, pXNu, pYNu, pXLep, pYLep, pZLep, mW;
-        int counter = 0;
-
-        while(true){
-            counter++;
-
-            pXNu = smear(METPt.Get<Axis::X>()*std::cos(METPhi.Get<Axis::X>()), 1. + counter*2);
-            pYNu = smear(METPt.Get<Axis::X>()*std::sin(METPhi.Get<Axis::X>()), 1. + counter*2);
-
-            pXLep = smear(LepLV.Px(), 1. + counter);
-            pYLep = smear(LepLV.Py(), 1. + counter);
-            pZLep = smear(LepLV.Pz(), 1. + counter);
-
-            mW = smear(80.399, 10.);
-        
-        //Analytic solutions to quadratic problem
-      //  float pZNu1 = pZLep*sqrt(std::pow(pXNu, 2) + std::pow(pYNu, 2))/sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2));
-      //  float pZNu2 = - pZLep*sqrt(std::pow(pXNu, 2) + std::pow(pYNu, 2))/sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2));
-
-            pZNu1 = pZLep*(std::pow(mW, 2) - std::pow(lepMass, 2) + 2*pXLep*pXNu + 2*pYLep*pYNu)/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2))) - sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2) + std::pow(pZLep, 2))*sqrt(std::pow(mW, 4) - 2*std::pow(mW, 2)*std::pow(lepMass, 2) + 4*std::pow(mW, 2)*pXLep*pXNu + 4*std::pow(mW, 2)*pYLep*pYNu + std::pow(lepMass, 4) - 4*std::pow(lepMass, 2)*pXLep*pXNu - 4*std::pow(lepMass, 2)*std::pow(pXNu, 2) - 4*std::pow(lepMass, 2)*pYLep*pYNu - 4*std::pow(lepMass, 2)*std::pow(pYNu, 2) - 4*std::pow(pXLep, 2)*std::pow(pYNu, 2) + 8*pXLep*pXNu*pYLep*pYNu - 4*std::pow(pXNu, 2)*std::pow(pYLep, 2))/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2)));
-            pZNu2 = pZLep*(std::pow(mW, 2) - std::pow(lepMass, 2) + 2*pXLep*pXNu + 2*pYLep*pYNu)/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2))) + sqrt(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2) + std::pow(pZLep, 2))*sqrt(std::pow(mW, 4) - 2*std::pow(mW, 2)*std::pow(lepMass, 2) + 4*std::pow(mW, 2)*pXLep*pXNu + 4*std::pow(mW, 2)*pYLep*pYNu + std::pow(lepMass, 4) - 4*std::pow(lepMass, 2)*pXLep*pXNu - 4*std::pow(lepMass, 2)*std::pow(pXNu, 2) - 4*std::pow(lepMass, 2)*pYLep*pYNu - 4*std::pow(lepMass, 2)*std::pow(pYNu, 2) - 4*std::pow(pXLep, 2)*std::pow(pYNu, 2) + 8*pXLep*pXNu*pYLep*pYNu - 4*std::pow(pXNu, 2)*std::pow(pYLep, 2))/(2*(std::pow(lepMass, 2) + std::pow(pXLep, 2) + std::pow(pYLep, 2)));
-
-            if(!std::isnan(pZNu1)) break;
-        }
-
-        //Neutrino candidates from solutions above
-        CartLV v1(pXNu, pYNu, pZNu1, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu1*pZNu1));
-        CartLV v2(pXNu, pYNu, pZNu2, std::sqrt(pXNu*pXNu + pYNu*pYNu + pZNu2*pZNu2));
-
-        //Take neutrino which gives physical reasonabel result
-        CartLV smearLep(pXLep, pYLep, pZLep, std::sqrt(pXLep*pXLep + pYLep*pYLep + pZLep*pZLep + lepMass*lepMass));
-        CartLV W1 = smearLep + v1, W2 = smearLep + v2;
-        CartLV W = std::pow(W1.M() - mW, 2) < std::pow(W2.M() - mW, 2) ? W1 : W2;
+        PolarLV W = LepLV + PolarLV(METPt.Get<Axis::X>(), 0, METPhi.Get<Axis::X>(), 0);
 
         values["W_Mass"][i] = W.M();
         values["W_Pt"][i] = W.Pt();
         values["W_Phi"][i] = W.Phi();
-        values["W_Eta"][i] = W.Eta();
 
         std::vector<PolarLV> jets;
         std::vector<PolarLV> fatJets;
@@ -363,21 +339,8 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         else continue;
 
         //Sort candPairs for mass diff of jet pairs, where index 0 is the best pair
-        std::function<bool(std::pair<PolarLV, PolarLV>, std::pair<PolarLV, PolarLV>)> sortFunc = [&](std::pair<PolarLV, PolarLV> cands1, std::pair<PolarLV, PolarLV> cands2){
-            int goodFeat1 = 0, goodFeat2 = 0;
-
-            if(ROOT::Math::VectorUtil::DeltaPhi(cands1.first, cands1.second) > ROOT::Math::VectorUtil::DeltaPhi(cands2.first, cands2.second)) goodFeat1++;
-            else goodFeat2++;
-
-            if(std::pow(cands1.first.M() - cands1.second.M(), 2)  < std::pow(cands2.first.M() - cands2.second.M(), 2)) goodFeat1++;
-            else goodFeat2++;
-
-            if(cands1.first.M() < 150) goodFeat1++;
-            if(cands1.second.M() < 150) goodFeat1++;
-            if(cands2.first.M() < 150) goodFeat2++;
-            if(cands2.second.M() < 150) goodFeat2++;
-
-            return goodFeat1 > goodFeat2;
+        std::function<bool(std::pair<PolarLV, PolarLV>, std::pair<PolarLV, PolarLV>)> sortFunc = [&](std::pair<PolarLV, PolarLV> cands1, std::pair<PolarLV, PolarLV> cands2){  
+            return ROOT::Math::VectorUtil::DeltaR(cands1.first, cands1.second) > ROOT::Math::VectorUtil::DeltaR(cands2.first, cands2.second);
         };
 
         std::sort(hCands.begin(), hCands.end(), sortFunc);
@@ -394,10 +357,9 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
             values["H2_Eta"][i] = hCands[0].second.Eta();
             values["H2_Phi"][i] = hCands[0].second.Phi();
             values["H2_Mass"][i] = hCands[0].second.M();
+            values["HPlus_Mass"][i] = Hc1.M();
             values["HPlus_Pt"][i] = Hc1.Pt();
             values["HPlus_Phi"][i] = Hc1.Phi();
-            values["HPlus_Eta"][i] = Hc1.Eta();
-            values["HPlus_Mass"][i] = Hc1.M();
         }
 
         else{
@@ -409,10 +371,9 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
             values["H2_Eta"][i] = hCands[0].first.Eta();
             values["H2_Phi"][i] = hCands[0].first.Phi();
             values["H2_Mass"][i] = hCands[0].first.M();
-            values["HPlus_Pt"][i] = Hc2.Pt();
-            values["HPlus_Phi"][i] = Hc2.Phi();
-            values["HPlus_Eta"][i] = Hc2.Eta();
             values["HPlus_Mass"][i] = Hc2.M();
+            values["HPlus_Phi"][i] = Hc2.Phi();
+            values["HPlus_Pt"][i] = Hc2.Pt();
         }
     }
 
