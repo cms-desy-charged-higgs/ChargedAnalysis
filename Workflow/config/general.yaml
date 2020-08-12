@@ -5,6 +5,7 @@ run-mode: Local
 skim-dir: Skim/Inclusive
 
 shape-systs:
+    - ""
     - energyScale
     - energySigma
     - JECTotal
