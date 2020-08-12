@@ -14,6 +14,7 @@ from plotpostfit import PlotPostfit
 from bdt import BDT
 from merge import MergeCSV
 from dnn import DNN
+from mergeskim import MergeSkim
 
 import os
 import argparse
@@ -24,14 +25,15 @@ import numpy
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN", "Slim"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN", "Slim", "Merge"])
     parser.add_argument("--config", type=str)
+    parser.add_argument("--era", type=str)
     parser.add_argument("--check-output", action = "store_true")
     parser.add_argument("--no-http", action = "store_true")
 
     return parser.parse_args()
 
-def taskReturner(taskName, **kwargs):
+def taskReturner(taskName, era, **kwargs):
     confDir = "{}/ChargedAnalysis/Workflow/config/".format(os.environ["CHDIR"])
 
     ##Load general config
@@ -41,6 +43,8 @@ def taskReturner(taskName, **kwargs):
     if kwargs["config"]:
         config.update(yaml.load(open("{}/{}.yaml".format(confDir, kwargs["config"]), "r"), Loader=yaml.Loader))
 
+    config["era"] = era
+
     tasks = {
         "Append": lambda : append(config),
         "BDT": lambda : bdt(config),
@@ -48,6 +52,7 @@ def taskReturner(taskName, **kwargs):
         "Plot": lambda : plot(config),
         "Limit": lambda : limit(config),
         "Slim": lambda : slim(config),
+        "Merge": lambda: merge(config)
     }
 
     return tasks[taskName]
@@ -154,7 +159,7 @@ def limit(config):
         histConfig = copy.deepcopy(config)
 
         histConfig["dir"] = histConfig["dir"].format("")
-        histConfig["parameters"]["all"] = [histConfig["parameters"]["all"][0].format(mass) for mass in histConfig["masses"]]
+        histConfig["parameters"][channel] = [histConfig["parameters"][channel][0].format(mass) for mass in histConfig["masses"]]
         histConfig["processes"] = histConfig["backgrounds"] + [histConfig["signal"].format(mass) for mass in histConfig["masses"]]
 
         if histConfig["data"]:
@@ -186,6 +191,9 @@ def limit(config):
 def slim(config):
     return TreeSlim.configure(config)
 
+def merge(config):
+    return MergeSkim.configure(config)
+
 def plot(config):
     allTasks = []
 
@@ -202,7 +210,7 @@ def main():
     args = parser()
 
     ##Configure and get the tasks
-    tasks = taskReturner(args.task, config=args.config)()
+    tasks = taskReturner(args.task, args.era, config=args.config)()
 
     ##Run the manager
     with TaskManager(args.check_output, args.no_http) as manager:
