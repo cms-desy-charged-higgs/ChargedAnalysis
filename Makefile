@@ -10,10 +10,10 @@ LIBDIR=$(CHDIR)/ChargedAnalysis/lib
 OBJDIR=$(CHDIR)/ChargedAnalysis/obj
  
 ##Directories with needed header files
-INC = -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/include -I$(CHDIR)/ -I$(shell root-config --incdir)
+INC = -I$(CHDIR)/Anaconda3/lib/python3.8/site-packages/torch/include/torch/csrc/api/include/ -I$(CHDIR)/Anaconda3/lib/python3.8/site-packages/torch/include/torch/ -I$(CHDIR)/Anaconda3/lib/python3.8/site-packages/torch/include -I$(CHDIR)/ -I$(shell root-config --incdir)
 
 ##Directories with needed shared libaries
-LIBS=-Wl,-rpath,$(shell root-config --libdir) -Wl,-rpath,$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -Wl,-rpath,$(LIBDIR) -L$(shell root-config --libdir) -L$(CHDIR)/Anaconda3/lib/python3.7/site-packages/torch/lib -L$(LIBDIR)
+LIBS=-Wl,-rpath,$(shell root-config --libdir) -Wl,-rpath,$(CHDIR)/Anaconda3/lib/python3.8/site-packages/torch/lib -Wl,-rpath,$(LIBDIR) -L$(shell root-config --libdir) -L$(CHDIR)/Anaconda3/lib/python3.8/site-packages/torch/lib -L$(LIBDIR)
 
 ##All depedencies of on shared libaries
 DEPS=$(shell root-config --noauxlibs --noldflags --glibs) -lpthread -ltorch -lc10 -Wl,--no-as-needed,-ltorch_cpu 
