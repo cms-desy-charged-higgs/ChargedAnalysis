@@ -13,7 +13,7 @@ class MergeSkim(Task):
                     "--out-file", self["output"],   
                     "--input-files", *self["input-files"],
                     "--optimize" if "optimize" in self else "",
-                    "--dCache", self["dCache"] if "dCache" in self else "''",
+                    "--dCache", self["dCache"],
         ]
 
     def output(self):
@@ -23,7 +23,7 @@ class MergeSkim(Task):
     def configure(config):
         tasks = []
 
-        skimDir = config["skim-dir"].replace("@", config["era"])
+        skimDir = config["skim-dir"].replace("[E]", config["era"])
 
         for d in os.listdir("{}/{}".format(os.environ["CHDIR"], skimDir)):
             mergeFiles = {}
@@ -70,6 +70,7 @@ class MergeSkim(Task):
                                     "input-files": copy.deepcopy(files),                  
                                     "optimize": True,
                                     "run-mode": config["run-mode"],
+                                    "dCache": "",
                                 }
   
                                 tasks.append(MergeSkim(task))
@@ -81,10 +82,11 @@ class MergeSkim(Task):
                         task = {
                             "name": "MergeSkim_{}".format(d) + ("_{}".format(systName) if syst != "" else ""),
                             "dir": outDir, 
-                            "dCache": "{}/merged/{}".format(config["dCache"].replace("@", config["era"]).replace("!", d), systName),
+                            "dCache": "{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[P]", d), systName),
                             "output-file": "{}/{}.root".format(outDir, d),  
-                            "input-files": ["{}/{}".format(f["dir"], f["output-file"]) for f in tasks if d in f["name"] and systName in f["name"]],
+                            "input-files": [f["output-file"] for f in tasks if d in f["name"] and systName in f["name"]],
                             "dependencies": [f["name"] for f in tasks if d in f["name"] and systName in f["name"]],
+                            "dCache": "{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[P]", d), systName) if "dCache" in config else "", 
                         }
 
                         tasks.append(MergeSkim(task))
