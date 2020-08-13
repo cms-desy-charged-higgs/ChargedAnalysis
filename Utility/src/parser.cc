@@ -58,7 +58,7 @@ T Parser::GetValue(const std::string& option){
     std::string data;
 
     if(options.find(option) != options.end()){
-        if(options[option].size() == 0) data = "1";
+        if(options[option].size() == 0) data = type == "b" ? "1" : "";
         else data = options[option][0];
     }
 
