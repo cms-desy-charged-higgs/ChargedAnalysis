@@ -22,7 +22,7 @@ class HaddPlot(Task):
         tasks = []
 
         for process in config["processes"] + config["data"].get(channel, []):
-            outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"], channel, process)
+            outDir = os.environ["CHDIR"] + "/{}/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"]), process)
                 
             task = {
                     "name": "Hadd_{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  

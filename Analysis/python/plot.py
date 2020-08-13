@@ -24,9 +24,9 @@ class Plot(Task):
         task = {
                 "name": "Plot_{}".format(channel), 
                 "channel": channel, 
-                "hist-dir": os.environ["CHDIR"] + "/{}/{}".format(config["dir"], channel), 
-                "dir":  os.environ["CHDIR"] + "/Plots/{}/{}".format(config["dir"], channel), 
-                "web-dir": os.environ["CHDIR"] + "/CernWebpage/Plots/{}/{}".format(config["dir"], channel), 
+                "hist-dir": os.environ["CHDIR"] + "/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
+                "dir":  os.environ["CHDIR"] + "/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
+                "web-dir": os.environ["CHDIR"] + "/CernWebpage/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
                 "display-name": "Plots: {}".format(channel), 
                 "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 
                 "processes": [t["process"] for t in haddTasks if t["channel"] == channel]

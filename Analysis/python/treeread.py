@@ -18,7 +18,6 @@ class TreeRead(Task):
                 "--channel", self["channel"],    
                 "--filename", self["filename"], 
                 "--clean-jet", self["clean-jet"], 
-                "--event-yield", *self["interval"]
         ]
         
     def output(self):
@@ -29,37 +28,37 @@ class TreeRead(Task):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
 
-        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("@", channel))
+        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", config["era"]))
         tasks = []
  
         for process in config["processes"] + config["data"].get(channel, []):
             jobNr = 0
+            fileNames = []
 
             ##List of filenames for each process
-            filenames = ["{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = f) for f in processDic[process]]
+            for d in os.listdir(skimDir):
+                for processName in processDic[process]:
+                    if processName in d:
+                        fileNames.append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
 
-            for filename in filenames:
-                intervals = utils.SplitEventRange(filename, channel, config["number-events"])
+            for filename in fileNames:
+                ##Configuration for treeread Task
+                task = {
+                    "name": "{}_{}_{}_{}".format(channel, process, config["era"], jobNr) + ("_{}".format(prefix) if prefix else ""), 
+                    "display-name": "Hist: {} ({}/{})".format(process, channel, config["era"]),
+                    "channel": channel, 
+                    "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
+                    "dir":  os.environ["CHDIR"] + "/{}/{}/unmerged/{}".format(config["dir"].replace("[E]", config["era"]).replace("[C]", channel), process, jobNr), 
+                    "process": process, 
+                    "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
+                    "filename": filename,
+                    "run-mode": config["run-mode"],
+                    "clean-jet": config.get("clean-jet", {}).get(channel, ""),
+                    "file-type": fileType,
+                }
 
-                for interval in intervals:
-                    ##Configuration for treeread Task
-                    task = {
-                            "name": "{}_{}_{}".format(channel, process, jobNr) + ("_{}".format(prefix) if prefix else ""), 
-                            "display-name": "Hist: {} ({})".format(process, channel),
-                            "channel": channel, 
-                            "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                            "dir":  os.environ["CHDIR"] + "/{}/{}/{}/unmerged/{}".format(config["dir"], channel, process, jobNr), 
-                            "process": process, 
-                            "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
-                            "filename": filename,
-                            "interval": interval,
-                            "run-mode": config["run-mode"],
-                            "clean-jet": config.get("clean-jet", {}).get(channel, ""),
-                            "file-type": fileType,
-                    }
+                tasks.append(TreeRead(task))
 
-                    tasks.append(TreeRead(task))
-
-                    jobNr+=1
+                jobNr+=1
 
         return tasks
