@@ -11,7 +11,7 @@ void Merge(const std::vector<std::string> inFiles, const std::string outFile, co
     std::system(StrUtil::Merge("rm -rfv ", outFile).c_str());
 
     //Call hadd
-    std::system(StrUtil::Merge("hadd -f ", optimize ? " -O " : "", outFile, " ", inFiles).c_str());
+    std::system(StrUtil::Merge("hadd -f ", optimize ? " -O " : " ", outFile, " ", inFiles).c_str());
 
     //Objects which not be hadded and transferred from first input file to output file
     std::vector<std::string> notMerge = {"Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"};
@@ -27,7 +27,7 @@ void Merge(const std::vector<std::string> inFiles, const std::string outFile, co
     }
 
     if(!optimize){
-        std::system(StrUtil::Merge("rm -rfv", inFiles).c_str());
+        std::system(StrUtil::Merge("rm -rfv ", inFiles).c_str());
     }
 }
 
@@ -42,5 +42,5 @@ int main(int argc, char *argv[]){
     
     Merge(inFiles, outFile, optimize);
 
-    if(dCache != "") Utils::CopyToCache(outFile, dCache);
+    if(!dCache.empty()) Utils::CopyToCache(outFile, dCache);
 }
