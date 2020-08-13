@@ -56,7 +56,7 @@ class TreeReader {
         TreeReader();
         TreeReader(const std::vector<std::string>& parameters, const std::vector<std::string>& cutStrings, const std::string& outname, const std::string& channel);
 
-        void EventLoop(const std::string& fileName, const int& entryStart, const int& entryEnd, const std::string& cleanJet);
+        void EventLoop(const std::string& fileName, const std::string& cleanJet);
 };
 
 #endif

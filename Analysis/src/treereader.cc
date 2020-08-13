@@ -96,7 +96,7 @@ void TreeReader::PrepareLoop(){
     }
 }
 
-void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, const int &entryEnd, const std::string& cleanJet){
+void TreeReader::EventLoop(const std::string &fileName, const std::string& cleanJet){
     //Take time
     Utils::RunTime timer;
 
@@ -107,7 +107,7 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     TLeaf* nTrueInter = inputTree->GetLeaf("Misc_TrueInteraction");
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
-    std::cout << "Read tree '" << channel << "' from " << entryStart << " to " << entryEnd << std::endl;
+    std::cout << "Read tree '" << channel << std::endl;
 
     gROOT->SetBatch(kTRUE);
 
@@ -192,12 +192,11 @@ void TreeReader::EventLoop(const std::string &fileName, const int &entryStart, c
     //Cutflow
     std::shared_ptr<TH1F> cutflow(inputFile->Get<TH1F>(("cutflow_" + channel).c_str()));
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
-    if(inputTree->GetEntries() != 0) cutflow->Scale((1./nGen)*(entryEnd-entryStart)/inputTree->GetEntries());
-    else cutflow->Scale(1./nGen);
+    cutflow->Scale(1./nGen);
 
-    for (int i = entryStart; i < entryEnd; i++){
+    for (int i = 0; i < inputTree->GetEntries(); i++){
         if(i % 100000 == 0 and i != 0){
-            std::cout << "Processed events: " << i-entryStart << " (" << (i-entryStart)/timer.Time() << " eve/s)" << std::endl;
+            std::cout << "Processed events: " << i << " (" << i/timer.Time() << " eve/s)" << std::endl;
         }
 
         //Set Entry
