@@ -1,5 +1,3 @@
-number-events: 2500000000
-
 run-mode: Local
 
 skim-dir: Skim/Inclusive
