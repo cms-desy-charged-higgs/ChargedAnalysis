@@ -7,10 +7,11 @@
 #include <ChargedAnalysis/Analysis/include/plotter.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 
 int main(){
     for(const std::string& channel: {"Ele2J1FJ", "Muon2J1FJ", "Ele2FJ", "Muon2FJ"}){
-        TFile* bkgFile = TFile::Open((std::string(std::getenv("CHDIR")) + Utils::Format("@", "/Skim/Channels/@/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root", channel)).c_str(), "READ");
+        std::shared_ptr<TFile> bkgFile = std::make_shared<TFile>(StrUtil::Replace("@/Skim/Channels/@/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8/merged/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8.root", "@", std::getenv("CHDIR"), channel).c_str(), "READ");
 
         std::vector<float> predDeepAK;
         std::vector<float> predHTagAK;
@@ -31,7 +32,7 @@ int main(){
         }
 
         for(const std::string& mass : {"200", "400", "600"}){
-            TFile* sigFile = TFile::Open((std::string(std::getenv("CHDIR")) + Utils::Format("@", "/Skim/Channels/@/HPlusAndH_ToWHH_ToL4B_" + mass + "_100/merged/HPlusAndH_ToWHH_ToL4B_" + mass + "_100.root", channel)).c_str(), "READ");
+            std::shared_ptr<TFile> sigFile = std::make_shared<TFile>(StrUtil::Replace("@/Skim/Channels/@/HPlusAndH_ToWHH_ToL4B_@_100/merged/HPlusAndH_ToWHH_ToL4B_@_100.root", "@", std::getenv("CHDIR"), channel, mass, mass).c_str(), "READ");
 
             TreeFunction sigDeepAK(sigFile, channel);
             TreeFunction sigHTag(sigFile, channel);
@@ -64,7 +65,6 @@ int main(){
 
             Plotter::SetPad(canvas);
             Plotter::SetHist(canvas, deepAKROC->GetHistogram(), "p(True positive)");
-            Plotter::SetHist(canvas, deepAKROC->GetHistogram(), "p(True positive)");
             deepAKROC->GetHistogram()->GetXaxis()->SetTitle("p(False positive)");
             deepAKROC->GetHistogram()->SetMaximum(1.2);
 
@@ -74,7 +74,7 @@ int main(){
             Plotter::DrawHeader(canvas, "", "Work in progress");
             Plotter::DrawLegend(legend, 2);
 
-            canvas->SaveAs(Utils::Format("@", "DeepAKvsHTag_"  + mass + "_@.pdf", channel).c_str());
+            canvas->SaveAs(StrUtil::Replace("DeepAKvsHTag_@_@.pdf", "@", mass, channel).c_str());
 
             delete deepAKROC; delete HTagROC; delete legend; delete canvas;
 
