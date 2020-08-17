@@ -138,8 +138,8 @@ void Utils::CopyToCache(const std::string inFile, const std::string outPath){
 
     std::string fileName = Utils::SplitString<std::string>(inFile, "/").back();
 
-    std::system(("gfal-mkdir -p " + gfalPrefix + dCachePath +  outPath).c_str());
-    std::system(("gfal-copy -f " + inFile + " " + gfalPrefix + dCachePath +  outPath).c_str());
+    std::system(("gfal-mkdir -vp " + gfalPrefix + dCachePath +  outPath).c_str());
+    std::system(("gfal-copy -vf " + inFile + " " + gfalPrefix + dCachePath +  outPath + "/" + fileName).c_str());
     std::system(("rm -fv " + inFile).c_str());
     std::system(("ln -sv " + dCachePath +  outPath + "/" + fileName + " " + inFile).c_str());
 }
