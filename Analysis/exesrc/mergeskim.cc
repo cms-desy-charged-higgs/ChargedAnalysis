@@ -25,10 +25,6 @@ void Merge(const std::vector<std::string> inFiles, const std::string outFile, co
         out->Delete((objName + ";*").c_str());
         in->Get(objName.c_str())->Write();
     }
-
-    if(!optimize){
-        std::system(StrUtil::Merge("rm -rfv ", inFiles).c_str());
-    }
 }
 
 int main(int argc, char *argv[]){
@@ -42,5 +38,8 @@ int main(int argc, char *argv[]){
     
     Merge(inFiles, outFile, optimize);
 
-    if(!dCache.empty()) Utils::CopyToCache(outFile, dCache);
+    if(!dCache.empty()){
+        std::system(StrUtil::Merge("rm -rfv ", inFiles).c_str());
+        Utils::CopyToCache(outFile, dCache);
+    }
 }
