@@ -25,20 +25,27 @@ class MergeSkim(Task):
 
         skimDir = config["skim-dir"].replace("[E]", config["era"])
 
+        ##Loop over all directories in the skim dir
         for d in os.listdir("{}/{}".format(os.environ["CHDIR"], skimDir)):
             mergeFiles = {}
 
-            for syst in config["shape-systs"]:
+            ##Loop over all systematics
+            for syst in config["shape-systs"]["all"]:
                 counter = 0
-                if "SingleElectron" in d or "SingleMuon" in d and shift != "":
+
+                ##Skip if data and not nominal
+                if ("Electron" in d or "Muon" in d or "Gamma" in d) and syst != "":
                     continue
 
+                ##Loop over shifts
                 for shift in ["Up", "Down"]:
+                    ##Skip Down for nominal case
                     if syst == "" and shift == "Down":
                         continue
 
                     systName = "{}{}".format(syst, shift) if syst != "" else ""
 
+                    ##Open file with xrootd paths to output files
                     with open("{}/{}/{}/outputFiles.txt".format(os.environ["CHDIR"], skimDir, d)) as fileList:
                         files = []
                         nFilesMerge = 30
