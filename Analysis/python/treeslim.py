@@ -26,21 +26,28 @@ class TreeSlim(Task):
     def configure(config, prefix=""):
         tasks = []
 
-        for fileName in os.listdir("{}/{}".format(os.environ["CHDIR"], config["skim-dir"])):
-            for syst in [""] + config["shape-systs"]:
+        for (outChannel, inChannel) in config["channels"].items():
+            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(inChannel, []):
                 for shift in ["Up", "Down"]:
+                    ##Construct systname and skim dir
+                    systName = "" if syst == "" else "{}{}".format(syst, shift)
+                    skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[E]", config["era"]))
+
+                    ##If nominal skip Down loop
                     if(syst == "" and shift == "Down"):
                         continue
 
-                    systName = "" if syst == "" else "_{}{}".format(syst, shift)
-                    systDir = "" if syst == "" else "Syst/{}/".format(systName.replace("_", ""))
+                    for fileName in os.listdir(skimDir):
+                        ##Skip if data and not nominal
+                        if ("Electron" in fileName or "Muon" in fileName or "Gamma" in fileName) and syst != "":
+                            continue
 
-                    inFile = "{}/{}/{}/merged/{}{}.root".format(os.environ["CHDIR"], config["skim-dir"], fileName, fileName, systName)
-                    if not os.path.isfile(inFile):
-                        continue
+                        outDir = "{}/{}/{}/merged/{}".format(os.environ["CHDIR"], config["out-dir"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName)
 
-                    for (outChannel, inChannel) in config["channels"].items():
-                        outDir = "{}/{}/{}/merged".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName)
+                        inFile = "{}/{}/merged/{}/{}.root".format(skimDir, fileName, systName, fileName)
+
+                        if not os.path.exists(inFile):
+                            raise FileNotFoundError("File not found: " +  inFile)
 
                         ##Configuration for treeread Task
                         task = {
@@ -50,9 +57,9 @@ class TreeSlim(Task):
                             "input-channel": inChannel,
                             "out-channel": outChannel, 
                             "cuts": config["cuts"].get(outChannel, []),
-                            "out-name": "{}{}.root".format(fileName, systName), 
-                            "dir": "{}/{}/{}/merged/{}".format(os.environ["CHDIR"], config["out-dir"].replace("@", outChannel), fileName, systDir),
-                            "dCache": "{}/{}/merged/{}".format(config["dCache"].replace("@", outChannel), fileName, systDir) if "dCache" in config else "", 
+                            "out-name": "{}.root".format(fileName), 
+                            "dir": outDir,
+                            "dCache": "{}/{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName) if "dCache" in config else "", 
                             "run-mode": config["run-mode"],
                         }
 
