@@ -132,7 +132,7 @@ void PlotterTriggEff::Draw(std::vector<std::string> &outdirs){
 
     canvas->cd();
 
-    Plotter::DrawHeader(mainpad, "e inclusive", "Work in progress");
+    PUtil::DrawHeader(mainpad, "e inclusive", "Work in progress");
 
     for(unsigned int i = 0; i < yParam.size(); i++){
         for(unsigned int j = 0; j < passed.size(); j++){

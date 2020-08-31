@@ -41,7 +41,7 @@ void Plotter2D::ConfigureHists(){
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
-    Plotter::SetStyle();
+    PUtil::SetStyle();
 
     //Save pairs of XY parameters to avoid redundant plots
     for(std::string& param: parameters){
@@ -51,7 +51,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
         for(std::string outdir: outdirs) std::system(("mkdir -p " + outdir).c_str());
 
         //Draw main pad
-        Plotter::SetPad(mainPad);
+        PUtil::SetPad(mainPad);
         mainPad->SetRightMargin(0.15);
         mainPad->Draw();
         mainPad->cd();
@@ -64,9 +64,9 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 bkgSum->Add(hist);
             }
 
-            Plotter::SetHist(mainPad, bkgSum);
+            PUtil::SetHist(mainPad, bkgSum);
             bkgSum->DrawNormalized("CONT4Z");    
-            Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
+            PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress");
 
             for(std::string outdir: outdirs){
                 canvas->SaveAs((outdir + "/" + param + "_bkg.pdf").c_str());
@@ -79,12 +79,12 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
         if(signal.count(param)){
             for(TH2F* hist: signal[param]){
                 mainPad->Clear();
-                Plotter::SetHist(mainPad, hist);
+                PUtil::SetHist(mainPad, hist);
 
                 std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 
                 hist->DrawNormalized("CONT4Z");
-                Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
+                PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress");
 
                 for(std::string outdir: outdirs){
                     canvas->SaveAs((outdir + "/" + param + "_" + mass + "_sig.pdf").c_str());

@@ -17,7 +17,7 @@
 
 #include <torch/torch.h>
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/plotutil.h>
 
 namespace Utils{
     //Function for splitting string delimited by white space

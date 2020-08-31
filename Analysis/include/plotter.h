@@ -9,6 +9,7 @@
 #include <TLatex.h>
 #include <TGaxis.h>
 #include <TError.h>
+#include <TGraph.h>
 #include <TROOT.h>
 #include <TLegend.h>
 #include <TLegendEntry.h>
@@ -18,9 +19,10 @@
 #include <TH2F.h>
 #include <TPad.h>
 
+#include <ChargedAnalysis/Utility/include/plotutil.h>
+
 class Plotter{
     protected:
-        std::map<std::string, std::string> channelHeader;
         std::map<std::string, int> colors;
 
         std::string histdir;
@@ -28,14 +30,6 @@ class Plotter{
     public:
         Plotter();
         Plotter(const std::string& histdir);
-
-        static void SetStyle();
-        static void SetPad(TPad* pad, const bool& isRatio=false);
-        static void SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel="", const bool& isRatio=false);
-        static void DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText);
-        static void DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
-        static void DrawLegend(TLegend* legend, const int& nColumns);
-        static void DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig);
 
         virtual void ConfigureHists() = 0;
         virtual void Draw(std::vector<std::string> &outdirs) = 0;

@@ -25,7 +25,7 @@ void Plotter1D::ConfigureHists(){
         for(std::string& param: parameters){
             TH1F* hist = file->Get<TH1F>(param.c_str());
   
-            if(hist == NULL){
+            if(hist == nullptr){
                 throw std::runtime_error("Did not found histogram '" + param + "' in file '" + fileName + "'");
             }
 
@@ -68,7 +68,7 @@ void Plotter1D::ConfigureHists(){
 
 void Plotter1D::Draw(std::vector<std::string> &outdirs){
     //Set overall style
-    Plotter::SetStyle();
+    PUtil::SetStyle();
 
     for(std::string& param: parameters){
         //All canvases/pads
@@ -76,15 +76,8 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         TPad* mainPad = new TPad("mainPad", "mainPad", 0., 0. , 1., 1.);
 
         //Draw main pad
-        Plotter::SetPad(mainPad);
+        PUtil::SetPad(mainPad);
         mainPad->Draw();
-
-        //Get max value
-        float max = std::max({
-            data.count(param) ? data[param]->GetMaximum() : 0,
-            bkgSum.count(param) ? bkgSum[param]->GetMaximum() : 0,
-            signal.count(param) ? signal[param][0]->GetMaximum() : 0,
-        });
 
         //Sort histograms by integral and fill to HStack
         THStack* allBkgs = new THStack();
@@ -120,11 +113,11 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         TH1F* frame = bkgSum.count(param) ? (TH1F*)bkgSum[param]->Clone() : data.count(param) ? (TH1F*)data[param]->Clone() :
         (TH1F*)signal[param][0]->Clone();
         frame->Reset();
-        Plotter::SetHist(mainPad, frame, "Events");
+        PUtil::SetHist(mainPad, frame, "Events");
 
         //Draw ratio
         if(bkgSum.count(param) and data.count(param)){
-            Plotter::DrawRatio(canvas, mainPad, data[param], bkgSum[param], "Data/Pred");
+            PUtil::DrawRatio(canvas, mainPad, data[param], bkgSum[param], "Data/Pred");
         }
 
         for(int isLog=0; isLog < 2; isLog++){
@@ -135,11 +128,10 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             int nLegendColumns = std::ceil((legend->GetNRows())/5.);
 
             frame->SetMinimum(isLog ? 1e-1 : 0);
-            frame->SetMaximum(isLog ? max*std::pow(10, 2*nLegendColumns) : max*(1 + nLegendColumns*0.1));
             frame->Draw();
 
             //Draw Title
-            Plotter::DrawHeader(mainPad, channelHeader[channel], "Work in progress");
+            PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle("2017"));
 
             //Draw data and MC
             if(background.count(param)){
@@ -157,7 +149,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             gPad->RedrawAxis();
 
             //Draw Legend
-            Plotter::DrawLegend(legend, 5);
+            PUtil::DrawLegend(mainPad, legend, 5);
 
             //Save everything
             std::string extension = isLog ? "_log" : "";
@@ -178,8 +170,8 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             for(TH1F* hist: signal[param]){
                 TCanvas* c = new TCanvas("canvas",  "canvas", 1000, 1000);
 
-                Plotter::DrawShapes(c, statUnc, hist);
-                Plotter::DrawHeader(c, channelHeader[channel], "Work in progress");
+                PUtil::DrawShapes(c, statUnc, hist);
+                PUtil::DrawHeader(c, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle("2017"));
 
                 std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 

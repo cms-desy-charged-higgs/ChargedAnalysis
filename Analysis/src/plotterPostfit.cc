@@ -67,7 +67,7 @@ void PlotterPostfit::ConfigureHists(){
 
 void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     //Set Style
-    Plotter::SetStyle();
+    PUtil::SetStyle();
 
     //Define canvas and pads
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1400, 800);
@@ -150,7 +150,7 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
 
         TLatex* chanHeader = new TLatex();
         chanHeader->SetTextSize(i==0? 0.089 : 0.11);
-        chanHeader->DrawLatexNDC(i ==0? 0.33 : 0.05, 0.87, channelHeader[channels[i]].c_str());
+        chanHeader->DrawLatexNDC(i ==0? 0.33 : 0.05, 0.87, PUtil::GetChannelTitle(channels[i]).c_str());
 
         canvas->cd();
         pullpad->Draw();

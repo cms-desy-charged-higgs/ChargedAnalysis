@@ -68,10 +68,10 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
     TPad* mainPad = new TPad("mainPad", "mainPad", 0., 0. , 1., 1.);
 
-    Plotter::SetStyle();
+    PUtil::SetStyle();
 
     //Draw main pad
-    Plotter::SetPad(mainPad);
+    PUtil::SetPad(mainPad);
     mainPad->Draw();
     mainPad->cd();
 
@@ -111,19 +111,19 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
     legend->AddEntry(sigmaTwo.at(""), "95% expected", "F");
     
     //Configure labels
-    Plotter::SetHist(mainPad, sigmaTwo.at("")->GetHistogram());
+    PUtil::SetHist(mainPad, sigmaTwo.at("")->GetHistogram());
     sigmaTwo.at("")->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
     sigmaTwo.at("")->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
 
     mainPad->cd();
 
-    Plotter::DrawHeader(mainPad, "All channel", "Work in progress");
+    PUtil::DrawHeader(mainPad, "All channel", "Work in progress");
 
     //Save canvas in non-log and log scale
     mainPad->SetLogy(1);
 
     //Draw legend
-    Plotter::DrawLegend(legend, 2);
+    PUtil::DrawLegend(mainPad, legend, 2);
 
     for(std::string outdir: outdirs){
         canvas->SaveAs((outdir + "/limit.pdf").c_str());
@@ -152,12 +152,12 @@ void PlotterLimit::Draw(std::vector<std::string> &outdirs){
         expected[channel]->SetLineWidth(3);
         expected[channel]->SetLineColor(*color); ++color;
 
-        legend->AddEntry(expected.at(channel), channelHeader.at(channel).c_str(), "L");
+        legend->AddEntry(expected.at(channel), PUtil::GetChannelTitle(channel).c_str(), "L");
 
         expected.at(channel)->Draw("L SAME");
     }
 
-    Plotter::DrawLegend(legend, 3);
+    PUtil::DrawLegend(mainPad, legend, 3);
 
     for(std::string outdir: outdirs){
         canvas->SaveAs((outdir + "/limit_by_channel.pdf").c_str());

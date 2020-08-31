@@ -138,8 +138,8 @@ void Utils::CopyToCache(const std::string inFile, const std::string outPath){
 
     std::string fileName = Utils::SplitString<std::string>(inFile, "/").back();
 
-    std::system(("gfal-mkdir -vp " + gfalPrefix + dCachePath +  outPath).c_str());
-    std::system(("gfal-copy -vf " + inFile + " " + gfalPrefix + dCachePath +  outPath + "/" + fileName).c_str());
+    std::system(("gfal-mkdir -p " + gfalPrefix + dCachePath +  outPath).c_str());
+    std::system(("gfal-copy -f " + inFile + " " + gfalPrefix + dCachePath +  outPath + "/" + fileName).c_str());
     std::system(("rm -fv " + inFile).c_str());
     std::system(("ln -sv " + dCachePath +  outPath + "/" + fileName + " " + inFile).c_str());
 }
@@ -188,9 +188,9 @@ void Utils::DrawScore(const torch::Tensor pred, const torch::Tensor truth, const
     TGraph* ROC;
     TLatex* rocText;
     
-    Plotter::SetPad(canvas);
-    Plotter::SetStyle();
-    Plotter::SetHist(canvas, topHist);
+    PUtil::SetPad(canvas);
+    PUtil::SetStyle();
+    PUtil::SetHist(canvas, topHist);
 
     for(unsigned int k=0; k < pred.size(0); k++){
         if(truth[k].item<float>() == 0){
@@ -204,7 +204,7 @@ void Utils::DrawScore(const torch::Tensor pred, const torch::Tensor truth, const
 
     topHist->DrawNormalized("HIST");
     higgsHist->DrawNormalized("HIST SAME");
-    Plotter::DrawHeader(canvas, "All channel", "Work in Progress");
+    PUtil::DrawHeader(canvas, "All channel", "Work in Progress");
 
     canvas->SaveAs((scorePath + "/score.pdf").c_str());
 
