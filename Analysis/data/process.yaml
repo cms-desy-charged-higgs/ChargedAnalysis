@@ -49,12 +49,12 @@ T:
     - ST_t-channel_antitop_4f_inclusiveDecays
     - ST_t-channel_top_4f_inclusiveDecays
 
-
 JetHT:
     - JetHT
 
 SingleE:
     - SingleElectron
+    - EGamma
 
 SingleMu:
     - SingleMuon
