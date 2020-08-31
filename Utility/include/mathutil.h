@@ -2,10 +2,6 @@
 #define MATHUTIL_H
 
 #include <cmath>
-#include <memory>
-#include <functional>
-
-#include <ChargedAnalysis/Utility/include/util.h>
 
 /**
 * @brief Math utility library to for calculating properties
