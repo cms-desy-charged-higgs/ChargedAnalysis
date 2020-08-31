@@ -21,19 +21,30 @@ class HaddPlot(Task):
     def configure(config, treeTasks, channel, prefix=""):
         tasks = []
 
-        for process in config["processes"] + config["data"].get(channel, []):
-            outDir = os.environ["CHDIR"] + "/{}/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"]), process)
-                
-            task = {
-                    "name": "Hadd_{}_{}".format(process, channel) + ("_{}".format(prefix) if prefix else ""),  
-                    "dir": outDir,
-                    "channel": channel,
-                    "process": process,
-                    "display-name": "Hadd: {} ({})".format(process, channel),
-                    "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"]]
-            }
+        for syst in config["shape-systs"].get("all", []) + config.get(channel, []):
+            for shift in ["Up", "Down"]:
+                ##If nominal skip Down loop
+                if(syst == "" and shift == "Down"):
+                    continue
 
-            tasks.append(HaddPlot(task))
+                systName = "{}{}".format(syst, shift) if syst != "" else ""
+
+                for process in config["processes"] + config["data"].get(channel, []):
+                    if (process in ["SingleE", "SingleMu"]) and syst != "":
+                        continue
+
+                    outDir = os.environ["CHDIR"] + "/{}/{}/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"]), process, systName)
+                        
+                    task = {
+                            "name": "Hadd_{}_{}{}".format(process, channel, systName) + ("_{}".format(prefix) if prefix else ""),  
+                            "dir": outDir,
+                            "channel": channel,
+                            "process": process,
+                            "display-name": "Hadd: {} ({})".format(process, channel),
+                            "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"]]
+                    }
+
+                    tasks.append(HaddPlot(task))
         return tasks
 
 

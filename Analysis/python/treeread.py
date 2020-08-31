@@ -21,44 +21,54 @@ class TreeRead(Task):
         ]
         
     def output(self):
-        self["output"] = "{}/{}.{}".format(self["dir"], self["name"], self["file-type"])
+        self["output"] = "{}/{}.{}".format(self["dir"], self["process"], self["file-type"])
 
     @staticmethod
     def configure(config, channel, fileType="root", prefix=""):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
-
-        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", config["era"]))
         tasks = []
- 
-        for process in config["processes"] + config["data"].get(channel, []):
-            jobNr = 0
-            fileNames = []
+       
+        for syst in config["shape-systs"].get("all", []) + config.get(channel, []):
+            for shift in ["Up", "Down"]:
+                ##Skip Down for nominal case
+                if syst == "" and shift == "Down":
+                    continue
+                systName = "{}{}".format(syst, shift) if syst != "" else ""
 
-            ##List of filenames for each process
-            for d in os.listdir(skimDir):
-                for processName in processDic[process]:
-                    if processName in d:
-                        fileNames.append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
+                skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", config["era"]))
+        
+                for process in config["processes"] + config["data"].get(channel, []):
+                    if (process in ["SingleE", "SingleMu"]) and syst != "":
+                        continue
 
-            for filename in fileNames:
-                ##Configuration for treeread Task
-                task = {
-                    "name": "{}_{}_{}_{}".format(channel, process, config["era"], jobNr) + ("_{}".format(prefix) if prefix else ""), 
-                    "display-name": "Hist: {} ({}/{})".format(process, channel, config["era"]),
-                    "channel": channel, 
-                    "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                    "dir":  os.environ["CHDIR"] + "/{}/{}/unmerged/{}".format(config["dir"].replace("[E]", config["era"]).replace("[C]", channel), process, jobNr), 
-                    "process": process, 
-                    "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
-                    "filename": filename,
-                    "run-mode": config["run-mode"],
-                    "clean-jet": config.get("clean-jet", {}).get(channel, ""),
-                    "file-type": fileType,
-                }
+                    jobNr = 0
+                    fileNames = []
 
-                tasks.append(TreeRead(task))
+                    ##List of filenames for each process
+                    for d in os.listdir(skimDir):
+                        for processName in processDic[process]:
+                            if processName in d:
+                                fileNames.append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
 
-                jobNr+=1
+                    for filename in fileNames:
+                        ##Configuration for treeread Task
+                        task = {
+                            "name": "{}_{}_{}_{}{}".format(channel, process, config["era"], jobNr, systName) + ("_{}".format(prefix) if prefix else ""), 
+                            "display-name": "Hist: {} ({}/{})".format(process, channel, config["era"]),
+                            "channel": channel, 
+                            "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
+                            "dir":  os.environ["CHDIR"] + "/{}/{}/unmerged/{}/{}".format(config["dir"].replace("[E]", config["era"]).replace("[C]", channel), process, systName, jobNr), 
+                            "process": process, 
+                            "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
+                            "filename": filename,
+                            "run-mode": config["run-mode"],
+                            "clean-jet": config.get("clean-jet", {}).get(channel, ""),
+                            "file-type": fileType,
+                        }
+
+                        tasks.append(TreeRead(task))
+
+                        jobNr+=1
 
         return tasks
