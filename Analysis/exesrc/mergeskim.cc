@@ -4,14 +4,27 @@
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
 
+#include <TFileMerger.h>
 #include <TFile.h>
+#include <TTree.h>
 
 void Merge(const std::vector<std::string> inFiles, const std::string outFile, const bool& optimize){
+    TTree::SetMaxTreeSize(1000000000000);
+
     //Remove outfile if it is already there
     std::system(StrUtil::Merge("rm -rfv ", outFile).c_str());
 
     //Call hadd
-    std::system(StrUtil::Merge("hadd -f ", optimize ? " -O " : " ", outFile, " ", inFiles).c_str());
+    TFileMerger merger(false);
+    merger.SetFastMethod(!optimize);
+    merger.SetPrintLevel(99);
+
+    for(const std::string file: inFiles){
+        merger.AddFile(file.c_str());
+    }
+
+    merger.OutputFile(outFile.c_str());
+    merger.Merge();
 
     //Objects which not be hadded and transferred from first input file to output file
     std::vector<std::string> notMerge = {"Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"};
@@ -39,7 +52,7 @@ int main(int argc, char *argv[]){
     Merge(inFiles, outFile, optimize);
 
     if(!dCache.empty()){
-        std::system(StrUtil::Merge("rm -rfv ", inFiles).c_str());
         Utils::CopyToCache(outFile, dCache);
+        std::system(StrUtil::Merge("rm -rfv ", inFiles).c_str());
     }
 }
