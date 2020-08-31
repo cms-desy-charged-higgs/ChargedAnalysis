@@ -42,7 +42,7 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
     background = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, (1./wBkg*batchSize));
 
     //Recalculate class weights after equalizing all signal mass hypotheses
-    int nSigWeighted = 6*nSig;
+    int nSigWeighted = sigSets.size()*nSig;
     wBkg = (nSigWeighted + nBkg)/float(nBkg);
 
     std::vector<float> wSigWeighted;
@@ -241,7 +241,7 @@ int main(int argc, char** argv){
     int nParameters = frame->GetNLabels();
 
     //Create model
-    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(nParameters, nNodes, nLayers, dropOut, true, device);
+    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(nParameters, nNodes, nLayers, dropOut, masses.size() > 1 ? true : false, device);
     model->Print();
 
     //Do training
