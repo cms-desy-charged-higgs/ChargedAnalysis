@@ -118,13 +118,13 @@ def dnn(config):
 
             bkgConfig["processes"] = bkgConfig["backgrounds"]
             bkgConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-            bkgConfig["dir"] = bkgConfig["dir"].format(evType)
+            bkgConfig["dir"] = bkgConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]).replace("[T]", evType)
 
             CSVTasks = TreeRead.configure(bkgConfig, channel, "csv", prefix=evType)
             mergeTasks = MergeCSV.configure(bkgConfig, CSVTasks, channel, prefix=evType)
             allTasks.extend(CSVTasks)
 
-            paramDir = "{}/{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"], channel) 
+            paramDir = "{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]))
             os.makedirs(paramDir, exist_ok=True)
 
             with open(paramDir + "/parameter.txt", "w") as param:
@@ -134,16 +134,22 @@ def dnn(config):
             for mass in config["masses"]:
                 sigConfig = copy.deepcopy(config)
 
-                sigConfig["processes"] = [config["signal"].format(mass)]
+                sigConfig["processes"] = [config["signal"].replace("[MHC]", str(mass))]
                 sigConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-                sigConfig["dir"] = sigConfig["dir"].format(evType)
+                sigConfig["dir"] = sigConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]).replace("[T]", evType)
 
                 CSVTasks = TreeRead.configure(sigConfig, channel, "csv", prefix=evType)
                 mergeTasks.extend(MergeCSV.configure(sigConfig, CSVTasks, channel, prefix=evType))
+
+                if not config["is-parametrized"]:
+                    dnnTask = DNN.configure(config, channel, mergeTasks, evType, [mass], str(mass))
+                    allTasks.extend(dnnTask)
+
                 allTasks.extend(CSVTasks)
 
-            dnnTask = DNN.configure(config, channel, mergeTasks, evType)
-            allTasks.extend(dnnTask)
+            if config["is-parametrized"]:
+                dnnTask = DNN.configure(config, channel, mergeTasks, evType, config["masses"])
+                allTasks.extend(dnnTask)
                     
             allTasks.extend(mergeTasks)
 
