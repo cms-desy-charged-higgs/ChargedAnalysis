@@ -2,8 +2,13 @@
 #define VECTORUTIL_H
 
 #include <vector>
+#include <map>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
+#include <experimental/source_location>
+
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 
 /**
 * @brief Utility library to operator on C++ standard library vectors
@@ -110,6 +115,64 @@ namespace VUtil{
         }        
 
         return out;
+    }
+
+    /**
+    * @brief Produce a range of numbers
+    *
+    * Example:
+    * @code
+    * std::vector<int> range = VUtil::Range(1, 5, 5); //output {1, 2, 3, 4, 5}
+    * @endcode
+    *
+    * @param start First element of range
+    * @param end Last element of range
+    * @param steps Number of steps between start and end
+    * @return Return ranged vetor
+    */
+    template <typename Vec, typename T = typename Vec::value_type, typename R = typename std::conditional<std::is_const<Vec>::value, const T, T>::type>
+    R& At(Vec& vec, const int& idx, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        try{
+            return vec.at(idx);
+        }
+    
+        catch (const std::out_of_range& oor) {
+            throw std::out_of_range(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), ": Index '", idx, "' out of range with vector of size ", vec.size()));
+        }
+    }
+
+    template <typename Map, typename K = typename Map::key_type, typename V = typename Map::mapped_type, typename R = typename std::conditional<std::is_const<Map>::value, const V, V>::type>
+    R& At(Map& map, const K& key, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        try{
+            return map.at(key);
+        }
+    
+        catch (const std::out_of_range& oor) {
+            throw std::out_of_range(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), ": Key '", key, "' not in map"));
+        }
+    }
+
+    /**
+    * @brief Produce a range of numbers
+    *
+    * Example:
+    * @code
+    * std::map<int, int> map = {{1, 1}, {2, 2}};
+    * std::vector<int> keys = VUtil::MapKeys(map); //output {1, 2}
+    * @endcode
+    *
+    * @param map Input map
+    * @return Return keys of map
+    */
+    template<typename K, typename V>    
+    std::vector<K> MapKeys(std::map<K, V> map){
+        std::vector<K> keys;
+
+        for(std::pair<K, V> m : map){
+            keys.push_back(m.first);
+        }
+
+        return keys;
     }
 };
 
