@@ -3,11 +3,25 @@ run-mode: Local
 skim-dir: Skim/Inclusive
 
 shape-systs:
-    - ""
-    - energyScale
-    - energySigma
-    - JECTotal
-    - JER
+    all:
+        - ""
+
+    #- ""
+    #- energyScale
+    #- energySigma
+    #- JECTotal
+    #- JER
+
+scale-systs:
+    all:
+        - ""
+       # - "BTag"
+       # - "MuonIso"
+       # - "MuonID"  
+       # - "MuonTrigger",
+       # - "EleID",  
+       # - "EleReco"
+       # - "PileUp"
 
 cuts:
     all: []
