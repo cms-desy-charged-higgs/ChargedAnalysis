@@ -21,7 +21,7 @@ class HaddPlot(Task):
     def configure(config, treeTasks, channel, prefix=""):
         tasks = []
 
-        for syst in config["shape-systs"].get("all", []) + config.get(channel, []):
+        for syst in set(config["shape-systs"].get("all", []) + config.get(channel, []) + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])):
             for shift in ["Up", "Down"]:
                 ##If nominal skip Down loop
                 if(syst == "" and shift == "Down"):
@@ -41,7 +41,7 @@ class HaddPlot(Task):
                             "channel": channel,
                             "process": process,
                             "display-name": "Hadd: {} ({})".format(process, channel),
-                            "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"]]
+                            "dependencies": [t["name"] for t in treeTasks if process == t["process"] and channel == t["channel"] and syst in t["scale-syst"]]
                     }
 
                     tasks.append(HaddPlot(task))

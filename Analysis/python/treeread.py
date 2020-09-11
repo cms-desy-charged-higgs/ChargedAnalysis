@@ -1,5 +1,4 @@
 from task import Task
-import utils
 
 import os
 import yaml
@@ -14,14 +13,15 @@ class TreeRead(Task):
         self["arguments"] = [
                 "--parameters", *self["parameters"],
                 "--cuts", *self["cuts"], 
-                "--out-name", self["output"],  
+                "--out-name", self["output"][0],  
                 "--channel", self["channel"],    
                 "--filename", self["filename"], 
-                "--clean-jet", self["clean-jet"], 
+                "--clean-jet", self["clean-jet"],
+                "--scale-syst", *self["scale-syst"], 
         ]
         
     def output(self):
-        self["output"] = "{}/{}.{}".format(self["dir"], self["process"], self["file-type"])
+        self["output"] = ["{}/{}/{}.{}".format(self["dir"], syst, self["process"], self["file-type"]) for syst in self["scale-syst"]]
 
     @staticmethod
     def configure(config, channel, fileType="root", prefix=""):
@@ -29,7 +29,7 @@ class TreeRead(Task):
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
         tasks = []
        
-        for syst in config["shape-systs"].get("all", []) + config.get(channel, []):
+        for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
             for shift in ["Up", "Down"]:
                 ##Skip Down for nominal case
                 if syst == "" and shift == "Down":
@@ -65,6 +65,7 @@ class TreeRead(Task):
                             "run-mode": config["run-mode"],
                             "clean-jet": config.get("clean-jet", {}).get(channel, ""),
                             "file-type": fileType,
+                            "scale-syst": config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, []) if process not in ["SingleE", "SingleMu"] else [""]
                         }
 
                         tasks.append(TreeRead(task))
