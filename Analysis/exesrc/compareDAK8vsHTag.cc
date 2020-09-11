@@ -4,7 +4,7 @@
 #include <TCanvas.h>
 #include <TGraph.h>
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
@@ -48,7 +48,7 @@ int main(){
                 truth.push_back(1);
             }
 
-            Plotter::SetStyle();
+            PUtil::SetStyle();
 
             TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
             TGraph* deepAKROC = Utils::GetROC(predDeepAK, truth);
@@ -63,16 +63,16 @@ int main(){
             HTagROC->SetMarkerStyle(22);
             HTagROC->SetMarkerColor(kViolet);
 
-            Plotter::SetPad(canvas);
-            Plotter::SetHist(canvas, deepAKROC->GetHistogram(), "p(True positive)");
+            PUtil::SetPad(canvas);
+            PUtil::SetHist(canvas, deepAKROC->GetHistogram(), "p(True positive)");
             deepAKROC->GetHistogram()->GetXaxis()->SetTitle("p(False positive)");
             deepAKROC->GetHistogram()->SetMaximum(1.2);
 
             deepAKROC->Draw("AP");
             HTagROC->Draw("P SAME");
 
-            Plotter::DrawHeader(canvas, "", "Work in progress");
-            Plotter::DrawLegend(legend, 2);
+            PUtil::DrawHeader(canvas, "", "Work in progress");
+            PUtil::DrawLegend(canvas, legend, 2);
 
             canvas->SaveAs(StrUtil::Replace("DeepAKvsHTag_@_@.pdf", "@", mass, channel).c_str());
 
