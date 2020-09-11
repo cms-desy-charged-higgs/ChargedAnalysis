@@ -28,12 +28,12 @@ namespace StrUtil{
     *
     * Example:
     * @code
-    * int pos = StrUtil::Find("Where is my purse?", "purse"); //output "12"
+    * std::vector<int> pos = StrUtil::Find("Where is my purse?", "purse"); //output "{12}"
     * @endcode
     *
     * @param string String which will be searched
     * @param itemToFind Streamble object which will searched for
-    * @return Position of first occurence, if nothing is find -1 is returned
+    * @return Vector with positions of all occurences, empty if not occurence
     */
     template <Streamable T>
     std::vector<int> Find(const std::string& string, const T& itemToFind){
@@ -105,6 +105,73 @@ namespace StrUtil{
 
         return result;
     }
+
+    /**
+    * @brief Split string by delimiter
+    *
+    * Example:
+    * @code
+    * std::vector<std::string> s = StrUtil::Split("Hello World !", " "); //output {"Hello", "World", "!"}
+    * @endcode
+    *
+    * @param toSplit String to split
+    * @param label Delimiter string to search for
+    * @return Vector with splitted string
+    */
+    template <Streamable Label>
+    std::vector<std::string> Split(const std::string& toSplit, const Label& label){
+        std::vector<std::string> splittedString;        
+
+        std::vector<int> positions = StrUtil::Find(toSplit, label);
+
+        if(!positions.empty()){
+            splittedString.push_back(toSplit.substr(0, positions[0]));
+
+            std::vector<std::string> newSplitted = StrUtil::Split(toSplit.substr(positions[0] + 1), label);
+            splittedString.insert(splittedString.end(), newSplitted.begin(), newSplitted.end());
+        }
+
+        else{
+            splittedString.push_back(toSplit);
+        }
+
+        return splittedString;
+    }
+
+    /**
+    * @brief Merge string with delimiter, python like string join function
+    *
+    * Example:
+    * @code
+    * <std::string> s = StrUtil::Join(" ", "Hello", "World", "!"); //output "Hello World !"
+    * @endcode
+    *
+    * @param delimeter Delimeter string which is used between each sstring
+    * @param mergeObjects String to be merged
+    * @return Merged string
+    */
+    template <Streamable... Args>
+    std::string Join(const std::string& delimeter, Args&&... mergeObjects){
+        std::stringstream result;
+
+        ((result << std::forward<Args>(mergeObjects) << delimeter), ...);
+        return result.str().substr(0, result.str().size() - 1);
+    }
 };
+
+/**
+* @brief Overload of stream operator for vector
+*/
+
+template<StrUtil::Streamable T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T> vec)
+{
+    for(int i; i < vec.size(); i++){
+        if(i == 0) os << vec[i];
+        else os << " " << vec[i];
+    }
+
+    return os;
+}
 
 #endif
