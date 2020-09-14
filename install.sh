@@ -23,11 +23,6 @@ conda install pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly -y
 conda install -c anaconda git make pyyaml cmake pandas -y
 conda install -c conda-forge boost vdt root -y
 
-##Install for bayesian optimization
-git clone https://github.com/fmfn/BayesianOptimization.git
-cd BayesianOptimization
-python setup.py install
-
 ##Git standalone analysis code and compile everything
 cd $CHDIR
 git clone https://github.com/cms-desy-charged-higgs/ChargedAnalysis.git
@@ -56,17 +51,17 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 source /cvmfs/cms.cern.ch/crab3/crab.sh
 export SCRAM_ARCH=slc7_amd64_gcc700
 
-eval `scramv1 project CMSSW CMSSW_10_2_18`
-cd CMSSW_10_2_18/src/
+eval `scramv1 project CMSSW CMSSW_10_2_22`
+cd CMSSW_10_2_22/src/
 eval `scramv1 runtime -sh`
 git cms-init
+
+git clone https://github.com/cms-egamma/EgammaPostRecoTools.git EgammaUser/EgammaPostRecoTools
 
 ##Clone charged higgs repos
 git clone https://github.com/cms-desy-charged-higgs/ChargedSkimming.git
 git clone https://github.com/cms-desy-charged-higgs/ChargedProduction.git
 
-##Other stuff neeeded
-git cms-merge-topic cms-egamma:EgammaPostRecoTools
 
 ##Compile everthing
 scram b -j 20
