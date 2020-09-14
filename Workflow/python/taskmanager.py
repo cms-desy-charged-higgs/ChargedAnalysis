@@ -47,6 +47,10 @@ class TaskManager(object):
             ##Close http server
             self.httpd.server_close()
 
+        for task in self._tasks:
+            if task.cleanDir:
+                task.clearWorkDir()
+
     @staticmethod
     def runServer(server):
         server.serve_forever()

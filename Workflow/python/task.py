@@ -23,6 +23,9 @@ class Task(ABC, dict):
         ##Check if prepare function is already called
         self.isPrepared = False
 
+        ##Check if working dir should be deleted after execution
+        self.cleanDir = False
+
         if "display-name" not in self:
             self["display-name"] = self["name"]
 
@@ -102,7 +105,11 @@ class Task(ABC, dict):
         self.run()
 
         self.isPrepared=True
-                            
+
+
+    def clearWorkDir(self):
+        subprocess.run(["command", "rm", "-rf", self["dir"]])
+          
     ##Abstract functions which has to be overwritten
     @abstractmethod
     def run(self):
