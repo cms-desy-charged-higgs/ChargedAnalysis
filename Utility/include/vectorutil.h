@@ -50,6 +50,34 @@ namespace VUtil{
         return out;
     }
 
+
+    /**
+    * @brief Get slice of range from vector
+    *
+    * Example:
+    * @code
+    * std::vector<int> v = {1, 2, 3, 4, 5};
+    * VUtil::Slice(v, 1, 3); //output {2, 3, 4}
+    * @endcode
+    *
+    * @param in Input vector
+    * @param start Index indicating start of the slice
+    * @param end Index indicating end of the slice
+    * @return Return Sliced output vector
+    */
+    template <typename T>
+    std::vector<T> Slice(const std::vector<T>& in, const int& start, const int& end, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        std::vector<T> out;
+
+        if(std::abs(end) >= in.size()){
+            throw std::out_of_range(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), ": End index '", end, "' out of range with vector of size ", in.size()));
+        }
+    
+        out = std::vector<T>(in.begin() + start, end > 0 ? in.begin() + end : in.end() + end);
+    
+        return out;
+    }
+
     /**
     * @brief Merge a list of vectors into one vector
     *
