@@ -75,7 +75,7 @@ class TaskWebpage(object):
                 newDic["<b style='color:brown'>{}</b>".format(key)] = value
 
             else:
-                newDic["<b style='color:brown'>{}</b>".format(key)] = dicToNiceHtml(value)
+                newDic["<b style='color:brown'>{}</b>".format(key)] = self.__dicToNiceHtml(value)
 
         return newDic
 
