@@ -1,4 +1,5 @@
 from task import Task
+from ROOT import TFile
 
 import os
 import yaml
@@ -16,7 +17,8 @@ class TreeSlim(Task):
                 "--out-name", self["output"],
                 "--out-channel", self["out-channel"],
                 "--cuts", *self["cuts"],
-                "--dCache", self["dCache"],
+                "--event-start", self["event-start"],
+                "--event-end", self["event-end"],
         ]
         
     def output(self):
@@ -42,27 +44,37 @@ class TreeSlim(Task):
                         if ("Electron" in fileName or "Muon" in fileName or "Gamma" in fileName) and syst != "":
                             continue
 
-                        outDir = "{}/{}/{}/merged/{}".format(os.environ["CHDIR"], config["out-dir"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName)
-
                         inFile = "{}/{}/merged/{}/{}.root".format(skimDir, fileName, systName, fileName)
 
                         if not os.path.exists(inFile):
                             raise FileNotFoundError("File not found: " +  inFile)
 
-                        ##Configuration for treeread Task
-                        task = {
-                            "name": "{}_{}{}".format(fileName, outChannel, systName) + ("_{}".format(prefix) if prefix else ""), 
-                            "display-name": "Slim: {}".format(outChannel),
-                            "input-name": inFile,
-                            "input-channel": inChannel,
-                            "out-channel": outChannel, 
-                            "cuts": config["cuts"].get(outChannel, []),
-                            "out-name": "{}.root".format(fileName), 
-                            "dir": outDir,
-                            "dCache": "{}/{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName) if "dCache" in config else "", 
-                            "run-mode": config["run-mode"],
-                        }
+                        f = TFile.Open(inFile)
+                        t = f.Get(inChannel)   
+                        nEvents = t .GetEntries()
 
-                        tasks.append(TreeSlim(task))
+                        eventRanges = [[i if i == 0 else i+1, i+config["n-events"] if i+config["n-events"] <= nEvents else nEvents] for i in range(0, nEvents, config["n-events"])]
+
+                        ##Configuration for treeread Task   
+                        for index, (start, end) in enumerate(eventRanges):
+                            outDir = "{}/{}/{}/unmerged/{}/{}".format(os.environ["CHDIR"], config["out-dir"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName, index)
+
+                            ##Configuration for treeread Task
+                            task = {
+                                "name": "{}_{}{}_{}".format(fileName, outChannel, systName, index) + ("_{}".format(prefix) if prefix else ""), 
+                                "display-name": "Slim: {}".format(outChannel),
+                                "input-name": inFile,
+                                "input-channel": inChannel,
+                                "out-channel": outChannel, 
+                                "cuts": config["cuts"].get(outChannel, []),
+                                "out-name": "{}.root".format(fileName), 
+                                "dir": outDir,
+                                "run-mode": config["run-mode"],
+                                "event-start": start,
+                                "event-end": end,
+                                "systematic": systName, 
+                            }
+
+                            tasks.append(TreeSlim(task))
 
         return tasks
