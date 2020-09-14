@@ -6,6 +6,7 @@
 
 #include <TFile.h>
 #include <TTree.h>
+#include <TEntryList.h>
 
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 #include <ChargedAnalysis/Analysis/include/treereader.h>
@@ -19,7 +20,7 @@ class TreeSlimmer{
     public:
         TreeSlimmer(const std::string& inputFile, const std::string& inputChannel);
     
-        void DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts);
+        void DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const int& start, const int& end);
 };
 
 #endif

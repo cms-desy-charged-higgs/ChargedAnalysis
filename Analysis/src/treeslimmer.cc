@@ -4,7 +4,7 @@ TreeSlimmer::TreeSlimmer(const std::string& inputFile, const std::string& inputC
     inputFile(inputFile),
     inputChannel(inputChannel){}
 
-void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts){
+void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const int& start, const int& end){
     //Get input tree
     std::shared_ptr<TFile> inFile(TFile::Open(inputFile.c_str(), "READ"));
     std::shared_ptr<TTree> inTree(inFile->Get<TTree>(inputChannel.c_str()));
@@ -51,7 +51,7 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
     //Loop
     bool passed = true;
 
-    for(int i = 0; i < inTree->GetEntries(); i++){
+    for(int i = start; i < end; i++){
         if(i % 100000 == 0 and i != 0){
             std::cout << "Processed events: " << i << std::endl;
         }

@@ -9,14 +9,10 @@ int main(int argc, char* argv[]){
     std::string inChannel = parser.GetValue<std::string>("input-channel");
     std::string outName = parser.GetValue<std::string>("out-name");
     std::string outChannel = parser.GetValue<std::string>("out-channel");
-    std::string dCache = parser.GetValue<std::string>("dCache", "");
     std::vector<std::string> cuts = parser.GetVector<std::string>("cuts");
-
-    std::string tmpFile = "tmp_" + std::to_string(getpid()) + ".root";
+    int start = parser.GetValue<int>("event-start");
+    int end = parser.GetValue<int>("event-end");
 
     TreeSlimmer slimmer(inName, inChannel);    
-    slimmer.DoSlim(tmpFile, outChannel, cuts);
-
-    std::system(("mv -vf " + tmpFile + " " + outName).c_str());
-    if(dCache != "") Utils::CopyToCache(outName, dCache);
+    slimmer.DoSlim(outName, outChannel, cuts, start, end);
 }
