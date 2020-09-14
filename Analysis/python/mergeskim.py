@@ -8,16 +8,16 @@ class MergeSkim(Task):
         super().__init__(config)
 
     def run(self):
-        self["executable"] = "mergeskim"
+        self["executable"] = "merge"
         self["arguments"] =  [
                     "--out-file", self["output"],   
                     "--input-files", *self["input-files"],
-                    "--optimize" if "optimize" in self else "",
-                    "--dCache", self["dCache"],
+                    "--exclude-objects", *self["exclude-objects"],
+                    "--delete-input" if "delete-input" in self else "",
         ]
 
     def output(self):
-        self["output"] = self["output-file"]
+        self["output"] = "{}/{}".format(self["dir"], self["out-name"])
 
     @staticmethod
     def configure(config):
@@ -73,11 +73,12 @@ class MergeSkim(Task):
                                 task = {
                                     "name": "MergeSkim_{}_{}".format(d, count) + ("_{}".format(systName) if syst != "" else ""),
                                     "dir": outDir, 
-                                    "output-file": "{}/{}.root".format(outDir, d),  
                                     "input-files": copy.deepcopy(files),                  
-                                    "optimize": True,
                                     "run-mode": config["run-mode"],
-                                    "dCache": "",
+                                    "delete-input": True,
+                                    "out-name": "{}.root".format(d),
+                                    "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
+                                
                                 }
   
                                 tasks.append(MergeSkim(task))
@@ -89,11 +90,10 @@ class MergeSkim(Task):
                         task = {
                             "name": "MergeSkim_{}".format(d) + ("_{}".format(systName) if syst != "" else ""),
                             "dir": outDir, 
-                            "dCache": "{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[P]", d), systName),
-                            "output-file": "{}/{}.root".format(outDir, d),  
-                            "input-files": [f["output-file"] for f in tasks if d in f["name"] and systName in f["name"]],
+                            "input-files": ["{}/{}".format(f["dir"], f["out-name"]) for f in tasks if d in f["name"] and systName in f["name"]],
                             "dependencies": [f["name"] for f in tasks if d in f["name"] and systName in f["name"]],
-                            "dCache": "{}/merged/{}".format(config["dCache"].replace("[E]", config["era"]).replace("[P]", d), systName) if "dCache" in config else "", 
+                            "out-name": "{}.root".format(d),
+                            "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
                         }
 
                         tasks.append(MergeSkim(task))
