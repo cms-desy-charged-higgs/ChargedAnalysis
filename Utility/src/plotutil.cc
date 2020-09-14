@@ -186,6 +186,8 @@ void PUtil::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
 
 std::string PUtil::GetChannelTitle(const std::string& channel){
     std::map<std::string, std::string> channelTitle = {
+        {"EleIncl", "e incl."},
+        {"MuonIncl", "#mu incl."},
         {"Ele4J", "e + 4j"},
         {"Muon4J", "#mu + 4j"},
         {"Ele2J1FJ", "e + 2j + 1fj"},
