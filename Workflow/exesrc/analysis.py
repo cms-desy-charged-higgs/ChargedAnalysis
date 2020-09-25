@@ -4,17 +4,24 @@ from taskmanager import TaskManager
 
 from treeread import TreeRead
 from treeslim import TreeSlim
+from treeappend import TreeAppend
+
 from plot import Plot
 from hadd import HaddPlot, HaddAppend
-from treeappend import TreeAppend
-from datacard import Datacard
-from limit import Limit
 from plotlimit import PlotLimit
 from plotpostfit import PlotPostfit
+
+from datacard import Datacard
+from limit import Limit
+
 from bdt import BDT
-from merge import MergeCSV
 from dnn import DNN
+
+from mergecsv import MergeCSV
 from mergeskim import MergeSkim
+from merge import Merge
+
+from dcache import DCache
 
 import os
 import argparse
@@ -195,10 +202,20 @@ def limit(config):
     return allTasks
 
 def slim(config):
-    return TreeSlim.configure(config)
+    slimTasks = TreeSlim.configure(config)
+    mergeTasks = Merge.configure(config, slimTasks, "slim")
+    dCacheTasks = DCache.configure(config, mergeTasks)
+
+    return slimTasks + mergeTasks + dCacheTasks
 
 def merge(config):
-    return MergeSkim.configure(config)
+    mergeTasks = MergeSkim.configure(config)
+    dCacheTasks = []
+
+    if "dCache"  in config:
+        DCache.configure(config, [task for task in mergeTasks if not "tmp" in task["dir"]])
+
+    return mergeTasks + dCacheTasks
 
 def plot(config):
     allTasks = []
