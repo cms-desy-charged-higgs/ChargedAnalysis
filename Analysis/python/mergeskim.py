@@ -75,7 +75,6 @@ class MergeSkim(Task):
                                     "dir": outDir, 
                                     "input-files": copy.deepcopy(files),                  
                                     "run-mode": config["run-mode"],
-                                    "delete-input": True,
                                     "out-name": "{}.root".format(d),
                                     "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
                                 
@@ -94,6 +93,7 @@ class MergeSkim(Task):
                             "dependencies": [f["name"] for f in tasks if d in f["name"] and systName in f["name"]],
                             "out-name": "{}.root".format(d),
                             "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
+                            "delete-input": True,
                         }
 
                         tasks.append(MergeSkim(task))
