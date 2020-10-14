@@ -34,7 +34,7 @@ def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN", "Slim", "Merge"])
     parser.add_argument("--config", type=str)
-    parser.add_argument("--era", type=str)
+    parser.add_argument("--era", nargs='+', default = [""])
     parser.add_argument("--check-output", action = "store_true")
     parser.add_argument("--no-http", action = "store_true")
 
@@ -213,19 +213,20 @@ def merge(config):
     dCacheTasks = []
 
     if "dCache"  in config:
-        DCache.configure(config, [task for task in mergeTasks if not "tmp" in task["dir"]])
+        dCacheTasks = DCache.configure(config, [task for task in mergeTasks if not "tmp" in task["dir"]])
 
     return mergeTasks + dCacheTasks
 
 def plot(config):
     allTasks = []
 
-    for channel in config["channels"]:
-        treeTasks = TreeRead.configure(config, channel)
-        haddTasks = HaddPlot.configure(config, treeTasks, channel)
-        histTasks = Plot.configure(config, haddTasks, channel)
+    for era in config["era"]:
+        for channel in config["channels"]:
+            treeTasks = TreeRead.configure(config, channel, era)
+            haddTasks = Merge.configure(config, treeTasks, "plot", era = era, channel = channel)
+            histTasks = Plot.configure(config, haddTasks, channel, era)
 
-        allTasks.extend(treeTasks+haddTasks+histTasks)
+            allTasks.extend(treeTasks+haddTasks+histTasks)
 
     return allTasks
 
