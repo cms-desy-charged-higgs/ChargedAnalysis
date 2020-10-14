@@ -25,7 +25,7 @@ namespace VUtil{
     * @brief Concept that checks object is a std::vector
     */
     template <typename Object, typename T>
-    concept Vector = std::is_same<std::vector<T>, Object>::value;
+    concept Vector = requires(Object v, std::vector<T> i) {v.push_back(i[0]);};
 
     /**
     * @brief Perform python like map function with help of C++ lambdas.
@@ -50,6 +50,29 @@ namespace VUtil{
         return out;
     }
 
+    /**
+    * @brief Find all occurences of object in vector
+    *
+    * Example:
+    * @code
+    * std::vector<int> found = VUtil::Find<int>({"Hello", "World", "Hello", "Friends"}, "Hello"); //output {0, 2}
+    * @endcode
+    *
+    * @param vec Input vector
+    * @param toFind Object/value to find in vector
+    * @return Return vector with index of all occurences, empty if nothing is found
+    */
+    template <typename T>
+    std::vector<int> Find(const std::vector<T>& vec, const T& toFind){
+        std::vector<int> index;
+
+        for(int i = 0; i < vec.size(); i++){
+            if(vec.at(i) == toFind) index.push_back(i);
+        }
+    
+        return index;
+    }
+
 
     /**
     * @brief Get slice of range from vector
@@ -69,7 +92,7 @@ namespace VUtil{
     std::vector<T> Slice(const std::vector<T>& in, const int& start, const int& end, const std::experimental::source_location& location = std::experimental::source_location::current()){
         std::vector<T> out;
 
-        if(std::abs(end) >= in.size()){
+        if(std::abs(end) > in.size()){
             throw std::out_of_range(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), ": End index '", end, "' out of range with vector of size ", in.size()));
         }
     
@@ -101,22 +124,22 @@ namespace VUtil{
     }
 
     /**
-    * @brief Merge values into vector
+    * @brief Append values into vector
     *
     * Example:
     * @code
     * std::vector v = {1, 2};
-    * std::vector<int> merged = VUtil::Merge(v, 3, 4); //output {1, 2, 3, 4}
+    * std::vector<int> appended = VUtil::Append(v, 3, 4); //output {1, 2, 3, 4}
     * @endcode
     *
     * @param vec Input vector which should be merged values
-    * @param toMerge Parameter pack of values to be merged into the vector
-    * @return Return Merged vector
+    * @param toAppend Parameter pack of values to be merged into the vector
+    * @return Return Appended vector
     */
     template <typename T, typename... Args>
-    std::vector<T> Merge(const std::vector<T>& vec, Args&&... toMerge){
+    std::vector<T> Append(const std::vector<T>& vec, Args&&... toAppend){
         std::vector<T> out = vec; 
-        (out.push_back(std::forward<Args>(toMerge)), ...);
+        (out.push_back(std::forward<Args>(toAppend)), ...);
 
         return out;
     }
