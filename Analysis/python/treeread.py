@@ -13,18 +13,24 @@ class TreeRead(Task):
         self["arguments"] = [
                 "--parameters", *self["parameters"],
                 "--cuts", *self["cuts"], 
-                "--out-name", self["output"][0],  
+                "--out-file", self["out-file"],  
+                "--out-dir", self["dir"],  
                 "--channel", self["channel"],    
                 "--filename", self["filename"], 
                 "--clean-jet", self["clean-jet"],
-                "--scale-syst", *self["scale-syst"], 
+                "--scale-syst", *self["scale-syst"],    
+                "--syst-dirs", *self["syst-dirs"], 
+                "--era", self["era"]
         ]
         
-    def output(self):
-        self["output"] = ["{}/{}/{}.{}".format(self["dir"], syst, self["process"], self["file-type"]) for syst in self["scale-syst"]]
+    def output(self): 
+        for d in self["syst-dirs"]:
+            os.makedirs(d, exist_ok = True)
+    
+        self["output"] = ["{}/{}".format(d, self["out-file"]) for d in [self["dir"]] + self["syst-dirs"]]
 
     @staticmethod
-    def configure(config, channel, fileType="root", prefix=""):
+    def configure(config, channel, era, fileType="root", prefix=""):
         ##Dic with process:filenames 
         processDic = yaml.load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"), Loader=yaml.Loader)
         tasks = []
@@ -36,11 +42,14 @@ class TreeRead(Task):
                     continue
                 systName = "{}{}".format(syst, shift) if syst != "" else ""
 
-                skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", config["era"]))
+                skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", era))
         
                 for process in config["processes"] + config["data"].get(channel, []):
                     if (process in ["SingleE", "SingleMu"]) and syst != "":
                         continue
+
+                    ## Scale systematics
+                    scaleSysts = config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, []) if process not in ["SingleE", "SingleMu"] and syst == "" else [""]
 
                     jobNr = 0
                     fileNames = []
@@ -48,24 +57,28 @@ class TreeRead(Task):
                     ##List of filenames for each process
                     for d in os.listdir(skimDir):
                         for processName in processDic[process]:
-                            if processName in d:
+                            if d.startswith(processName):
                                 fileNames.append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
 
                     for filename in fileNames:
+                        outDir = os.environ["CHDIR"] + "/{}/{}/unmerged/{}/{}".format(config["dir"].replace("[E]", era).replace("[C]", channel), process, systName, jobNr).replace("//", "/")
+  
                         ##Configuration for treeread Task
                         task = {
-                            "name": "{}_{}_{}_{}{}".format(channel, process, config["era"], jobNr, systName) + ("_{}".format(prefix) if prefix else ""), 
-                            "display-name": "Hist: {} ({}/{})".format(process, channel, config["era"]),
+                            "name": "{}_{}_{}_{}{}".format(channel, process, era, jobNr, systName) + ("_{}".format(prefix) if prefix else ""), 
+                            "display-name": "Hist: {} ({}/{})".format(process, channel, era),
                             "channel": channel, 
                             "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                            "dir":  os.environ["CHDIR"] + "/{}/{}/unmerged/{}/{}".format(config["dir"].replace("[E]", config["era"]).replace("[C]", channel), process, systName, jobNr), 
+                            "dir":  outDir,
+                            "out-file": "{}.{}".format(process, fileType),
                             "process": process, 
                             "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
                             "filename": filename,
                             "run-mode": config["run-mode"],
                             "clean-jet": config.get("clean-jet", {}).get(channel, ""),
-                            "file-type": fileType,
-                            "scale-syst": config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, []) if process not in ["SingleE", "SingleMu"] else [""]
+                            "scale-syst": scaleSysts,
+                            "syst-dirs": [outDir.replace("unmerged/", "unmerged/{}{}/".format(scaleSyst, scaleShift)) for scaleSyst in scaleSysts if scaleSyst != "" for scaleShift in ["Up", "Down"]],
+                            "era": era,
                         }
 
                         tasks.append(TreeRead(task))
