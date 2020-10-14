@@ -1,8 +1,9 @@
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 
-TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName) :
+TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era) :
     inputFile(inputFile),
-    inputTree(inputFile->Get<TTree>(treeName.c_str())){
+    inputTree(inputFile->Get<TTree>(treeName.c_str())),
+    era(era) {
     funcInfo = {
         {"Pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
         {"Mt", {&TreeFunction::Mt, "m_{T}(@) [GeV]"}},
@@ -50,6 +51,15 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
         {"divisible", {DIVISIBLE, "%"}},
         {"notdivisible", {NOTDIVISIBLE, "%!"}},
     };
+
+    systInfo = {
+        {"BTag", BTAG},
+        {"ElectronID", ELEID},
+        {"ElectronReco", ELERECO},
+        {"MuonIso", MUISO},
+        {"MuonID", MUID},
+        {"MuonTriggerEff", MUTRIGG},
+    };
 }
 
 TreeFunction::~TreeFunction(){}
@@ -67,12 +77,12 @@ void TreeFunction::SetP1(const std::string& part, const int& idx, const std::str
         return;
     }
 
-    part1 = std::get<0>(partInfo.at(part));
-    wp1 = std::get<0>(wpInfo.at(wp));
+    part1 = std::get<0>(VUtil::At(partInfo, part));
+    wp1 = std::get<0>(VUtil::At(wpInfo, wp));
     idx1 = idx-1;
     genMother1 = genMother;
 
-    partLabel1 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
+    partLabel1 = Utils::Format<std::string>("@", std::get<3>(VUtil::At(partInfo, part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
     partName1 = part;
     wpName1 = wp;
 }
@@ -87,12 +97,12 @@ void TreeFunction::SetP2(const std::string& part, const int& idx, const std::str
         return;
     }
 
-    part2 = std::get<0>(partInfo.at(part));
-    wp2 = std::get<0>(wpInfo.at(wp));
+    part2 = std::get<0>(VUtil::At(partInfo, part));
+    wp2 = std::get<0>(VUtil::At(wpInfo, wp));
     idx2 = idx-1;
     genMother2 = genMother;
 
-    partLabel2 = Utils::Format<std::string>("@", std::get<3>(partInfo.at(part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
+    partLabel2 = Utils::Format<std::string>("@", std::get<3>(VUtil::At(partInfo, part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
     partName2 = part;
     wpName2 = wp;
 }
@@ -108,15 +118,15 @@ void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
     }
 
     if(part1 == JET or part1 == BJET){
-        cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", std::get<1>(partInfo.at(part))).c_str());
-        cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", std::get<1>(partInfo.at(part))).c_str());
-        ID = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_ID", std::get<1>(partInfo.at(part))).c_str());
-        Isolation = inputTree->GetLeaf(Utils::Format<std::string>("@", part == "e" ? "@_Isolation" : "@_isoID", std::get<1>(partInfo.at(part))).c_str());
+        cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", std::get<1>(VUtil::At(partInfo, part))).c_str());
+        cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", std::get<1>(VUtil::At(partInfo, part))).c_str());
+        ID = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_ID", std::get<1>(VUtil::At(partInfo, part))).c_str());
+        Isolation = inputTree->GetLeaf(Utils::Format<std::string>("@", part == "e" ? "@_Isolation" : "@_isoID", std::get<1>(VUtil::At(partInfo, part))).c_str());
 
         jetPhi = inputTree->GetLeaf("Jet_Phi");
         jetEta = inputTree->GetLeaf("Jet_Eta");
-        cleanPart = std::get<0>(partInfo.at(part));
-        cleanedWP = std::get<0>(wpInfo.at(wp));
+        cleanPart = std::get<0>(VUtil::At(partInfo, part));
+        cleanedWP = std::get<0>(VUtil::At(wpInfo, wp));
     }
 }
 
@@ -124,14 +134,24 @@ template void TreeFunction::SetCleanJet<Axis::X>(const std::string&, const std::
 template void TreeFunction::SetCleanJet<Axis::Y>(const std::string&, const std::string&);
 
 void TreeFunction::SetCut(const std::string& comp, const float& compValue){
-    this->comp = std::get<0>(comparisons.at(comp));
+    this->comp = std::get<0>(VUtil::At(comparisons, comp));
     this->compValue = compValue;
 
     std::string compV = std::to_string(compValue);
     compV.erase(compV.find_last_not_of('0') + 1, std::string::npos); 
     compV.erase(compV.find_last_not_of('.') + 1, std::string::npos);
 
-    cutLabel = axisLabel + " " + std::get<1>(comparisons.at(comp)) + " " + compV;
+    cutLabel = axisLabel + " " + std::get<1>(VUtil::At(comparisons, comp)) + " " + compV;
+}
+
+void TreeFunction::SetSystematics(const std::vector<std::string>& systNames){
+    if(systNames.size() == 1) return;
+
+    for(const std::string syst : VUtil::Slice(systNames, 1, systNames.size())){
+        systematics.push_back(VUtil::At(systInfo, syst));
+    }
+
+    systWeights = std::vector<float>(systematics.size()*2, 1.);
 }
 
 template<Axis A>
@@ -146,7 +166,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         motherID = inputTree->GetLeaf("GenParticle_MotherID");
     }
 
-    this->funcPtr = std::get<0>(funcInfo.at(funcName));
+    this->funcPtr = std::get<0>(VUtil::At(funcInfo, funcName));
     this->inputValue = inputValue;
 
     std::string part1Prefix = genMother1 == -1. ? std::get<1>(partInfo[partName1]) : "GenParticle";
@@ -259,12 +279,13 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
             case ELECTRON:
                 ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_ID"));
                 Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_Isolation"));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSF")));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFUp")));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFDown")));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str())));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFUp", wpname).c_str())));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str())));
+                scaleFactors[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSF"));
+                scaleFactorsUp[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFUp"));
+                scaleFactorsDown[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFDown"));
+
+                scaleFactors[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str()));
+                scaleFactorsUp[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFUp", wpname).c_str()));
+                scaleFactors[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str()));
 
                 break;
 
@@ -272,33 +293,34 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
                 ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_ID"));
                 Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_isoID"));
 
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSF")));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFUp")));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFDown")));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str())));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFUp", wpname).c_str())));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFDown", wpname).c_str())));
+                scaleFactors[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSF"));
+                scaleFactorsUp[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFUp"));
+                scaleFactorsDown[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFDown"));
+
+                scaleFactors[MUID] =  Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str()));
+                scaleFactorsUp[MUID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFUp", wpname).c_str()));
+                scaleFactorsDown[MUID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFDown", wpname).c_str()));
 
                 wpname[0] = std::toupper(wpname[0]); 
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str())));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFUp", wpname).c_str())));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFDown", wpname).c_str())));
+                scaleFactors[MUISO] =  Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str()));
+                scaleFactorsUp[MUISO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFUp", wpname).c_str()));
+                scaleFactorsDown[MUISO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFDown", wpname).c_str()));
                 break;
 
             case BJET:
-                nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_TrueFlavour"));
+                TrueFlavour = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_TrueFlavour"));
                 BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_CSVScore"));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str())));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str())));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str())));
+                scaleFactors[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str()));
+                scaleFactorsUp[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str()));
+                scaleFactorsDown[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str()));
                 break;
 
             case BSUBJET:
-                nTrueB = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
+                TrueFlavour = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
                 BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_CSVScore"));
-                scaleFactors.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str())));
-                scaleFactorsUp.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFUp", wpname).c_str())));
-                scaleFactorsDown.push_back(Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFDown", wpname).c_str())));
+                scaleFactors[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str()));
+                scaleFactorsUp[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFUp", wpname).c_str()));
+                scaleFactorsDown[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFDown", wpname).c_str()));
                 break;
 
             default: break;
@@ -310,14 +332,19 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         std::string wpname = std::get<1>(wpInfo[wpName1]);
         wpname[0] = std::toupper(wpname[0]);
 
-        effBTag = inputFile->Get<TH2F>(Utils::Format<std::string>("@", "n@CSVbTag", wpname).c_str());
-
-        if(effBTag != nullptr) effBTag->Divide(inputFile->Get<TH2F>("nTrueB"));
+        if(inputFile->Get("nTrueB") != nullptr){
+            effB = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@BCSVbTag", wpname).c_str())->Clone());
+            effB->Divide(inputFile->Get<TH2F>("nTrueB"));
+            effC = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@CCSVbTag", wpname).c_str())->Clone());
+            effC->Divide(inputFile->Get<TH2F>("nTrueC")); 
+            effLight = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@LightCSVbTag", wpname).c_str())->Clone());
+            effLight->Divide(inputFile->Get<TH2F>("nTrueLight")); 
+        }
     }
 
     //Set Name of functions/axis label
-    name = funcName + (inputValue != "" ? Utils::Format<std::string>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(partInfo.at(partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(wpInfo.at(wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(partInfo.at(partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(wpInfo.at(wpName2)) : "");
-    axisLabel = (genMother1 != -1. ? "Gen " : "") + std::get<1>(funcInfo.at(funcName));;
+    name = funcName + (inputValue != "" ? Utils::Format<std::string>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName2)) : "");
+    axisLabel = (genMother1 != -1. ? "Gen " : "") + std::get<1>(VUtil::At(funcInfo, funcName));;
 
     if(inputValue != ""){
         axisLabel = Utils::Format<std::string>("@", axisLabel, inputValue, true);
@@ -355,53 +382,85 @@ const float TreeFunction::Get(){
 template const float TreeFunction::Get<Axis::X>();
 template const float TreeFunction::Get<Axis::Y>();
 
-const int TreeFunction::GetNWeights(){return scaleFactors.size();}
-
-const float TreeFunction::GetWeight(){
+const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
     weight = 1.;
 
     if(funcPtr == &TreeFunction::NParticle){
-        if((part1 == BJET or part1 == BSUBJET) and effBTag != nullptr){
-            if(scaleFactors[0]->GetBranch()->GetReadEntry() != entry) scaleFactors[0]->GetBranch()->GetEntry(entry);
-            if(nTrueB->GetBranch()->GetReadEntry() != entry) nTrueB->GetBranch()->GetEntry(entry);
+        float wData = 1., wMC = 1.;
+
+        if((part1 == BJET or part1 == BSUBJET) and effB != nullptr){
+            TLeaf* scaleFactor;
+
+            if(shift != NON and (syst == BTAG or syst == SUBBTAG)){
+                if(shift == UP) scaleFactor = scaleFactorsUp[part1 == BJET ? BTAG : SUBBTAG];   
+                else scaleFactor = scaleFactorsDown[part1 == BJET ? BTAG : SUBBTAG];  
+            }
+
+            else scaleFactor = scaleFactors[part1 == BJET ? BTAG : SUBBTAG];
+
+            if(scaleFactor->GetBranch()->GetReadEntry() != entry) scaleFactor->GetBranch()->GetEntry(entry);
+            if(TrueFlavour->GetBranch()->GetReadEntry() != entry) TrueFlavour->GetBranch()->GetEntry(entry);
             if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
             if(quantities[1]->GetBranch()->GetReadEntry() != entry) quantities[1]->GetBranch()->GetEntry(entry);
 
-            std::vector<float>* sf = (std::vector<float>*)scaleFactors[0]->GetValuePointer();
-            std::vector<char>* nB = (std::vector<char>*)nTrueB->GetValuePointer();
+            std::vector<float>* sf = (std::vector<float>*)scaleFactor->GetValuePointer();
+            std::vector<char>* trueFlav = (std::vector<char>*)TrueFlavour->GetValuePointer();
 
             std::vector<float>* jetPt = (std::vector<float>*)quantities[0]->GetValuePointer();
             std::vector<float>* jetEta = (std::vector<float>*)quantities[1]->GetValuePointer();
 
             for(unsigned int i = 0; i < sf->size(); i++){
-                const float& eff = effBTag->GetBinContent(effBTag->FindBin(jetPt->at(i), jetEta->at(i)));
+                float eff;
+    
+                if(std::abs(trueFlav->at(i)) == 5) eff = effB->GetBinContent(effB->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
+                else if(std::abs(trueFlav->at(i)) == 4) eff = effC->GetBinContent(effC->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
+                else eff = effLight->GetBinContent(effLight->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
 
-                if(eff == 0 or eff == 1) continue;
-
-                if(abs(nB->at(i)) == 5){
-                    weight *= sf->at(i)*eff/eff;
+                if(whichWP(part1, i) >= wp1){
+                    wData *= VUtil::At(*sf, i) * eff;
+                    wMC *= eff;
                 }
     
                 else{
-                    weight *= (1 - sf->at(i)*eff)/(1 - eff);
+                    wData *= 1 - VUtil::At(*sf, i)*eff;
+                    wMC *= (1 - eff);
                 }
             }
+            weight = wData/wMC;
         }
 
         else{
-            for(TLeaf* scaleFactor: scaleFactors){
+            for(const Systematic& sys: VUtil::MapKeys(scaleFactors)){
+                TLeaf* scaleFactor;
+
+                if(shift != NON and sys == syst){
+                    if(shift == UP) scaleFactor = scaleFactorsUp[sys];   
+                    else scaleFactor = scaleFactorsDown[sys];  
+                }
+
+                else scaleFactor = scaleFactors[sys];
+
                 if(scaleFactor->GetBranch()->GetReadEntry() != entry) scaleFactor->GetBranch()->GetEntry(entry);
 
                 std::vector<float>* sf = (std::vector<float>*)scaleFactor->GetValuePointer();
 
                 for(int i = 0; i < sf->size(); i++){
-                    weight *= Utils::CheckZero(sf->at(i));
+                    weight *= Utils::CheckZero(VUtil::At(*sf, i));
                 }
             }
         }
     }
 
     return weight;
+}
+
+const std::vector<float> TreeFunction::GetSystWeight(){
+    for(int i = 0; i < systematics.size(); i++){
+        VUtil::At(systWeights, MUtil::RowMajIdx({systematics.size(), 2}, {i, 0})) = this->GetWeight(systematics[i], UP);
+        VUtil::At(systWeights, MUtil::RowMajIdx({systematics.size(), 2}, {i, 1})) = this->GetWeight(systematics[i], DOWN);
+    }
+
+    return systWeights;
 }
 
 const bool TreeFunction::GetPassed(){
@@ -455,9 +514,9 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
 
         std::vector<char>* partID = static_cast<std::vector<char>*>(particleID->GetValuePointer());
         std::vector<char>* mothID = static_cast<std::vector<char>*>(motherID->GetValuePointer());
-    
+   
         for(int i = 0; i < partID->size(); i++){
-            if(partID->at(i) == part and mothID->at(i) == genMother){
+            if(VUtil::At(*partID, i) == part and VUtil::At(*mothID, i) == genMother){
                 counter--;
                 realIdx = i;
                 if(counter <= 0) return realIdx;
@@ -495,9 +554,9 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             id = (std::vector<char>*)ID->GetValuePointer();
             iso = (std::vector<float>*)Isolation->GetValuePointer();
 
-            if(id->at(idx) > MEDIUM && iso->at(idx) < 0.15) return TIGHT;
-            if(id->at(idx) > LOOSE && iso->at(idx) < 0.20) return MEDIUM;
-            if(id->at(idx) > NONE && iso->at(idx) < 0.25) return LOOSE;
+            if(VUtil::At(*id, idx) > MEDIUM && VUtil::At(*iso, idx) < 0.15) return TIGHT;
+            if(VUtil::At(*id, idx) > LOOSE && VUtil::At(*iso, idx) < 0.20) return MEDIUM;
+            if(VUtil::At(*id, idx) > NONE && VUtil::At(*iso, idx) < 0.25) return LOOSE;
             return NONE;
 
         case MUON:
@@ -507,9 +566,9 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             id = (std::vector<char>*)ID->GetValuePointer();
             isoID = (std::vector<char>*)Isolation->GetValuePointer();
 
-            if(id->at(idx) > MEDIUM && isoID->at(idx) > MEDIUM) return TIGHT;
-            if(id->at(idx) > LOOSE && isoID->at(idx) > MEDIUM) return MEDIUM;
-            if(id->at(idx) > NONE && isoID->at(idx) > MEDIUM) return LOOSE;
+            if(VUtil::At(*id, idx) > MEDIUM && VUtil::At(*isoID, idx) > MEDIUM) return TIGHT;
+            if(VUtil::At(*id, idx) > LOOSE && VUtil::At(*isoID, idx) > MEDIUM) return MEDIUM;
+            if(VUtil::At(*id, idx) > NONE && VUtil::At(*isoID, idx) > MEDIUM) return LOOSE;
             return NONE;
 
 
@@ -530,15 +589,9 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             if(BScore->GetBranch()->GetReadEntry() != entry) BScore->GetBranch()->GetEntry(entry);
             score = (std::vector<float>*)BScore->GetValuePointer();
 
-            /*
-            if(score->at(idx) > 0.7489) return TIGHT;
-            if(score->at(idx) > 0.3033) return MEDIUM;
-            if(score->at(idx) > 0.0521) return LOOSE;
-            */
-
-            if(score->at(idx) > 0.8001) return TIGHT;
-            if(score->at(idx) > 0.4941) return MEDIUM;
-            if(score->at(idx) > 0.1522) return LOOSE;
+            if(VUtil::At(*score, idx) > tightBCut[era]) return TIGHT;
+            if(VUtil::At(*score, idx) > mediumBCut[era]) return MEDIUM;
+            if(VUtil::At(*score, idx) > looseBCut[era]) return LOOSE;
 
         default: return NONE;
     }
@@ -560,7 +613,7 @@ bool TreeFunction::isCleanJet(const int& idx){
 
     for(unsigned int i = 0; i < phi->size(); i++){
         if(whichWP(cleanPart, i) < cleanedWP) continue;
-        if(std::sqrt(std::pow(phi->at(i) - jPhi->at(idx), 2) + std::pow(eta->at(i) - jEta->at(idx), 2)) < 0.4) return false;        
+        if(std::sqrt(std::pow(VUtil::At(*phi, i) - VUtil::At(*jPhi, idx), 2) + std::pow(VUtil::At(*eta, i) - VUtil::At(*jEta, idx), 2)) < 0.4) return false;        
     }
 
     return true;
@@ -571,7 +624,7 @@ void TreeFunction::Pt(){
 
     if(realIdx1 != -1){
         const std::vector<float>* pt = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = pt->at(realIdx1);
+        value = VUtil::At(*pt, realIdx1);
     }
 
     else{
@@ -585,7 +638,7 @@ void TreeFunction::Phi(){
 
     if(realIdx1 != -1){
         const std::vector<float>* phi = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = phi->at(realIdx1);
+        value = VUtil::At(*phi, realIdx1);
     }
 
     else{
@@ -599,7 +652,7 @@ void TreeFunction::Mass(){
 
     if(realIdx1 != -1){
         const std::vector<float>* mass = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = mass->at(realIdx1);
+        value = VUtil::At(*mass, realIdx1);
     }
 
     else{
@@ -620,7 +673,7 @@ void TreeFunction::Eta(){
 
     if(realIdx1 != -1){
         const std::vector<float>* eta = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = eta->at(realIdx1);
+        value = VUtil::At(*eta, realIdx1);
     }
 
     else{
@@ -656,7 +709,7 @@ void TreeFunction::JetSubtiness(){
     if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
     const std::vector<float>* tau = (std::vector<float>*)quantities[0]->GetValuePointer();
 
-    value = tau->at(realIdx1);
+    value = VUtil::At(*tau, realIdx1);
 }
 
 void TreeFunction::EventNumber(){
@@ -677,7 +730,7 @@ void TreeFunction::DeepAK(){
     if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
     const std::vector<float>* score = (std::vector<float>*)quantities[0]->GetValuePointer();
 
-    value = score->at(realIdx1);
+    value = VUtil::At(*score, realIdx1);
 }
 
 void TreeFunction::DNN(){

@@ -4,70 +4,99 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string &outname, const std::string &channel):
+TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const int& era):
     parameters(parameters),
     cutStrings(cutStrings),
-    outname(outname),
-    channel(channel){}
+    outDir(outDir),
+    outFile(outFile),
+    channel(channel),
+    systDirs(systDirs),
+    scaleSysts(scaleSysts),
+    era(era){}
 
 void TreeReader::PrepareLoop(){
     TreeParser parser;
 
-    for(const std::string& parameter: parameters){
-        //Functor structure and arguments
-        TreeFunction function(inputFile, inputTree->GetName());
-        
-        //Read in everything, orders matter
-        parser.GetParticle(parameter, function);
-        parser.GetFunction(parameter, function);
+    if(VUtil::Find(scaleSysts, std::string("")).empty()) scaleSysts.insert(scaleSysts.begin(), "");
+    
+    for(const std::string& scaleSyst : scaleSysts){
+        for(const std::string shift : {"Up", "Down"}){
+            //Skip Down loop for nominal case
+            if(scaleSyst == "" and shift == "Down") continue;
 
-        if(Utils::Find<std::string>(parameter, "h:") != -1){
-            if(!function.hasYAxis()){
-                std::shared_ptr<TH1F> hist1D = std::make_shared<TH1F>();
-                parser.GetBinning(parameter, hist1D.get());
+            std::string systName = StrUtil::Merge(scaleSyst, shift);
+            std::string outName;
 
-                hist1D->SetName((function.GetName<Axis::X>()).c_str());       
-                hist1D->SetTitle((function.GetName<Axis::X>()).c_str());
-                hist1D->SetDirectory(outFile.get());
-
-                hist1D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
-
-                hists1D.push_back(std::move(hist1D));
-                hist1DFunctions.push_back(function);    
-            }
-
+            //Change outdir for systematic
+            if(scaleSyst.empty()) outName = StrUtil::Join("/", outDir, outFile);
             else{
-                std::shared_ptr<TH2F> hist2D = std::make_shared<TH2F>();
-                parser.GetBinning(parameter, hist2D.get());
-
-                hist2D->SetName((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());       
-                hist2D->SetTitle((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());
-                hist2D->SetDirectory(outFile.get());
-
-                hist2D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
-                hist2D->GetYaxis()->SetTitle(function.GetAxisLabel<Axis::Y>().c_str());
-
-                hists2D.push_back(std::move(hist2D));
-                hist2DFunctions.push_back(function);    
-            }
-        }
-
-        if(Utils::Find<std::string>(parameter, "t:") != -1){
-            if(outTree == nullptr){
-                outTree = std::make_shared<TTree>(channel.c_str(), channel.c_str());
-                outTree->SetDirectory(outFile.get());
+                for(const std::string dir : systDirs){
+                    if(!StrUtil::Find(dir, systName).empty()) outName = StrUtil::Join("/", dir, outFile);
+                }
             }
 
-            branchNames.push_back(function.GetName<Axis::X>());
-            treeValues.push_back(1.);
+            outFiles.push_back(std::make_shared<TFile>(outName.c_str(), "RECREATE"));
 
-            treeFunctions.push_back(function);
-        }
+            for(const std::string& parameter: parameters){
+                //Functor structure and arguments
+                TreeFunction function(inputFile, inputTree->GetName(), era);
+        
+                //Read in everything, orders matter
+                parser.GetParticle(parameter, function);
+                parser.GetFunction(parameter, function);
 
-        if(Utils::Find<std::string>(parameter, "csv:") != -1){
-            CSVNames.push_back(function.GetName<Axis::X>());
+                if(!StrUtil::Find(parameter, "h:").empty()){                          
+                    if(!function.hasYAxis()){
+                        std::shared_ptr<TH1F> hist1D = std::make_shared<TH1F>();
+                        parser.GetBinning(parameter, hist1D.get());
 
-            CSVFunctions.push_back(function);
+                        hist1D->SetDirectory(outFiles.back().get());
+                        hist1D->SetName((function.GetName<Axis::X>()).c_str());       
+                        hist1D->SetTitle((function.GetName<Axis::X>()).c_str());
+                        hist1D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
+
+                        if(scaleSyst == "") hists1D.push_back(std::move(hist1D));
+                        else hists1DSyst.push_back(std::move(hist1D));
+
+                        if(scaleSyst == "") hist1DFunctions.push_back(function);
+                    }
+
+                    else{
+                        std::shared_ptr<TH2F> hist2D = std::make_shared<TH2F>();
+                        parser.GetBinning(parameter, hist2D.get());
+
+                        hist2D->SetDirectory(outFiles.back().get());
+                        hist2D->SetName((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());       
+                        hist2D->SetTitle((function.GetName<Axis::X>() + "_VS_" + function.GetName<Axis::Y>()).c_str());
+
+                        hist2D->GetXaxis()->SetTitle(function.GetAxisLabel<Axis::X>().c_str());
+                        hist2D->GetYaxis()->SetTitle(function.GetAxisLabel<Axis::Y>().c_str());
+
+                        if(scaleSyst == "") hists2D.push_back(std::move(hist2D));
+                        else hists2DSyst.push_back(std::move(hist2D));
+
+                        if(scaleSyst == "") hist2DFunctions.push_back(function);    
+                    }
+                }
+  
+                if(!StrUtil::Find(parameter, "t:").empty() and scaleSyst == ""){
+                    if(outTree == nullptr){
+                        outTree = std::make_shared<TTree>(channel.c_str(), channel.c_str());
+                        outTree->SetDirectory(outFiles.back().get());
+                    }
+
+                    branchNames.push_back(function.GetName<Axis::X>());
+                    treeValues.push_back(1.);
+
+                    treeFunctions.push_back(function);
+                }
+
+                if(!StrUtil::Find(parameter, "csv:").empty()){
+                    CSVNames.push_back(function.GetName<Axis::X>());
+
+                    CSVFunctions.push_back(function);
+                }
+            }
         }
     }
 
@@ -90,6 +119,7 @@ void TreeReader::PrepareLoop(){
         parser.GetFunction(cut, function);
         parser.GetCut(cut, function);
 
+        function.SetSystematics(scaleSysts);
         cutFunctions.push_back(function);
 
         std::cout << "Cut will be applied: '" << function.GetCutLabel() << "'" << std::endl;
@@ -111,11 +141,9 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
 
     gROOT->SetBatch(kTRUE);
 
-    std::string name = outname;
-    if(name.find("csv") != std::string::npos) name.replace(name.find("csv"), 3, "root");
+    if(outFile.find("csv") != std::string::npos) StrUtil::Replace(outFile, "csv", "root");
 
     //Open output file and set up all histograms/tree and their function to call
-    outFile.reset(TFile::Open(name.c_str(), "RECREATE"));
     PrepareLoop();
 
     //Determine what to clean from jets
@@ -187,7 +215,6 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
     }
 
     //Weight with all variations
-    std::vector<float> weight(std::accumulate(cutFunctions.begin(), cutFunctions.end(), 3, [&](int v, TreeFunction cut){return v + 2*cut.GetNWeights();}), xSec*lumi);
 
     //Cutflow
     std::shared_ptr<TH1F> cutflow(inputFile->Get<TH1F>(("cutflow_" + channel).c_str()));
@@ -223,13 +250,33 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
 
         if(!passed) continue;
 
-        //Fill histogram
-        for(int j=0; j < hists1D.size(); j++){
+        //Fill nominal histogram
+        for(int j=0; j < hist1DFunctions.size(); j++){
             hists1D[j]->Fill(hist1DFunctions[j].Get<Axis::X>(), weight);
         }
 
-        for(int j=0; j < hists2D.size(); j++){
+        for(int j=0; j < hist2DFunctions.size(); j++){
             hists2D[j]->Fill(hist2DFunctions[j].Get<Axis::X>(), hist2DFunctions[j].Get<Axis::Y>(), weight);
+        }
+
+        //Fill histogram with systematic shifts
+        for(int syst = 0; syst < scaleSysts.size() - 1; syst++){
+            for(int shift = 0; shift < 2; shift++){
+                weight = xSec*lumi/nGen;
+                if(pileUpWeight!=nullptr) weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(*(float*)nTrueInter->GetValuePointer()));
+
+                for(int j=0; j < cutFunctions.size(); j++){ 
+                    weight *= VUtil::At(cutFunctions[j].GetSystWeight(), MUtil::RowMajIdx({scaleSysts.size() - 1, 2}, {syst, shift}));
+                }
+
+                for(int j=0; j < hist1DFunctions.size(); j++){
+                    VUtil::At(hists1DSyst, MUtil::RowMajIdx({scaleSysts.size() - 1, 2, hist1DFunctions.size()}, {syst, shift, j}))->Fill(hist1DFunctions[j].Get<Axis::X>(), weight);
+                }
+
+                for(int j=0; j < hist2DFunctions.size(); j++){
+                    VUtil::At(hists2DSyst, MUtil::RowMajIdx({scaleSysts.size() - 1, 2, hist2DFunctions.size()}, {syst, shift, j}))->Fill(hist2DFunctions[j].Get<Axis::X>(), hist2DFunctions[j].Get<Axis::Y>(), weight);
+                }   
+            }
         }
 
         //Fill trees
@@ -252,14 +299,15 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
     }
 
     //Write all histograms and delete everything
-    outFile->cd();
-    for(std::shared_ptr<TH1F>& hist: hists1D){
-        hist->Write(); 
+    for(std::shared_ptr<TH1F>& hist: VUtil::Merge(hists1D, hists1DSyst)){
+        hist->GetDirectory()->cd();
+        hist->Write();
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
     }
 
-    for(std::shared_ptr<TH2F>& hist: hists2D){
-        hist->Write(); 
+    for(std::shared_ptr<TH2F>& hist: VUtil::Merge(hists2D, hists2DSyst)){
+        hist->GetDirectory()->cd();
+        hist->Write();
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
     }
 
@@ -283,13 +331,14 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
         if(std::string(cutflow->GetXaxis()->GetBinLabel(i)) != "") nonEmpty++;
     }
 
+    VUtil::At(outFiles, 0)->cd();
     cutflow->SetAxisRange(0, nonEmpty); 
     cutflow->Write();
 
     if(frame!=nullptr){
-        frame->WriteCSV(outname);
+        frame->WriteCSV(StrUtil::Join("/", outDir, outFile));
     }
 
-    std::cout << "Closed output file: '" << outname << "'" << std::endl;
+    std::cout << "Closed output file: '" << outFile << "'" << std::endl;
     std::cout << "Time passed for complete processing: " << timer.Time() << " s" << std::endl;
 }
