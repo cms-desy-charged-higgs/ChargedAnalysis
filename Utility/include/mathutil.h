@@ -2,6 +2,7 @@
 #define MATHUTIL_H
 
 #include <cmath>
+#include <vector>
 
 /**
 * @brief Math utility library to for calculating properties
@@ -27,6 +28,8 @@ namespace MUtil{
     * @return Return @f$\Delta\phi @f$
     */
     float DeltaPhi(const float& phi1, const float& phi2);
+
+    int RowMajIdx(const std::vector<int>& dimensions, const std::vector<int>& indeces);
 };
 
 #endif
