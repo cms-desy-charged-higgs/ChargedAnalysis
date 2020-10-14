@@ -33,7 +33,7 @@ class TreeSlim(Task):
                 for shift in ["Up", "Down"]:
                     ##Construct systname and skim dir
                     systName = "" if syst == "" else "{}{}".format(syst, shift)
-                    skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[E]", config["era"]))
+                    skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[E]", config["era"][0]))
 
                     ##If nominal skip Down loop
                     if(syst == "" and shift == "Down"):
@@ -57,7 +57,7 @@ class TreeSlim(Task):
 
                         ##Configuration for treeread Task   
                         for index, (start, end) in enumerate(eventRanges):
-                            outDir = "{}/{}/{}/unmerged/{}/{}".format(os.environ["CHDIR"], config["out-dir"].replace("[E]", config["era"]).replace("[C]", outChannel), fileName, systName, index)
+                            outDir = "{}/{}/{}/unmerged/{}/{}".format(os.environ["CHDIR"], config["out-dir"].replace("[E]", config["era"][0]).replace("[C]", outChannel), fileName, systName, index)
 
                             ##Configuration for treeread Task
                             task = {

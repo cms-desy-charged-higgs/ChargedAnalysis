@@ -20,16 +20,16 @@ class Plot(Task):
         self["output"] = ["{}/{}.pdf".format(self["dir"], "kappa")]
 
     @staticmethod
-    def configure(config, haddTasks, channel):        
+    def configure(config, haddTasks, channel, era):        
         task = {
-                "name": "Plot_{}".format(channel), 
+                "name": "Plot_{}_{}".format(channel, era), 
                 "channel": channel, 
-                "hist-dir": os.environ["CHDIR"] + "/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
-                "dir":  os.environ["CHDIR"] + "/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
-                "web-dir": os.environ["CHDIR"] + "/CernWebpage/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", config["era"])), 
-                "display-name": "Plots: {}".format(channel), 
+                "hist-dir": os.environ["CHDIR"] + "/{}".format(config["dir"].replace("[C]", channel).replace("[E]", era)), 
+                "dir":  os.environ["CHDIR"] + "/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", era)), 
+                "web-dir": os.environ["CHDIR"] + "/CernWebpage/Plots/{}".format(config["dir"].replace("[C]", channel).replace("[E]", era)), 
+                "display-name": "Plots: {}/{}".format(channel, era), 
                 "dependencies": [t["name"] for t in haddTasks if t["channel"] == channel], 
-                "processes": [t["process"] for t in haddTasks if t["channel"] == channel]
+                "processes": list(set([t["process"] for t in haddTasks if t["channel"] == channel]))
         }
 
         return [Plot(task)]

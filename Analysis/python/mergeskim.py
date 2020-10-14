@@ -23,7 +23,7 @@ class MergeSkim(Task):
     def configure(config):
         tasks = []
 
-        skimDir = config["skim-dir"].replace("[E]", config["era"])
+        skimDir = config["skim-dir"].replace("[E]", config["era"][0])
 
         ##Loop over all directories in the skim dir
         for d in os.listdir("{}/{}".format(os.environ["CHDIR"], skimDir)):
@@ -94,6 +94,7 @@ class MergeSkim(Task):
                             "out-name": "{}.root".format(d),
                             "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
                             "delete-input": True,
+                            "run-mode": config["run-mode"],
                         }
 
                         tasks.append(MergeSkim(task))
