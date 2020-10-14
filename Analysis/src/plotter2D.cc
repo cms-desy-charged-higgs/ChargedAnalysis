@@ -9,7 +9,7 @@ Plotter2D::Plotter2D(std::string &histdir, std::string &channel, std::vector<std
 
 void Plotter2D::ConfigureHists(){
     for(std::string process: processes){
-        std::string fileName = histdir + "/" + process + "/" + process + ".root";
+        std::string fileName = histdir + "/" + process + "/merged/" + process + ".root";
         TFile* file = TFile::Open(fileName.c_str());
 
         std::cout << "Read histograms from file: '" + fileName + "'" << std::endl;
