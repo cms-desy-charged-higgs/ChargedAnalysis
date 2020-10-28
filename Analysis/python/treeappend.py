@@ -12,32 +12,32 @@ class TreeAppend(Task):
         self["executable"] = "treeappend"
 
         self["arguments"] = [
-                "--file-name", self["input-file"], 
+                "--file-name", "{}/{}".format(self["dir"], self["out-name"]), 
                 "--tree-name", self["channel"],
                 "--functions", *self["functions"],
-                "--dCache", self["dCache"],
+                "--era", self["era"]
         ]
 
     def output(self):
-        self["output"] = self["input-file"]
+        self["output"] = "{}/{}".format(self["dir"], self["out-name"])
    
     @staticmethod
-    def configure(config, channel):
+    def configure(config, channel, era):
         tasks = []
 
-        for fileName in os.listdir("{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel))):
-            inFile = "{}/{}/{}/merged/{}.root".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel), fileName, fileName)
+        skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", era))
 
+        for fileName in os.listdir(skimDir):
             ##Configuration for treeread Task
             task = {
                 "name": "Append_{}_{}".format(channel, fileName), 
                 "display-name": "Append: {} ".format(channel),
-                "dir":  "{}/{}/{}/merged".format(os.environ["CHDIR"], config["skim-dir"].replace("@",  channel), fileName),
-                "input-file": inFile,
+                "dir":  "{}/{}/merged".format(skimDir, fileName),
+                "out-name": "{}.root".format(fileName),
                 "channel": channel,
                 "functions": config["functions"].get("all", []) + config["functions"].get(channel, []),
-                "run-mode": config["run-mode"], 
-                "dCache": "{}/{}/merged".format(config["dCache"].replace("@", channel), fileName) if "dCache" in config else "", 
+                "run-mode": config["run-mode"],
+                "era": era,
             }
 
             tasks.append(TreeAppend(task))
