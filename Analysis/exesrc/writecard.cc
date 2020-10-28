@@ -12,10 +12,11 @@ int main(int argc, char* argv[]){
     std::string outDir = parser.GetValue<std::string>("out-dir"); 
     bool useAsimov = parser.GetValue<bool>("use-asimov"); 
     std::string histDir = parser.GetValue<std::string>("hist-dir"); 
-    std::string discriminant = parser.GetValue<std::string>("discriminant"); 
+    std::string discriminant = parser.GetValue<std::string>("discriminant");
+    std::vector<std::string> systematics = parser.GetVector<std::string>("systematics", {""});
 
     //Create datcard
-    Datacard datacard(backgrounds, signal, data, channel, outDir, useAsimov);
+    Datacard datacard(backgrounds, signal, data, channel, outDir, useAsimov, systematics);
     datacard.GetHists(histDir, discriminant);
     datacard.Write();
 }

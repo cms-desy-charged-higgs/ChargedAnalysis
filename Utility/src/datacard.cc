@@ -2,13 +2,17 @@
 
 Datacard::Datacard(){}
 
-Datacard::Datacard(const std::vector<std::string>& backgrounds, const std::string& signal, const std::string& data, const std::string& channel, const std::string& outDir, const bool& useAsimov) :
+Datacard::Datacard(const std::vector<std::string>& backgrounds, const std::string& signal, const std::string& data, const std::string& channel, const std::string& outDir, const bool& useAsimov, const std::vector<std::string>& systematics) :
     backgrounds(backgrounds),
     signal(signal),
     data(data),
     channel(channel),
     outDir(outDir), 
-    useAsimov(useAsimov)
+    useAsimov(useAsimov),
+    systematics(systematics)
+
+   // normSysts = {{"Lumi"}}
+
     {}
 
 void Datacard::GetHists(const std::string& histDir, const std::string& discriminant){
@@ -18,41 +22,65 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
     TFile* outFile = TFile::Open((outDir + "/shapes.root").c_str(), "RECREATE");
     TDirectory* dir = outFile->mkdir(channel.c_str());
 
-    TH1F* bkgSum = NULL;
+    TH1F* bkgSum = nullptr;
 
     //Open file with shape and get histogram
-    TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + signal + "/" + signal + ".root").c_str()));
-    TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
-    hist->SetName(signal.c_str());
-    hist->SetTitle(signal.c_str());
+    for(const std::string& syst : systematics){
+        for(const std::string shift : {"Up", "Down"}){
+            //Skip Down loop for nominal case
+            if(syst == "" and shift == "Down") continue;
 
-    //Save yield of histogram
-    rates[signal] = (float)hist->Integral();
+            std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
+            std::string fileName = StrUtil::Merge(histDir, "/", signal, "/merged/", systName, "/", signal, ".root");
 
-    dir->cd();
-    hist->Write();
+            //Open file with shape and get histogram
+            TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((fileName).c_str()));
+            TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
+            hist->SetName(syst == "" ? signal.c_str() : StrUtil::Join("_", signal, systName).c_str());
+            hist->SetTitle(syst == "" ? signal.c_str() : StrUtil::Join("_", signal, systName).c_str());
 
-    delete hist;
-    delete procFile;
+            //Save yield of histogram
+            if(syst == "") rates[signal] = (float)hist->Integral();
 
-    for(std::string& process: backgrounds){
-        //Open file with shape and get histogram
-        TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + process + "/" + process + ".root").c_str()));
-        TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
-        hist->SetName(process.c_str());
-        hist->SetTitle(process.c_str());
+            dir->cd();
+            hist->Write();
 
-        //Save yield of histogram
-        rates[process] = (float)hist->Integral();
+            delete hist;
+            delete procFile;
+        }
+    }
 
-        if(bkgSum == NULL) bkgSum = (TH1F*)hist->Clone();
-        else bkgSum->Add(hist);
+    for(const std::string& syst : systematics){
+        for(const std::string shift : {"Up", "Down"}){
+            for(std::string& process: backgrounds){
+                //Skip Down loop for nominal case
+                if(syst == "" and shift == "Down") continue;
 
-        dir->cd();
-        hist->Write();
+                std::cout << syst << shift << std::endl;
 
-        delete hist;
-        delete procFile;
+                std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
+                std::string fileName = StrUtil::Merge(histDir, "/", process, "/merged/", systName, "/", process, ".root");
+
+                //Open file with shape and get histogram
+                TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((fileName).c_str()));
+                TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
+                hist->SetName(syst == "" ? process.c_str() : StrUtil::Join("_", process, systName).c_str());
+                hist->SetTitle(syst == "" ? process.c_str() : StrUtil::Join("_", process, systName).c_str());
+
+                if(syst == ""){
+                    //Save yield of histogram
+                    rates[process] = (float)hist->Integral();
+                    if(bkgSum == nullptr) bkgSum = (TH1F*)hist->Clone();
+                    else bkgSum->Add(hist);
+                }
+
+                dir->cd();
+                hist->Write();
+
+                delete hist;
+                delete procFile;
+            }
+        }
     }
 
     if(useAsimov){
@@ -93,6 +121,7 @@ void Datacard::Write(){
 
     datacard << "imax 1 number of channel\n";
     datacard << "jmax " << backgrounds.size() << " number of backgrounds\n";
+    datacard << "kmax " << (systematics.size() - 1) << " number of nuisance parameters\n";
     datacard << border << std::endl;
 
     for(std::string& process: backgrounds){
@@ -139,6 +168,20 @@ void Datacard::Write(){
     datacard << rate.rdbuf();
 
     datacard << border << std::endl;
+
+    for(const std::string syst : systematics){
+        if(syst == "") continue;
+
+        std::stringstream systLine;
+        systLine << std::left  << std::setw(20) << syst << std::setw(20) << "shape";
+
+        for(unsigned int i = 0; i < backgrounds.size() + 1; i++){
+            systLine << std::left << std::setw(i!=backgrounds.size() ? 25 : channel.size()) << "1";
+            if(i==backgrounds.size()) systLine << "\n";
+        }
+
+        datacard << systLine.rdbuf();
+    }
 
     datacard.close();
 }
