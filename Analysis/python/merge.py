@@ -60,9 +60,8 @@ class Merge(Task):
                     "dir": unmergedDirs[index].replace("unmerged", "merged"),
                     "dependencies": [t["name"] for t in mergeTasks],
                     "input-files": ["{}/{}".format(t["dir"], t["out-name"]) for t in mergeTasks],
-                    "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown", "nGen", "nGenWeighted", "puMC", "nLooseDeepbTag", "nLooseDeepbTag", "nMediumDeepbTag", "nTightDeepbTag", "nLooseCSVbTag", "nMediumCSVbTag", "nTightCSVbTag", "nTrueB"],
+                    "exclude-objects": config["exclude-merging"],
                     "delete-input": True,
-                    "run-mode": config["run-mode"],
                 }
 
                 tasks.append(Merge(task))            
