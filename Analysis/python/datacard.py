@@ -18,29 +18,36 @@ class Datacard(Task):
                 "--use-asimov" if self["data"] == "" else "",
                 "--hist-dir", self["hist-dir"], 
                 "--discriminant", self["discriminant"], 
+                "--systematics", *self["systematics"]
         ]
 
     def output(self):
         self["output"] = [self["dir"] + "/datacard.txt", self["dir"] + "/shapes.root"]
 
     @staticmethod
-    def configure(config, channel, mass, haddTasks):
+    def configure(config, channel, era, haddTasks):
         tasks = []
 
-        cardConf = {
-                "name": "Datacard_{}_{}".format(mass, channel), 
-                "dir":  "{}/{}/{}".format(os.environ["CHDIR"], config["dir"], channel), 
-                "display-name": "Datacard: {} ({})".format(mass, channel), 
-                "discriminant": config["discriminant"],
-                "dependencies": [t["name"] for t in haddTasks if channel in t["channel"]], 
-                "backgrounds": config["backgrounds"],
-                "signal": config["signal"],
-                "hist-dir": "{}/{}/{}".format(os.environ["CHDIR"], config["dir"].replace(str(mass), ""),  channel),
-                "channel": channel,
-                "data": config["data"].get("channel", "")
-        }
+        for mHC in config["charged-masses"]:
+            for mh in config["neutral-masses"]:
+                outDir = "{}/{}".format(os.environ["CHDIR"], config["dir"].replace("[E]", era).replace("[C]", channel))
+        
+                cardConf = {
+                        "name": "Datacard_{}_{}_{}_{}".format(str(mHC), str(mh), channel, era), 
+                        "dir": "{}/HPlus{}_h{}".format(outDir, mHC, mh), 
+                        "display-name": "Datacard: {}/{} ({}/{})".format(str(mHC), str(mh), channel, era), 
+                        "discriminant": config["discriminant"].replace("[MHC]", str(mHC)),
+                        "dependencies": [t["name"] for t in haddTasks if channel in t["name"] and era in t["name"]], 
+                        "backgrounds": config["backgrounds"],
+                        "signal": config["signal"].replace("[MHC]", str(mHC)).replace("[MH]", str(mh)),
+                        "hist-dir": outDir,
+                        "channel": channel,
+                        "data": config["data"].get("channel", ""),
+                        "era": era,
+                        "systematics": ['""'] + config["shape-systs"].get("all", [])[1:] + config["shape-systs"].get(channel, []) + config["scale-systs"].get("all", [])[1:] + config["scale-systs"].get(channel, []),
+                }
 
-        tasks.append(Datacard(cardConf))
+                tasks.append(Datacard(cardConf))
 
         return tasks
         
