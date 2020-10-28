@@ -48,6 +48,8 @@ void PUtil::SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel, const 
 }
 
 void PUtil::DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText, const std::string& lumiText){
+    pad->cd();
+
     float padWidth = pad->GetWw() * pad->GetWNDC();
     float padHeight = pad->GetWh() * pad->GetHNDC();
 
@@ -123,11 +125,11 @@ void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
     TObject* frame = pad->GetListOfPrimitives()->At(0);
 
     if(frame->InheritsFrom(TH1::Class())){
-        static_cast<TH1*>(frame)->SetMaximum(pad->GetLogy() ? max*std::pow(10, 2*nColumns) : max*(1 + nColumns*0.1));
+        static_cast<TH1*>(frame)->SetMaximum(pad->GetLogy() ? max*std::pow(10, nColumns) : max*(1 + nColumns*0.1));
     }
 
     else if(frame->InheritsFrom(TGraph::Class())){
-        static_cast<TGraph*>(frame)->GetHistogram()->SetMaximum(pad->GetLogy() ? max*std::pow(10, 2*nColumns) : max*(1 + nColumns*0.1));
+        static_cast<TGraph*>(frame)->GetHistogram()->SetMaximum(pad->GetLogy() ? max*std::pow(10, nColumns) : max*(1 + nColumns*0.1));
     }
 
     //Draw Legend and legend pad
@@ -203,8 +205,8 @@ std::string PUtil::GetLumiTitle(const std::string& lumi){
     std::map<std::string, std::string> lumiTitle = {
         {"2016", "35.92 fb^{-1} (2016, 13 TeV)"}, 
         {"2017", "41.53 fb^{-1} (2017, 13 TeV)"}, 
-        {"2018", "59.74 fb^{-1} (2017, 13 TeV)"},
-        {"all", "137.19 fb^{-1} (RunII, 13 TeV)"},
+        {"2018", "59.74 fb^{-1} (2018, 13 TeV)"},
+        {"RunII", "137.19 fb^{-1} (RunII, 13 TeV)"},
     };
 
     return VUtil::At(lumiTitle, lumi);
