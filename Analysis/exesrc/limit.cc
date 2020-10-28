@@ -1,33 +1,19 @@
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #include <ChargedAnalysis/Utility/include/parser.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 
 int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
 
-    std::string mass = parser.GetValue<std::string>("mass");
-    std::string limitDir = parser.GetValue<std::string>("limit-dir");
-    std::vector<std::string> channels = parser.GetVector<std::string>("channels");
+    std::string outDir = parser.GetValue<std::string>("out-dir");
+    std::string cardDir = parser.GetValue<std::string>("card-dir");
     
-    std::stringstream combineCard; combineCard << "combineCards.py ";
+    std::string tmp = std::to_string(getppid());
 
-    //Calculate limit per channel
-    for(std::string& channel: channels){
-        std::string channelDir = limitDir + "/" + channel;
-        std::system(("combine " + channelDir + "/datacard.txt --mass " + mass).c_str());
-        std::system(("mv higgsCombineTest*" + mass + ".root " + channelDir + "/limit.root").c_str());
-
-        combineCard << " " <<  channel << "=" << channelDir << "/datacard.txt"; 
-    }
-
-    //Combine datacards and calculate combined limit
-    combineCard << " > " << limitDir << "/datacard.txt";
-    std::system(combineCard.str().c_str());
-
-    std::cout << combineCard.str().c_str() << std::endl;
-
-    std::system(("combine " + limitDir + "/datacard.txt --mass " + mass).c_str());
-    std::system(("mv higgsCombineTest*" + mass + ".root " + limitDir + "/limit.root").c_str());
+    std::system(StrUtil::Merge("combine ", "-n ", tmp, " ", cardDir, "/datacard.txt").c_str());
+    std::system(StrUtil::Merge("mv ", "higgsCombine", tmp, "*.root ", outDir, "/limit.root").c_str());
 }
