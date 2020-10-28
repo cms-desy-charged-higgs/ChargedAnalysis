@@ -2,165 +2,181 @@
 
 PlotterLimit::PlotterLimit() : Plotter(){}
 
-PlotterLimit::PlotterLimit(std::string &limitDir, const std::vector<int>& masses, const std::vector<std::string>& channels) : 
+PlotterLimit::PlotterLimit(std::string &limitDir, const std::vector<int>& chargedMasses, const std::vector<int>& neutralMasses, const std::vector<std::string>& channels, const std::string& era, const std::vector<float>& xSecs) : 
     Plotter(),
     limitDir(limitDir),
-    masses(masses),
-    channels(channels){
-
-        xSecs = {
-                {200, 0.03208},
-                {250, 0.0178},
-                {300, 0.01062},
-                {350, 0.006656},
-                {400, 0.004334},
-                {450, 0.002918},
-                {500, 0.002019},
-                {550, 0.001431},
-                {600, 0.001063},
-        };
-    }
-
+    chargedMasses(chargedMasses),
+    neutralMasses(neutralMasses),
+    channels(channels),
+    era(era),
+    xSecs(xSecs){}
 
 void PlotterLimit::ConfigureHists(){
-    for(const std::string& channel : Utils::Merge<std::string>({""}, channels)){
-        expected[channel] = new TGraph();
-        sigmaOne[channel] = new TGraphAsymmErrors();
-        sigmaTwo[channel] = new TGraphAsymmErrors();
+    for(const std::string& channel : channels){
+        expected[channel] = std::make_shared<TH2D>(("Ex" + channel).c_str(), ("Ex" + channel).c_str(), chargedMasses.size(), chargedMasses[0] - 50, chargedMasses.back() + 50, neutralMasses.size() + 1, neutralMasses[0] - 5, neutralMasses.back() + 5);
 
-        if(channel == "") theory = new TGraph();
+        theory = std::make_shared<TH2D>(("Theo" + channel).c_str(), ("Theo" + channel).c_str(), chargedMasses.size(), chargedMasses[0] - 50, chargedMasses.back() + 50, neutralMasses.size() + 1, neutralMasses[0] - 5, neutralMasses.back() + 5);
 
-        for(unsigned int i=0; i < masses.size(); i++){
-            //Read file and tree with limits
-            TFile* limitFile = TFile::Open((limitDir + "/" + std::to_string(masses[i]) + "/" + channel + "/limit.root").c_str(), "READ");
-            TTree* limitTree = (TTree*)limitFile->Get("limit");
+        for(unsigned int i=0; i < chargedMasses.size(); i++){
+            for(unsigned int j=0; j < neutralMasses.size(); j++){
+                int mHC = chargedMasses[i], mh = neutralMasses[j];
+                int idx = MUtil::RowMajIdx({chargedMasses.size(), neutralMasses.size()}, {i, j});
 
-            //Set branch for reading limits
-            std::vector<double> limitValues;
-            
-            TLeaf* limitValue = limitTree->GetLeaf("limit");       
+                //Read file and tree with limits
+                std::string sigName = StrUtil::Replace("HPlus@_h@", "@", mHC, mh);
+                std::string inDir  = StrUtil::Join("/", limitDir, channel, era, sigName, "Limit/limit.root");
 
-            //Values
-            for(int j=0; j < 5; j++){
-                limitValue->GetBranch()->GetEntry(j);
-                limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[masses[i]]);
+                std::shared_ptr<TFile> limitFile(TFile::Open(inDir.c_str(), "READ"));
+                std::shared_ptr<TTree> limitTree(limitFile->Get<TTree>("limit"));
+
+                //Set branch for reading limits
+                std::vector<double> limitValues;
+                TLeaf* limitValue = limitTree->GetLeaf("limit");       
+
+                //Values
+                for(int k=0; k < 5; k++){
+                    limitValue->GetBranch()->GetEntry(k);
+                    limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[idx]);
+                }
+
+                expected[channel]->SetBinContent(i+1, j+1, limitValues[2]);    
+                theory->SetBinContent(i+1, j+1, xSecs[idx]);
+
+                if(!sigmaOne.count({channel, mh})){
+                    sigmaOne[{channel, mh}] = std::make_shared<TGraphAsymmErrors>();
+                    sigmaOne[{channel, mh}]->SetFillColor(kGreen);
+                    sigmaOne[{channel, mh}]->SetFillStyle(1001);  
+
+                    sigmaTwo[{channel, mh}] = std::make_shared<TGraphAsymmErrors>();
+
+                    sigmaTwo[{channel, mh}]->SetFillColor(kYellow);
+                    sigmaTwo[{channel, mh}]->SetFillStyle(1001); 
+                }
+
+                sigmaOne[{channel, mh}]->SetPoint(i, mHC, limitValues[2]);
+                sigmaOne[{channel, mh}]->SetPointEYlow(i, limitValues[2] - limitValues[1]);
+                sigmaOne[{channel, mh}]->SetPointEYhigh(i, limitValues[3] - limitValues[1]);  
+
+                sigmaTwo[{channel, mh}]->SetPoint(i, mHC, limitValues[2]);
+                sigmaTwo[{channel, mh}]->SetPointEYlow(i, limitValues[2] - limitValues[0]);
+                sigmaTwo[{channel, mh}]->SetPointEYhigh(i, limitValues[4] - limitValues[1]);
             }
-
-            expected[channel]->SetPoint(i, masses[i], limitValues[2]);
-
-            sigmaOne[channel]->SetPoint(i, masses[i], limitValues[2]);
-            sigmaOne[channel]->SetPointEYlow(i, limitValues[2] - limitValues[1]);
-            sigmaOne[channel]->SetPointEYhigh(i, limitValues[3] - limitValues[1]);     
-
-            sigmaTwo[channel]->SetPoint(i, masses[i], limitValues[2]);
-            sigmaTwo[channel]->SetPointEYlow(i, limitValues[2] - limitValues[0]);
-            sigmaTwo[channel]->SetPointEYhigh(i, limitValues[4] - limitValues[1]);
-
-            if(channel == "") theory->SetPoint(i, masses[i], xSecs[masses[i]]);
-       
-            delete limitTree;
-            delete limitFile;
         }
     }
 }
 
 void PlotterLimit::Draw(std::vector<std::string> &outdirs){
-    TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
-    TPad* mainPad = new TPad("mainPad", "mainPad", 0., 0. , 1., 1.);
+    std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("canvas",  "canvas", 1000, 1000);
+    std::shared_ptr<TPad> mainPad = std::make_shared<TPad>("mainPad", "mainPad", 0., 0. , 1., 1.);
 
     PUtil::SetStyle();
 
     //Draw main pad
-    PUtil::SetPad(mainPad);
+    PUtil::SetPad(mainPad.get());
+    mainPad->SetLogy(1);
     mainPad->Draw();
     mainPad->cd();
 
-    //Marker/lines styles
-    expected.at("")->SetLineWidth(3);
+    //Plot charged Higgs 1D limit in slices of small higgs
+    for(unsigned int j=0; j < neutralMasses.size(); j++){
+        int mh = neutralMasses[j];
 
-    theory->SetLineWidth(3);
-    theory->SetLineStyle(2);
+        //Expected/theory hist configuration
+        std::shared_ptr<TH1D> exHist(expected["Combined"]->ProjectionX("ex", j+1, j+2));
+        exHist->SetLineWidth(3);
+        exHist->SetLineColor(kBlack);
 
-    sigmaOne.at("")->SetFillColor(kGreen);
-    sigmaOne.at("")->SetFillStyle(1001);
+        std::shared_ptr<TH1D> theoHist(theory->ProjectionX("theo", j+1, j+2));
+        theoHist->SetLineWidth(3);
+        theoHist->SetLineStyle(2);
+        theoHist->SetLineColor(kBlack);
 
-    sigmaTwo.at("")->SetFillColor(kYellow);
-    sigmaTwo.at("")->SetFillStyle(1001);
+        //Frame histo
+        std::shared_ptr<TH1D> frameHist(static_cast<TH1D*>(exHist->Clone()));
+        frameHist->Reset();
+        PUtil::SetHist(mainPad.get(), frameHist.get(), "95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
+  
+        float min = std::min(theoHist->GetMinimum(), sigmaTwo[{"Combined", mh}]->GetHistogram()->GetMinimum());
 
-    float min = std::min(theory->GetHistogram()->GetMinimum(), sigmaTwo.at("")->GetHistogram()->GetMinimum());
-    float max = std::max(theory->GetHistogram()->GetMaximum(), sigmaTwo.at("")->GetHistogram()->GetMaximum());
+        frameHist->GetXaxis()->SetLimits(chargedMasses[0], chargedMasses.back());
+        frameHist->SetMinimum(min*1e-1);
+        frameHist->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
 
-    //Set range
-    sigmaTwo.at("")->SetMinimum(min*0.5);
-    sigmaTwo.at("")->SetMaximum(max*1e1);
-    sigmaTwo.at("")->GetHistogram()->GetXaxis()->SetRangeUser(masses[0], masses.back());
+        //Add legend information            
+        std::shared_ptr<TLegend> legend = std::make_shared<TLegend>(0.0, 0.0, 1.0, 1.0);
 
-    //Draw all the things
-    sigmaTwo.at("")->Draw("A3");
-    sigmaOne.at("")->Draw("3");
-    expected.at("")->Draw("L");
-    theory->Draw("L");
+        legend->AddEntry(exHist.get(), "Expected", "L");
+        legend->AddEntry(theoHist.get(), "Theo. prediction", "L");
+        legend->AddEntry(sigmaOne[{"Combined", mh}].get(), "68% expected", "F");
+        legend->AddEntry(sigmaTwo[{"Combined", mh}].get(), "95% expected", "F");
 
-    //TLegend
-    TLegend* legend = new TLegend(0.0, 0.0, 1.0, 1.0);
+        //Draw everything and save
+        frameHist->Draw();
+        sigmaTwo[{"Combined", mh}]->Draw("SAME 3");
+        sigmaOne[{"Combined", mh}]->Draw("SAME 3");
+        exHist->Draw("C SAME");
+        theoHist->Draw("C SAME");
+        gPad->RedrawAxis();
+        PUtil::DrawHeader(mainPad.get(), "Combined", "Work in progress", PUtil::GetLumiTitle(era));
+        PUtil::DrawLegend(mainPad.get(), legend.get(), 2);
 
-    //Add legend information
-    legend->AddEntry(expected.at(""), "Expected", "L");
-    legend->AddEntry(theory, "Theo. prediction", "L");
-    legend->AddEntry(sigmaOne.at(""), "68% expected", "F");
-    legend->AddEntry(sigmaTwo.at(""), "95% expected", "F");
-    
-    //Configure labels
-    PUtil::SetHist(mainPad, sigmaTwo.at("")->GetHistogram());
-    sigmaTwo.at("")->GetHistogram()->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
-    sigmaTwo.at("")->GetHistogram()->GetYaxis()->SetTitle("95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
+        for(std::string outdir: outdirs){
+            canvas->SaveAs(StrUtil::Merge(outdir, "/limit_h", mh, ".pdf").c_str());
+            canvas->SaveAs(StrUtil::Merge(outdir, "/limit_h", mh, ".png").c_str());    
+        }
 
-    mainPad->cd();
+        mainPad->Clear();   
+        legend->Clear();
 
-    PUtil::DrawHeader(mainPad, "All channel", "Work in progress");
+        //Draw plot with limits of each channel
+        if(channels.size() == 1) continue;
 
-    //Save canvas in non-log and log scale
-    mainPad->SetLogy(1);
+        frameHist->SetMaximum(1.);
+        frameHist->Draw();
+        exHist->Draw("C SAME");
+        theoHist->Draw("C SAME");
+        gPad->RedrawAxis();
 
-    //Draw legend
-    PUtil::DrawLegend(mainPad, legend, 2);
+        legend->AddEntry(exHist.get(), "Combined", "L");
+        legend->AddEntry(theoHist.get(), "Theo. prediction", "L");
 
-    for(std::string outdir: outdirs){
-        canvas->SaveAs((outdir + "/limit.pdf").c_str());
-        canvas->SaveAs((outdir + "/limit.png").c_str());
+        std::vector<int> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kMagenta};
+        std::vector<int>::iterator color = colors.begin();
+        
+        for(const std::string& channel : VUtil::Slice(channels, 1, channels.size())){
+            TH1D* exChan = expected[channel]->ProjectionX(("LimitByChannel" + channel).c_str(), j+1, j+2);
+
+            exChan->SetLineWidth(3);
+            exChan->SetLineColor(*color); ++color;
+
+            legend->AddEntry(exChan, PUtil::GetChannelTitle(channel).c_str(), "L");
+            exChan->Draw("C SAME");
+        }
+
+        PUtil::DrawHeader(mainPad.get(), "", "Work in progress", PUtil::GetLumiTitle(era));
+        PUtil::DrawLegend(mainPad.get(), legend.get(), 3);
+
+        for(std::string outdir: outdirs){
+            canvas->SaveAs(StrUtil::Merge(outdir, "/limit_h", mh, "_byChannel.pdf").c_str());
+            canvas->SaveAs(StrUtil::Merge(outdir, "/limit_h", mh, "_byChannel.png").c_str()); 
+        }
+
+        mainPad->Clear();
     }
 
-    //Draw for each channel
-    mainPad->Clear();
-    legend->Clear();
-    
-    TH1F* frameHist = dynamic_cast<TH1F*>(sigmaTwo.at("")->GetHistogram()->Clone());
-    frameHist->Clear();
-    frameHist->SetMaximum(max*1e2);
-    frameHist->Draw();
+    mainPad->SetLogy(0);
 
-    theory->Draw("L SAME");
-    expected.at("")->Draw("L SAME");
-
-    legend->AddEntry(expected.at(""), "Combined", "L");
-    legend->AddEntry(theory, "Theo. prediction", "L");
-
-    std::vector<int> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kMagenta};
-    std::vector<int>::iterator color = colors.begin();
-    
-    for(const std::string& channel : channels){
-        expected[channel]->SetLineWidth(3);
-        expected[channel]->SetLineColor(*color); ++color;
-
-        legend->AddEntry(expected.at(channel), PUtil::GetChannelTitle(channel).c_str(), "L");
-
-        expected.at(channel)->Draw("L SAME");
-    }
-
-    PUtil::DrawLegend(mainPad, legend, 3);
+    //Draw 2D limit plot 
+    expected["Combined"]->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
+    expected["Combined"]->GetXaxis()->SetLimits(chargedMasses[0], chargedMasses.back());  
+    expected["Combined"]->GetYaxis()->SetLimits(neutralMasses[0], neutralMasses.back() + 10);  
+    PUtil::SetHist(mainPad.get(), expected["Combined"].get(), "m(h) [GeV]");
+        
+    expected["Combined"]->Draw("COLZ");
+    PUtil::DrawHeader(mainPad.get(), "Combined", "Work in progress", PUtil::GetLumiTitle(era));
 
     for(std::string outdir: outdirs){
-        canvas->SaveAs((outdir + "/limit_by_channel.pdf").c_str());
-        canvas->SaveAs((outdir + "/limit_by_channel.png").c_str());
+        canvas->SaveAs(StrUtil::Merge(outdir, "/limit.pdf").c_str());
+        canvas->SaveAs(StrUtil::Merge(outdir, "/limit.png").c_str());    
     }
 }
