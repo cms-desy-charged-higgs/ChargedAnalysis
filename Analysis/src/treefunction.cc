@@ -285,7 +285,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
                 scaleFactors[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str()));
                 scaleFactorsUp[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFUp", wpname).c_str()));
-                scaleFactors[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str()));
+                scaleFactorsDown[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str()));
 
                 break;
 
@@ -416,6 +416,8 @@ const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
                 else if(std::abs(trueFlav->at(i)) == 4) eff = effC->GetBinContent(effC->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
                 else eff = effLight->GetBinContent(effLight->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
 
+                if(eff == 0) continue;
+
                 if(whichWP(part1, i) >= wp1){
                     wData *= VUtil::At(*sf, i) * eff;
                     wMC *= eff;
@@ -434,7 +436,7 @@ const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
                 TLeaf* scaleFactor;
 
                 if(shift != NON and sys == syst){
-                    if(shift == UP) scaleFactor = scaleFactorsUp[sys];   
+                    if(shift == UP) scaleFactor = scaleFactorsUp[sys];    
                     else scaleFactor = scaleFactorsDown[sys];  
                 }
 
@@ -445,7 +447,9 @@ const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
                 std::vector<float>* sf = (std::vector<float>*)scaleFactor->GetValuePointer();
 
                 for(int i = 0; i < sf->size(); i++){
-                    weight *= Utils::CheckZero(VUtil::At(*sf, i));
+                    if(whichWP(part1, i) >= wp1){
+                        weight *= Utils::CheckZero(VUtil::At(*sf, i));  
+                    }
                 }
             }
         }
