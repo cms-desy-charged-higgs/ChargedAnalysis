@@ -1,7 +1,9 @@
-skim-dir: Skim/Inclusive
-out-dir: Skim/Channels/@
+skim-dir: Skim/Inclusive/[E]
+out-dir: Skim/Channels/[C]/[E]
 
 run-mode: Condor
+
+n-events: 3000000
 
 channels:
     Ele4J: EleIncl
@@ -11,7 +13,15 @@ channels:
     Muon2J1FJ: MuonIncl
     Muon2FJ: MuonIncl
 
-shape-systs: []
+shape-systs:
+    all:
+        - ""
+        - JECTotal
+        - JER
+
+    EleIncl:
+        - energyScale
+        - energySigma
 
 cuts:
     Ele4J:
@@ -36,4 +46,35 @@ cuts:
     Muon2FJ:
         - f:n=N/p:n=fj/c:n=equal,v=2
 
-dCache: Skim/Channels/@
+dCache: Skim/Channels/[C]/[E]
+
+exclude-merging:
+    - nGen
+    - nGenWeighted
+    - puMC
+    - nLooseBDeepbTag
+    - nMediumBDeepbTag
+    - nTightBDeepbTag
+    - nLooseCDeepbTag
+    - nMediumCDeepbTag
+    - nTightCDeepbTag
+    - nLooseLightDeepbTag
+    - nMediumLightDeepbTag
+    - nTightLightDeepbTag
+    - nLooseBCSVbTag
+    - nMediumBCSVbTag
+    - nTightBCSVbTag
+    - nLooseCCSVbTag
+    - nMediumCCSVbTag
+    - nTightCCSVbTag
+    - nLooseLightCSVbTag
+    - nMediumLightCSVbTag
+    - nTightLightCSVbTag
+    - nTrueB
+    - nTrueC
+    - nTrueLight
+    - Lumi
+    - xSec
+    - pileUp
+    - pileUpUp
+    - pileUpDown
