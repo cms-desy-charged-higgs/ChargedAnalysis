@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <filesystem>
 #include <experimental/random>
 
 #include <ChargedAnalysis/Network/include/dnnmodel.h>
@@ -15,14 +16,15 @@
 
 typedef torch::disable_if_t<false, std::unique_ptr<torch::data::StatelessDataLoader<DNNDataset, torch::data::samplers::SequentialSampler>, std::default_delete<torch::data::StatelessDataLoader<DNNDataset, torch::data::samplers::SequentialSampler>>>> DataLoader;
 
-float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, DNNDataset& bkgSet,  std::vector<int>& masses, torch::Device& device, const int& batchSize, const float& lr, const bool& optimize, const std::string& outPath){
+float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, std::vector<DNNDataset>& bkgSets,  std::vector<int>& masses, torch::Device& device, const int& batchSize, const float& lr, const bool& optimize, const std::string& outPath){
     //Create directories
     std::system((std::string("mkdir -p ") + outPath).c_str());
 
     //Calculate weights to equalize pure number of events for signal and background
-    int nBkg = bkgSet.size().value();
+    int nBkg = 0;
     int nSig = 0;
     for(DNNDataset& set : sigSets) nSig += set.size().value();
+    for(DNNDataset& set : bkgSets) nBkg += set.size().value();
 
     float wSig = (nSig+nBkg)/float(nSig);
     float wBkg = (nSig+nBkg)/float(nBkg);
@@ -32,6 +34,7 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
 
     //Get dataloader
     std::vector<DataLoader> signal;
+    std::vector<DataLoader> bkg;
     DataLoader background;
 
     for(DNNDataset& set : sigSets){
@@ -39,7 +42,11 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
         signal.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wSig*batchSize)));
     }
 
-    background = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(bkgSet, (1./wBkg*batchSize));
+    for(DNNDataset& set : bkgSets){
+        float ratio = set.size().value()/float(nBkg);
+        bkg.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wBkg*batchSize)));
+    }
+
 
     //Recalculate class weights after equalizing all signal mass hypotheses
     int nSigWeighted = sigSets.size()*nSig;
@@ -53,7 +60,7 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
 
     //Initial best loss for later early stopping
     float bestLoss = 1e7;
-    int patience = optimize ? 2 : 20;
+    int patience = optimize ? 2 : 10;
     int notBetter = 0;
 
     for(int i=0; i < 10000; i++){
@@ -65,10 +72,14 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
 
         //Iterator returning batched data
         std::vector<torch::data::Iterator<std::vector<DNNTensor>>> sigIter;
-        torch::data::Iterator<std::vector<DNNTensor>> bkgIter = background->begin();
+        std::vector<torch::data::Iterator<std::vector<DNNTensor>>> bkgIter;
 
         for(DataLoader& sig : signal){
             sigIter.push_back(sig->begin());
+        }
+
+        for(DataLoader& b : bkg){
+            bkgIter.push_back(b->begin());
         }
 
         //Declaration of input train/test tensors
@@ -96,11 +107,13 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
                 }
             }
 
-            for(DNNTensor& tensor : *bkgIter){
-                int index = std::experimental::randint(0, (int)masses.size() -1);
-                batchMass.push_back(masses.at(index));
-                batch.push_back(tensor);
-                weights.push_back(wBkg);
+            for(int k = 0; k < bkgSets.size(); k++){
+                for(DNNTensor& tensor : *bkgIter[k]){
+                    int index = std::experimental::randint(0, (int)masses.size() -1);
+                    batchMass.push_back(masses.at(index));
+                    batch.push_back(tensor);
+                    weights.push_back(wBkg);
+                }
             }
 
             //Shuffle batch
@@ -167,14 +180,14 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, D
             Utils::ProgressBar(float(finishedBatches)/nBatches*100, barString);
 
             //Increment iterators
-            ++bkgIter;
+            for(int k = 0; k < bkgIter.size(); k++) ++bkgIter[k];
             for(int k = 0; k < sigIter.size(); k++) ++sigIter[k];
         }
 
         //Early stopping        
-        if(meanTrainLoss > bestLoss or std::abs(meanTrainLoss-meanTestLoss)/meanTrainLoss > 0.1) notBetter++;
+        if(meanTestLoss > bestLoss) notBetter++;
         else{
-            bestLoss = meanTrainLoss;
+            bestLoss = meanTestLoss;
             notBetter = 0;
 
             //Save model
@@ -197,8 +210,13 @@ int main(int argc, char** argv){
     Parser parser(argc, argv);
 
     std::string outPath = parser.GetValue<std::string>("out-path"); 
+    std::string channel = parser.GetValue<std::string>("channel");
+    std::string cleanJet = parser.GetValue<std::string>("clean-jets");
     std::vector<std::string> sigFiles = parser.GetVector<std::string>("sig-files");
     std::vector<std::string> bkgFiles = parser.GetVector<std::string>("bkg-files");
+    std::vector<std::string> parameters = parser.GetVector<std::string>("parameters");
+    std::vector<std::string> cuts = parser.GetVector<std::string>("cuts");
+    std::vector<int> masses = parser.GetVector<int>("masses");
 
     std::string optParam = parser.GetValue<std::string>("opt-param", "");
     std::unique_ptr<Frame> hyperParam;
@@ -221,30 +239,35 @@ int main(int argc, char** argv){
     at::set_num_threads(1);
 
     //Pytorch dataset class
+    std::vector<std::shared_ptr<TFile>> files;
     std::vector<DNNDataset> sigSets;
     std::vector<DNNDataset> bkgSets;
-    std::vector<int> masses;
 
     //Collect input data in csv format and create dataset classes
-    for(std::string file: sigFiles){
-        int mass = std::stoi(file.substr(Utils::Find<std::string>(file, "HPlus")+5, 3));
+    for(std::string fileName: sigFiles){
+        std::shared_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ")); 
+        files.push_back(file);
 
-        DNNDataset sigSet({file}, device, true);
+        DNNDataset sigSet(file, channel, parameters, cuts, cleanJet, device, true);
         sigSets.push_back(std::move(sigSet));
-        masses.push_back(mass);
     }
 
-    DNNDataset bkgSet(bkgFiles, device, false);
+    for(std::string fileName: bkgFiles){
+        std::shared_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ")); 
+        files.push_back(file);
 
-    //Get number of parameters
-    std::unique_ptr<Frame> frame = std::make_unique<Frame>(sigFiles[0]);
-    int nParameters = frame->GetNLabels();
+        DNNDataset bkgSet(file, channel, parameters, cuts, cleanJet, device, false);
+        bkgSets.push_back(std::move(bkgSet));
+    }
 
     //Create model
-    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(nParameters, nNodes, nLayers, dropOut, masses.size() > 1 ? true : false, device);
+    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(parameters.size(), nNodes, nLayers, dropOut, masses.size() > 1 ? true : false, device);
+    
+    if(std::filesystem::exists(outPath + "/model.pt")) torch::load(model, outPath + "/model.pt");
+
     model->Print();
 
     //Do training
-    float bestLoss = Train(model, sigSets, bkgSet, masses, device, batchSize, lr, optimize, outPath);
+    float bestLoss = Train(model, sigSets, bkgSets, masses, device, batchSize, lr, optimize, outPath);
     if(optimize) std::cout << "Best loss value: " << bestLoss << std::endl;
 }

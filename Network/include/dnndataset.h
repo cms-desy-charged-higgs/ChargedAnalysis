@@ -7,6 +7,8 @@
 #include <fstream>
 #include <vector>
 
+#include <ChargedAnalysis/Analysis/include/treefunction.h>
+#include <ChargedAnalysis/Analysis/include/treeparser.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
 
 /**
@@ -24,9 +26,11 @@ struct DNNTensor{
 
 class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
     private:
-        std::vector<std::ifstream*> files;
-        int fileIndex;
-        int nLines = 0;
+        int nEntries = 0;
+        std::vector<int> trueIndex;
+
+        std::vector<TreeFunction> functions;
+        std::vector<TreeFunction> cuts;
 
         torch::Device device;
         bool isSignal;
@@ -40,7 +44,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @param device Pytorch class for usage of CPU/GPU
         * @param isSignal Boolean to check if files are signal files
         */
-        DNNDataset(const std::vector<std::string>& files, torch::Device& device, const bool& isSignal);
+        DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const std::string& cleanJet, torch::Device& device, const bool& isSignal);
 
         /**
         * @brief Function to get number of events in the dataset
