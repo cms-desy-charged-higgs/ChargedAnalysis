@@ -5,7 +5,7 @@
 
 #include <ChargedAnalysis/Utility/include/extension.h>
 
-std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFile>& file, const std::string& channel){
+std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
     std::vector<std::string> branchNames;
@@ -108,7 +108,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TFile>& file, const std::string& channel){
+std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
     std::vector<int> masses = {200, 300, 400, 500, 600};
@@ -133,7 +133,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     evNr.SetFunction<Axis::X>("EvNr");
 
     //Read txt with parameter used in the trainind and set tree function
-    std::ifstream params(dnnPath + "/Even/" + channel + "/parameter.txt"); 
+    std::ifstream params(StrUtil::Join("/", dnnPath, "Even", channel, era, "parameter.txt")); 
     std::string parameter;
   
     while(getline(params, parameter)){
@@ -156,8 +156,8 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     model[0]->eval();
     model[1]->eval();
 
-    torch::load(model[0], dnnPath + "/Even/" + channel + "/model.pt");
-    torch::load(model[1], dnnPath + "/Odd/" + channel + "/model.pt");
+    torch::load(model[0], StrUtil::Join("/", dnnPath, "Even", channel, era, "model.pt"));
+    torch::load(model[1], StrUtil::Join("/", dnnPath, "Odd", channel, era, "model.pt"));
 
     torch::NoGradGuard no_grad;
 
@@ -233,7 +233,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel){
+std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
     typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> PolarLV;
     typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
     typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;

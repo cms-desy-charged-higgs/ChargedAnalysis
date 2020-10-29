@@ -34,9 +34,9 @@
 */
 
 namespace Extension {
-    std::map<std::string, std::vector<float>> HScore(std::shared_ptr<TFile>& file, const std::string& channel);
-    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TFile>& file, const std::string& channel);
-    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel);
+    std::map<std::string, std::vector<float>> HScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
+    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
+    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
 }
 
 #endif

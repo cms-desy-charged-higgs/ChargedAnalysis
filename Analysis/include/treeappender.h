@@ -25,6 +25,7 @@
 class TreeAppender{
     private:
         std::string fileName, treeName; 
+        int era;
         std::vector<std::string> appendFunctions;
         
     public:
@@ -39,7 +40,7 @@ class TreeAppender{
         * @param treeName Name of TTree where a quantity should be appended
         * @param appendFunctions Vector of strings with name of function from Extension namespace, which will be used for the append
         */
-        TreeAppender(const std::string& fileName, const std::string& treeName, const std::vector<std::string>& appendFunctions);
+        TreeAppender(const std::string& fileName, const std::string& treeName, const int& era, const std::vector<std::string>& appendFunctions);
 
         /**
         * @brief Function which will execute the appending

@@ -7,9 +7,10 @@
 
 TreeAppender::TreeAppender() {}
 
-TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeName, const std::vector<std::string>& appendFunctions) :
+TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeName, const int& era, const std::vector<std::string>& appendFunctions) :
         fileName(fileName), 
         treeName(treeName),
+        era(era),
         appendFunctions(appendFunctions){}
 
 void TreeAppender::Append(const std::string& outName){
@@ -29,14 +30,14 @@ void TreeAppender::Append(const std::string& outName){
     std::map<std::string, float> branchValues;
     std::map<std::string, std::vector<float>> values;
 
-    std::map<std::string, std::map<std::string, std::vector<float>>(*)(std::shared_ptr<TFile>&, const std::string&)> expandFunctions = {
+    std::map<std::string, std::map<std::string, std::vector<float>>(*)(std::shared_ptr<TFile>&, const std::string&, const int&)> expandFunctions = {
         {"HTagger", &Extension::HScore}, 
         {"DNN", &Extension::DNNScore}, 
         {"HReco", &Extension::HReconstruction}, 
     };
 
     for(const std::string& function: appendFunctions){
-        for(const std::pair<std::string, std::vector<float>>& funcValues : expandFunctions.at(function)(oldF, treeName)){
+        for(const std::pair<std::string, std::vector<float>>& funcValues : expandFunctions.at(function)(oldF, treeName, era)){
             oldT->SetBranchStatus(funcValues.first.c_str(), 0);
 
             branchNames.push_back(funcValues.first);
