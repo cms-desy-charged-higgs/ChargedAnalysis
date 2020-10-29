@@ -1,39 +1,15 @@
 channels:
-    - mu2j1fj
-    - e2j1fj
-    - e2fj
-    - mu2fj
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Ele2FJ
+    - Muon2FJ
 
-processes:
-    - W+j
-    - QCD
-    - DY+j
-    - TT+j-1L
-    - TT+j-2L
-    - TT+j-H
-    - TT+V
-    - VV+VVV 
-    - T
-    - HPlus200_h100_4B
-    - HPlus300_h100_4B
-    - HPlus400_h100_4B
-    - HPlus500_h100_4B
-    - HPlus600_h100_4B
+skim-dir: Skim/Channels/@
 
-branch-names:
-    mu2j1fj:
-        - ML_HTagFJ1
+dCache: Skim/Channels/@
 
-    e2j1fj:
-        - ML_HTagFJ1
+functions:
+    all:
+        - HTagger
 
-    e2fj:
-        - ML_HTagFJ1
-        - ML_HTagFJ2
-
-    mu2fj:
-        - ML_HTagFJ1
-        - ML_HTagFJ2
-
-number-events: 50000
 run-mode: Condor
