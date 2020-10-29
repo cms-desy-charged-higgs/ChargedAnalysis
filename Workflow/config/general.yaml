@@ -6,22 +6,9 @@ shape-systs:
     all:
         - ""
 
-    #- ""
-    #- energyScale
-    #- energySigma
-    #- JECTotal
-    #- JER
-
 scale-systs:
-    all:
+    all: 
         - ""
-       # - "BTag"
-       # - "MuonIso"
-       # - "MuonID"  
-       # - "MuonTrigger",
-       # - "EleID",  
-       # - "EleReco"
-       # - "PileUp"
 
 cuts:
     all: []
