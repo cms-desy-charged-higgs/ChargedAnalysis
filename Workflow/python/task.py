@@ -38,15 +38,7 @@ class Task(ABC, dict):
             subprocess.run(["command", "rm", "-rf", "{}/{}.txt".format(self["dir"], f)])
 
         ##Write shell exucutable with command
-        fileContent = [
-                        "#!/bin/bash\n", 
-                        "source $CHDIR/ChargedAnalysis/setenv.sh Analysis\n",
-                        " ".join([self["executable"], *[str(s) for s in self["arguments"]]])
-        ]
-
-        with open("{}/run.sh".format(self["dir"]), "w") as exe:
-            for line in fileContent:
-                exe.write(line)
+        self.createExe()
 
         subprocess.run(["chmod", "a+x", "{}/run.sh".format(self["dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -58,7 +50,7 @@ class Task(ABC, dict):
         ##Set niceness super high
         os.nice(19)
 
-        result = subprocess.run([self["executable"], *[str(s) for s in self["arguments"]]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run("source {}/run.sh".format(self["dir"]), shell = True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         ##Write out out/err
         with open("{}/out.txt".format(self["dir"]), "w") as out:
@@ -84,6 +76,17 @@ class Task(ABC, dict):
         ##Create directory of this task
         os.makedirs(self["dir"], exist_ok=True)
 
+    def createExe(self):
+        with open("{}/run.sh".format(self["dir"]), "w") as exe:
+            exe.write("#!/bin/bash\n")
+            exe.write("source $CHDIR/ChargedAnalysis/setenv.sh Analysis\n\n")
+            exe.write("{} \\".format(self["executable"]))
+            exe.write("\n")
+    
+            for line in self["arguments"]:
+                exe.write("{}{} \\".format(2*" " if "--" in str(line) else 6*" ", line))
+                exe.write("\n")
+    
     def checkOutput(self):
         self.output()
 
@@ -105,7 +108,6 @@ class Task(ABC, dict):
         self.run()
 
         self.isPrepared=True
-
 
     def clearWorkDir(self):
         subprocess.run(["command", "rm", "-rf", self["dir"]])
