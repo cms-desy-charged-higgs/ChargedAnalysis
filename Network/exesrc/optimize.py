@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from bayes_opt import BayesianOptimization, SequentialDomainReductionTransformer
-
 import subprocess
 import argparse
 import os
