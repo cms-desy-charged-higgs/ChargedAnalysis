@@ -7,17 +7,15 @@ from treeslim import TreeSlim
 from treeappend import TreeAppend
 
 from plot import Plot
-from hadd import HaddPlot, HaddAppend
 from plotlimit import PlotLimit
 from plotpostfit import PlotPostfit
 
 from datacard import Datacard
+from combineCards import CombineCards
 from limit import Limit
 
-from bdt import BDT
 from dnn import DNN
 
-from mergecsv import MergeCSV
 from mergeskim import MergeSkim
 from merge import Merge
 
@@ -66,140 +64,58 @@ def taskReturner(taskName, era, **kwargs):
 
 def append(config):
     allTasks = []
+    dCacheTasks = []
 
-    for channel in config["channels"]:
-        allTasks.extend(TreeAppend.configure(config, channel))
+    for era in config["era"]:
+        for channel in config["channels"]:
+            allTasks.extend(TreeAppend.configure(config, channel, era))
 
-    return allTasks
+    if "dCache"  in config:
+        dCacheTasks = DCache.configure(config, allTasks)
 
-def bdt(config):
-    allTasks = []
-
-    for channel in config["channels"]:
-        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
-            bkgConfig = copy.deepcopy(config)
-
-            bkgConfig["processes"] = bkgConfig["backgrounds"]
-            bkgConfig["parameters"][channel].extend(["f:n=const,v={}/t:v=0:".format(m) for m in bkgConfig["masses"]])
-            bkgConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-            bkgConfig["dir"] = bkgConfig["dir"].format(evType)
-
-            treeTasks = TreeRead.configure(bkgConfig, channel, prefix=evType)
-            haddTasks = HaddPlot.configure(bkgConfig, treeTasks, channel, prefix=evType)
-            allTasks.extend(treeTasks)
-
-            for mass in config["masses"]:
-                sigConfig = copy.deepcopy(config)
-
-                sigConfig["processes"] = [config["signal"].format(mass)]
-                sigConfig["parameters"][channel].append("f:n=const,v={}/t:v=0".format(mass))
-                sigConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-                sigConfig["dir"] = sigConfig["dir"].format(evType)
-
-                treeTasks = TreeRead.configure(sigConfig, channel, prefix=evType)
-                haddTasks.extend(HaddPlot.configure(sigConfig, treeTasks, channel, prefix=evType))
-                allTasks.extend(treeTasks)
-        
-            if("optimize" in config):
-                if(evType == "Even"):
-                    bdtTask = []
-                    for i in range(config["optimize"]):
-                        bdtTask.extend(BDT.configure(config, channel, haddTasks, evType, prefix=i))
-
-                    allTasks.extend(MergeCSV.configure(config, bdtTask, prefix="BDT") + bdtTask)
-
-            else:
-                bdtTask = BDT.configure(config, channel, haddTasks, evType)
-                allTasks.extend(bdtTask)
-                    
-            allTasks.extend(haddTasks)
-
-    return allTasks       
+    return allTasks + dCacheTasks 
 
 def dnn(config):
     allTasks = []
 
-    for channel in config["channels"]:
+    for era in config["era"]:
         for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
-            bkgConfig = copy.deepcopy(config)
+            c = copy.deepcopy(config)
+            c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
 
-            bkgConfig["processes"] = bkgConfig["backgrounds"]
-            bkgConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-            bkgConfig["dir"] = bkgConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]).replace("[T]", evType)
-
-            CSVTasks = TreeRead.configure(bkgConfig, channel, "csv", prefix=evType)
-            mergeTasks = MergeCSV.configure(bkgConfig, CSVTasks, channel, prefix=evType)
-            allTasks.extend(CSVTasks)
-
-            paramDir = "{}/{}/".format(os.environ["CHDIR"], bkgConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]))
-            os.makedirs(paramDir, exist_ok=True)
-
-            with open(paramDir + "/parameter.txt", "w") as param:
-                for parameter in CSVTasks[0]["parameters"]:
-                    param.write(parameter + "\n")
-
-            for mass in config["masses"]:
-                sigConfig = copy.deepcopy(config)
-
-                sigConfig["processes"] = [config["signal"].replace("[MHC]", str(mass))]
-                sigConfig["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-                sigConfig["dir"] = sigConfig["dir"].replace("[C]", channel).replace("[E]", config["era"]).replace("[T]", evType)
-
-                CSVTasks = TreeRead.configure(sigConfig, channel, "csv", prefix=evType)
-                mergeTasks.extend(MergeCSV.configure(sigConfig, CSVTasks, channel, prefix=evType))
-
-                if not config["is-parametrized"]:
-                    dnnTask = DNN.configure(config, channel, mergeTasks, evType, [mass], str(mass))
-                    allTasks.extend(dnnTask)
-
-                allTasks.extend(CSVTasks)
-
-            if config["is-parametrized"]:
-                dnnTask = DNN.configure(config, channel, mergeTasks, evType, config["masses"])
-                allTasks.extend(dnnTask)
-                    
-            allTasks.extend(mergeTasks)
+            dnnTask = DNN.configure(c, evType, config["masses"], era)
+            allTasks.extend(dnnTask)
 
     return allTasks    
             
 def limit(config):
     allTasks = []
-    datacardTasks = []
-    limitTasks = []
-    postfitTasks = []
+    cardTasks = []
 
-    for channel in config["channels"]: 
-        histConfig = copy.deepcopy(config)
+    for era in config["era"]:
+        for channel in config["channels"]:
+            conf = copy.deepcopy(config)
+            conf["parameters"][channel] = [param.replace("[MHC]", str(mHC)) for param in config["parameters"][channel] for mHC in conf["charged-masses"]]
+            conf["processes"] = conf["backgrounds"] + [config["signal"].replace("[MHC]", str(mHC)).replace("[MH]", str(mh)) for mHC in conf["charged-masses"] for mh in conf["neutral-masses"]]
 
-        histConfig["dir"] = histConfig["dir"].format("")
-        histConfig["parameters"][channel] = [histConfig["parameters"][channel][0].format(mass) for mass in histConfig["masses"]]
-        histConfig["processes"] = histConfig["backgrounds"] + [histConfig["signal"].format(mass) for mass in histConfig["masses"]]
+            if conf["data"]:
+                conf["processes"] += [conf["data"]["channel"]]
 
-        if histConfig["data"]:
-            histConfig["processes"] += [histConfig["data"]["channel"]]
+            treeTasks = TreeRead.configure(conf, channel, era) 
+            haddTasks = Merge.configure(conf, treeTasks, "plot", era = era, channel = channel)
+            datacardTasks = Datacard.configure(conf, channel, era, haddTasks)
+            limitTasks = Limit.configure(conf, channel, era, datacardTasks)
+    
+            cardTasks.extend(datacardTasks)
+            allTasks.extend(treeTasks+haddTasks+datacardTasks+limitTasks)
 
-        treeTasks = TreeRead.configure(histConfig, channel) 
-        haddTasks = HaddPlot.configure(histConfig, treeTasks, channel)
+    combinedCardsTask = CombineCards.configure(config, cardTasks)
+    for era in config["era"]:
+        allTasks.extend(Limit.configure(conf, "Combined", era, combinedCardsTask))
+    allTasks.extend(Limit.configure(conf, "Combined", "RunII", combinedCardsTask))
+    allTasks.extend(PlotLimit.configure(config, allTasks))
 
-        allTasks.extend(treeTasks+haddTasks)
-
-        for mass in config["masses"]:
-            cardConfig = copy.deepcopy(config)
-            cardConfig["dir"] = cardConfig["dir"].format(mass)
-            cardConfig["discriminant"] = config["discriminant"].format(mass)
-            cardConfig["signal"] = cardConfig["signal"].format(mass)
-
-            datacardTasks.extend(Datacard.configure(cardConfig, channel, mass, haddTasks))
-
-    for mass in config["masses"]:
-        limitConfig = copy.deepcopy(config)
-        limitConfig["dir"] = limitConfig["dir"].format(mass)
-        limitTasks.extend(Limit.configure(limitConfig, mass, datacardTasks))
-      #  postfitTasks.extend(PlotPostfit.configure(limitConfig, mass))
-
-    allTasks.extend(datacardTasks+limitTasks+PlotLimit.configure(histConfig)+postfitTasks)
-
-    return allTasks
+    return allTasks + combinedCardsTask
 
 def slim(config):
     slimTasks = TreeSlim.configure(config)
