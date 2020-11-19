@@ -89,7 +89,7 @@ class MergeSkim(Task):
                         task = {
                             "name": "MergeSkim_{}".format(d) + ("_{}".format(systName) if syst != "" else ""),
                             "dir": outDir, 
-                            "input-files": ["{}/{}".format(f["dir"], f["out-name"]) for f in tasks if d in f["name"] and systName in f["name"] and not in "merged" in f["dir"]],
+                            "input-files": ["{}/{}".format(f["dir"], f["out-name"]) for f in tasks if d in f["name"] and systName in f["name"] and not "merged" in f["dir"]],
                             "dependencies": [f["name"] for f in tasks if d in f["name"] and systName in f["name"]],
                             "out-name": "{}.root".format(d),
                             "exclude-objects": ["Lumi", "xSec", "pileUp", "pileUpUp", "pileUpDown"],
