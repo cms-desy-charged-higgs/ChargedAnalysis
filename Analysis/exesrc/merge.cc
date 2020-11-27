@@ -16,7 +16,7 @@ void Merge(const std::vector<std::string> inFiles, const std::string outFile, co
     
     //Copy only with one file
     if(inFiles.size() == 1){
-        std::system(StrUtil::Merge("cp -f ", inFiles[0], outFile).c_str());
+        std::system(StrUtil::Merge("cp -fv ", inFiles[0], " ", outFile).c_str());
         
         return;
     }
