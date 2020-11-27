@@ -13,7 +13,14 @@ void Merge(const std::vector<std::string> inFiles, const std::string outFile, co
 
     //Remove outfile if it is already there
     std::system(StrUtil::Merge("rm -rfv ", outFile).c_str());
-
+    
+    //Copy only with one file
+    if(inFiles.size() == 1){
+        std::system(StrUtil::Merge("cp -f ", inFiles[0], outFile).c_str());
+        
+        return;
+    }
+    
     //Set file merger
     TFileMerger merger(false);
     merger.SetFastMethod(true);
