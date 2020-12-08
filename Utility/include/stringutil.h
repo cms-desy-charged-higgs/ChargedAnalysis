@@ -11,6 +11,7 @@
 #include <sstream>
 #include <functional>
 #include <iomanip>
+#include <experimental/source_location>
 
 /**
 * @brief Utility library to operator on C++ standard library strings
@@ -69,6 +70,26 @@ namespace StrUtil{
         result << std::setprecision(prec);
         (result << ... << std::forward<Args>(mergeObjects));
         return result.str();
+    }
+
+    /**
+    * @brief Give a nice pretty printed error message string
+    *
+    * Example:
+    * @code
+    * <std::string> m = StrUtil::Pretty(location, "You did", " something wrong"!);
+    * @endcode
+    *
+    * @param location Standard library object containing the file positions
+    * @param errorMessage mergeObjects Error message string pieces
+    * @return Nice formatted string
+    */
+    template <Streamable... Args>
+    std::string PrettyError(const std::experimental::source_location& location, Args&&... errorMessage){
+        std::string message = Merge("\n    \033[1mWHERE\033[0m: File '", location.file_name(), "' in fuction '", location.function_name(), "' in line '", location.line(), "'\n");
+
+        message = Merge(message, "    ", "\033[1;31mERROR\033[0m: ", errorMessage...);
+        return message;
     }
 
     /**
