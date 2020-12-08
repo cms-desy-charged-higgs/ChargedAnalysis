@@ -16,15 +16,27 @@ class DNN(Task):
             "--cuts", *self["cuts"],
             "--parameters", *self["parameters"],
             "--sig-files", *self["sig-files"],
-            "--bkg-files", *self["bkg-files"],
             "--masses", *self["masses"],
             "--opt-param", self["hyper-opt"],
-            "--clean-jets", self["clean-jets"]
+            "--clean-jets", self["clean-jets"],
+            "--bkg-classes", *list(self["class-files"].keys())
         ]
+        
+        for cls, files in self["class-files"].items():
+            self["arguments"].append("--{}-files".format(cls))
+            self["arguments"].extend(files)
 
         with open(self["dir"] + "/parameter.txt", "w") as param:
             for parameter in self["parameters"]:
                 param.write(parameter + "\n")
+                
+        with open(self["dir"] + "/classes.txt", "w") as param:
+            for cls in self["class-files"].keys():
+                param.write(cls + "\n")
+                
+        with open(self["dir"] + "/masses.txt", "w") as param:
+            for mass in self["masses"]:
+                param.write(str(mass) + "\n")
 
     def output(self):
         self["output"] = self["dir"] + "/model.pt"
@@ -39,13 +51,15 @@ class DNN(Task):
             outDir = "{}/{}/{}".format(os.environ["CHDIR"], config["dir"].replace("[C]", channel).replace("[E]", era).replace("[T]", evType), prefix)
 
             skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", era))
-            backgrounds, signals = [], []
+            classes, signals = {}, []
 
             for d in sorted(os.listdir(skimDir)):
-                for process in config["backgrounds"]:
+                for process in config["classes"] + config.get("Misc", []):
                     for processName in processDic[process]:
                         if d.startswith(processName):
-                            backgrounds.append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
+                            cls = process if process in config["classes"] else "Misc"
+                        
+                            classes.setdefault(cls, []).append("{skim}/{file}/merged/{file}.root".format(skim=skimDir, file = d))
 
                 for process in [config["signal"].replace("[MHC]", str(mass)) for mass in masses]:
                     for processName in processDic[process]:
@@ -57,15 +71,14 @@ class DNN(Task):
                     "display-name": "DNN ({}/{})".format(channel, era),
                     "dir": outDir,
                     "sig-files": signals,
-                    "bkg-files": backgrounds,
                     "run-mode": config["run-mode"],
-                    "hyper-opt": config.get("hyper-opt", "").replace("[C]", channel).replace("DNN", os.environ["CHDIR"] + "/DNN"), 
-                    "run-mode": config["run-mode"],
+                    "hyper-opt": config.get("hyper-opt", "").replace("[C]", channel).replace("[E]", era).replace("DNN", os.environ["CHDIR"] + "/DNN"),
                     "channel": channel,
                     "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
                     "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
                     "masses": masses,
                     "clean-jets": config["clean-jets"].get(channel, ""),
+                    "class-files": classes               
                 }
 
             tasks.append(DNN(task))

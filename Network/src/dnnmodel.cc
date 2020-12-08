@@ -1,6 +1,6 @@
 #include <ChargedAnalysis/Network/include/dnnmodel.h>
 
-DNNModel::DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, torch::Device& device):
+DNNModel::DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, const int& nClasses, torch::Device& device):
     nInput(nInput),
     nNodes(nNodes),
     dropOut(dropOut),
@@ -44,11 +44,11 @@ DNNModel::DNNModel(const int& nInput, const int& nNodes, const int& nHidden, con
     outNormLayer = register_module("Output norm layer", torch::nn::BatchNorm1d(nNodes));
     outNormLayer->pretty_print(modelSummary); modelSummary << "\n";
 
-    outLayer = register_module("Output layer", torch::nn::Linear(nNodes, 1));
+    outLayer = register_module("Output layer", torch::nn::Linear(nNodes, nClasses));
     outLayer->pretty_print(modelSummary); modelSummary << "\n";
 
-    sigLayer = register_module("Sigmoid layer", torch::nn::Sigmoid());
-    sigLayer->pretty_print(modelSummary); modelSummary << "\n";
+    softLayer = register_module("LogSoftmax layer", torch::nn::LogSoftmax(1));
+    softLayer->pretty_print(modelSummary); modelSummary << "\n";
 
     modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";
     modelSummary << "----------------------------------------\n";
@@ -73,7 +73,7 @@ int DNNModel::GetNWeights(){
     return nWeights;
 }
 
-torch::Tensor DNNModel::forward(torch::Tensor input, torch::Tensor masses){
+torch::Tensor DNNModel::forward(torch::Tensor input, torch::Tensor masses, const bool& predict){
     //Normalize input without mass and merge with mass if mass parametrized
     torch::Tensor z = inNormLayer->forward(input);
     if(isParametrized) z = torch::cat({z, masses.to(torch::kFloat)/1000.}, 1);
@@ -93,7 +93,8 @@ torch::Tensor DNNModel::forward(torch::Tensor input, torch::Tensor masses){
     //Output layer
     z = outNormLayer->forward(z);
     z = outLayer->forward(z);
-    z = sigLayer->forward(z).squeeze();
+    z = softLayer->forward(z).squeeze();
 
+    if(predict) return torch::exp(z);
     return z;
 }

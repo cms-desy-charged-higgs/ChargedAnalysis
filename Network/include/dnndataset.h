@@ -33,9 +33,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         std::vector<TreeFunction> cuts;
 
         torch::Device device;
-        bool isSignal;
-
-        float eventNumber; 
+        int classLabel;
 
     public:
         /**
@@ -44,7 +42,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @param device Pytorch class for usage of CPU/GPU
         * @param isSignal Boolean to check if files are signal files
         */
-        DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const std::string& cleanJet, torch::Device& device, const bool& isSignal);
+        DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const std::string& cleanJet, torch::Device& device, const int& classLabel);
 
         /**
         * @brief Function to get number of events in the dataset
@@ -57,6 +55,8 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @return Returns corresponding DNNDataset
         */
         DNNTensor get(size_t index);
+        
+        int GetClass(){return classLabel;}
 
         /**
         * @brief Static function to merge several DNNTensor instances

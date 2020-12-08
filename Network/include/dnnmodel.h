@@ -3,8 +3,6 @@
 
 #include <torch/torch.h>
 
-#include <ChargedAnalysis/Utility/include/utils.h>
-
 struct DNNModel : torch::nn::Module{
     private:
         //Input layer
@@ -21,7 +19,7 @@ struct DNNModel : torch::nn::Module{
         //Output layer
         torch::nn::BatchNorm1d outNormLayer{nullptr};
         torch::nn::Linear outLayer{nullptr};
-        torch::nn::Sigmoid sigLayer{nullptr};
+        torch::nn::LogSoftmax softLayer{nullptr};
 
         //Other stuff
         int nInput;
@@ -33,8 +31,8 @@ struct DNNModel : torch::nn::Module{
         std::ostringstream modelSummary;
         
     public:
-        DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, torch::Device& device);
-        torch::Tensor forward(torch::Tensor input, torch::Tensor masses);
+        DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, const int& nClasses, torch::Device& device);
+        torch::Tensor forward(torch::Tensor input, torch::Tensor masses, const bool& predict = false);
         void Print();
         int GetNWeights();
 };

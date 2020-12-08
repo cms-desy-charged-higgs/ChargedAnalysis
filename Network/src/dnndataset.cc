@@ -5,13 +5,13 @@
 
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 
-DNNDataset::DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const std::string& cleanJet, torch::Device& device, const bool& isSignal) :
+DNNDataset::DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const std::string& cleanJet, torch::Device& device, const int& classLabel) :
     device(device),
-    isSignal(isSignal){
+    classLabel(classLabel){
 
     TreeParser parser;
 
-    std::vector<std::string> cleanInfo = Utils::SplitString<std::string>(cleanJet, "/");
+    std::vector<std::string> cleanInfo = StrUtil::Split(cleanJet, "/");
 
     for(const std::string& parameter: parameters){
         //Functor structure and arguments
@@ -46,7 +46,7 @@ DNNDataset::DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeNa
 
     for(int i = 0; i < inFile->Get<TTree>(treeName.c_str())->GetEntries(); i++){
         TreeFunction::SetEntry(i);
-
+ 
         bool passed=true;
 
         for(TreeFunction& cut : cuts){
@@ -75,8 +75,8 @@ DNNTensor DNNDataset::get(size_t index){
     for(TreeFunction& func : functions){
         paramValues.push_back(func.Get<Axis::X>());
     }
-
-    return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({float(isSignal)}).to(device)};
+    
+    return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({classLabel}).to(device)};
 }
 
 DNNTensor DNNDataset::Merge(std::vector<DNNTensor>& tensors){

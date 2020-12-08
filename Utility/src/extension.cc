@@ -11,7 +11,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
     std::vector<std::string> branchNames;
     
     if(Utils::Find<std::string>(channel, "2FJ") == -1.) branchNames = {"ML_HTagFJ1"};
-    else branchNames = {"ML_HTagFJ1", "ML_HTagFJ2"};   
+    else branchNames = {"HTag_FJ1", "HTag_FJ2"};   
 
     //Path with DNN infos
     std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN"; 
@@ -30,10 +30,10 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
 
         //Tagger
         torch::Device device(torch::kCPU);
-        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(7, hyperParam->Get("nHidden", 0), hyperParam->Get("nConvFilter", 0), hyperParam->Get("kernelSize", 0), hyperParam->Get("dropOut", 0), device));
+        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(4, hyperParam->Get("nHidden", 0), hyperParam->Get("nConvFilter", 0), hyperParam->Get("kernelSize", 0), hyperParam->Get("dropOut", 0), device));
 
-        torch::load(tagger[0], std::string(std::getenv("CHDIR")) + "/DNN/Tagger/Even/htagger.pt");
-        torch::load(tagger[1], std::string(std::getenv("CHDIR")) + "/DNN/Tagger/Odd/htagger.pt");
+        torch::load(tagger[0], StrUtil::Join("/", std::getenv("CHDIR"), "DNN/Tagger/Even", era, "htagger.pt"));
+        torch::load(tagger[1], StrUtil::Join("/", std::getenv("CHDIR"), "DNN/Tagger/Odd", era, "htagger.pt"));
 
         tagger[0]->eval();
         tagger[1]->eval();
@@ -42,8 +42,14 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
         std::shared_ptr<TTree> tree(static_cast<TTree*>(file->Get<TTree>(channel.c_str())->Clone()));
 
         //Get data set
-        HTagDataset data = HTagDataset(tree, i, device, true);
+        HTagDataset data = HTagDataset(file, tree, {}, "", i, device, true);
         std::vector<int> entries;
+
+        //Set tree parser and tree functions
+        TreeParser parser;
+        std::vector<TreeFunction> functions;
+        TreeFunction evNr(file, channel);
+        evNr.SetFunction<Axis::X>("EvNr");
 
         for(int i = 0; i < nEntries; i++){entries.push_back(i);}
         std::vector<int>::iterator entry = entries.begin();
@@ -65,7 +71,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
 
                 HTensor tensor = data.get(*entry);
 
-                if(tensor.isEven.item<bool>() == true){
+                if(int(evNr.Get<Axis::X>()) % 2 == 0){
                     evenTensors.push_back(tensor);
                     evenIndex.push_back(counter);
                 }
@@ -111,31 +117,26 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
 std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
-    std::vector<int> masses = {200, 300, 400, 500, 600};
-    std::vector<std::string> branchNames = {"ML_DNN200", "ML_DNN300", "ML_DNN400", "ML_DNN500", "ML_DNN600"};
 
     //Take time
     Utils::RunTime timer;
-        
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
-    for(const std::string& branchName: branchNames){
-        values[branchName] = std::vector<float>(nEntries, -999.);
-    }
-
     //Path with DNN infos
-    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/"; 
+    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/";  
 
     //Set tree parser and tree functions
     TreeParser parser;
     std::vector<TreeFunction> functions;
     TreeFunction evNr(file, channel);
-    evNr.SetFunction<Axis::X>("EvNr");
+    evNr.SetFunction<Axis::X>("EvNr"); 
 
     //Read txt with parameter used in the trainind and set tree function
     std::ifstream params(StrUtil::Join("/", dnnPath, "Even", channel, era, "parameter.txt")); 
     std::string parameter;
   
+    std::cout << "Hello" << std::endl;    
+
     while(getline(params, parameter)){
         TreeFunction func(file, channel);
 
@@ -145,16 +146,52 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
         functions.push_back(func);
     }
     params.close();
+    
+    //Get classes
+    std::ifstream clsFile(StrUtil::Join("/", dnnPath, "Even", channel, era, "classes.txt")); 
+    std::string cls;
+    
+    std::vector<std::string> classes;
+    
+    while(getline(clsFile, cls)){
+        classes.push_back(cls);
+    }
+    classes.push_back("HPlus");
+    
+    clsFile.close();
+    
+        //Get classes
+    std::ifstream massFile(StrUtil::Join("/", dnnPath, "Even", channel, era, "masses.txt")); 
+    std::string mass;
+    
+    std::vector<int> masses;
+    
+    while(getline(massFile, mass)){
+        masses.push_back(std::atoi(mass.c_str()));
+    }
+    massFile.close();
+    
+    //Define branch names
+    std::vector<std::string> branchNames;
+    
+    for(int& mass : masses){
+        for(std::string& cls : classes){
+            branchNames.push_back(StrUtil::Merge("DNN_", cls, mass));
+            values[branchNames.back()] = std::vector<float>(nEntries, -999.);
+        }
+    }
 
     //Frame with optimized hyperparameter
-    std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(dnnPath + "/HyperOpt/" + channel + "/hyperparameter.csv");
+    std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(StrUtil::Join("/", dnnPath, "HyperOpt", channel, era, "hyperparameter.csv"));
 
     //Get/load model and set to evaluation mode
     torch::Device device(torch::kCPU);
-    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperParam->Get("nNodes", 0), hyperParam->Get("nLayers", 0), hyperParam->Get("dropOut", 0), true, device));
+    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperParam->Get("n-nodes", 0), hyperParam->Get("n-layers", 0), hyperParam->Get("drop-out", 0), true, classes.size(), device));
 
     model[0]->eval();
     model[1]->eval();
+    
+    model[0]->Print();
 
     torch::load(model[0], StrUtil::Join("/", dnnPath, "Even", channel, era, "model.pt"));
     torch::load(model[1], StrUtil::Join("/", dnnPath, "Odd", channel, era, "model.pt"));
@@ -177,7 +214,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
 
         for(int j = 0; j < batchSize; j++){
             if(*entry % 1000 == 0 and *entry != 0){
-                    std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
+                std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
             }
 
             TreeFunction::SetEntry(*entry);
@@ -204,28 +241,32 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
             if(entry == entries.end()) break; 
         }
 
-        for(int i = 0; i < masses.size(); i++){
+        for(int i = 0; i < masses.size(); ++i){
             //Prediction
             torch::Tensor even, odd; 
             torch::Tensor evenPredict, oddPredict;
 
             if(evenTensors.size() != 0){    
                 even = torch::cat(evenTensors, 0);
-                evenPredict = model[1]->forward(even, masses[i]*torch::ones({evenTensors.size(), 1}));
+                evenPredict = model[1]->forward(even, masses[i]*torch::ones({evenTensors.size(), 1}), true);
             }  
 
             if(oddTensors.size() != 0){    
                 odd = torch::cat(oddTensors, 0);
-                oddPredict = model[0]->forward(odd, masses[i]*torch::ones({oddTensors.size(), 1}));
+                oddPredict = model[0]->forward(odd, masses[i]*torch::ones({oddTensors.size(), 1}), true);
             }
 
             //Put all predictions back in order again
-            for(int j = 0; j < evenTensors.size(); j++){
-                values[branchNames[i]].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict[j].item<float>() : evenPredict.item<float>();
+            for(int j = 0; j < evenTensors.size(); ++j){
+                for(int k = 0; k < classes.size(); ++k){
+                    values[branchNames[k + i*classes.size()]].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict.index({j, k}).item<float>() : evenPredict[k].item<float>();
+                }
             }
 
             for(int j = 0; j < oddTensors.size(); j++){
-                values[branchNames[i]].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict[j].item<float>() : oddPredict.item<float>();
+                for(int k = 0; k < classes.size(); ++k){
+                    values[branchNames[k + i*classes.size()]].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict.index({j, k}).item<float>() : oddPredict[k].item<float>();
+                }
             }
         }
     }
