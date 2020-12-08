@@ -10,14 +10,14 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <bitset>
 
 #include <TFile.h>
 #include <TTree.h>
 #include <TLeaf.h>
-#include <TChain.h>
 
-#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
+#include <ChargedAnalysis/Analysis/include/treeparser.h>
+#include <ChargedAnalysis/Analysis/include/treefunction.h>
 
 /**
 * @brief Structure with pytorch Tensors of charged/neutral particle for the Higgs tagger
@@ -28,7 +28,6 @@ struct HTensor{
     torch::Tensor neutral;  //!< Tensor with neutral PF candidates of the fat jet
     torch::Tensor SV;   //!< Tensor with secondary verteces of the fat jet
     torch::Tensor label;    //!< Label to check if Higgs or not (isHiggs = 1, isTop = 0)
-    torch::Tensor isEven;   //!< Bool to check if event has even event number
 };
 
 /**
@@ -44,10 +43,9 @@ class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
         bool isSignal;
         int matchedPart;
 
-        std::vector<TLeaf*> jetPart;
-        std::vector<TLeaf*> vtx;
+        std::vector<TLeaf*> jetPart, vtx;
 
-        TLeaf* evNr;
+        TLeaf* fatJetPt;
         TLeaf* jetCharge;
         TLeaf* jetIdx;  
         TLeaf* vtxIdx;
@@ -66,7 +64,7 @@ class HTagDataset : public torch::data::datasets::Dataset<HTagDataset, HTensor>{
         * @param isSignal Boolean to check if files are signal files
         * @param matchedPart MC particle ID for wished gen matched particle
         */
-        HTagDataset(std::shared_ptr<TTree>& inTree, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart = -1);
+        HTagDataset(std::shared_ptr<TFile>& inFile, std::shared_ptr<TTree>& inTree, const std::vector<std::string>& cutNames, const std::string& cleanJet, const int& fatIndex, torch::Device& device, const bool& isSignal, const int& matchedPart = -1);
 
         /**
         * @brief Function to get number of fat jets in the dataset

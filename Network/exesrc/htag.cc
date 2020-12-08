@@ -14,11 +14,7 @@
 
 typedef torch::disable_if_t<false, std::unique_ptr<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>, std::default_delete<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>>>> DataLoader;
 
-float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, std::vector<HTagDataset>& bkgSets, torch::Device& device, int batchSize, const float& lr, bool trainEven, bool optimize){
-    //Create directories
-    std::string scorePath = StrUtil::Merge(std::getenv("CHDIR"), "/DNN/Tagger/", (trainEven ? "Even/" : "Odd/"));
-    std::system(StrUtil::Merge("mkdir -p ", scorePath).c_str());
-    
+float Train(std::string& outDir, std::shared_ptr<HTagger>& tagger, std::vector<HTagDataset>& sigSets, std::vector<HTagDataset>& bkgSets, torch::Device& device, int& batchSize, float& lr, bool& optimize){    
     //Set batch size
     int nSig = std::accumulate(sigSets.begin(), sigSets.end(), 0, [&](int i, HTagDataset set){return i+set.size().value();}); 
     int nBkg = std::accumulate(bkgSets.begin(), bkgSets.end(), 0, [&](int i, HTagDataset set){return i+set.size().value();}); 
@@ -35,7 +31,9 @@ float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, 
 
     for(HTagDataset set : sigSets){
         float ratio = set.size().value()/float(nSig);
-        signal.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, ratio * 1./wSig*batchSize)));
+        int nEff = ratio * 1./wSig*batchSize;
+
+        signal.push_back(std::move(torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(set, nEff)));
     }
 
     for(HTagDataset set : bkgSets){
@@ -84,22 +82,18 @@ float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, 
 
             for(int k = 0; k < sigSets.size(); k++){
                 for(HTensor& tensor : *sigIter[k]){
-                    if(tensor.isEven.item<bool>() == trainEven){        
-                        batch.push_back(tensor);
-                        weights.push_back(wSig);     
-                    }
-                }
-            }
-
-            for(int k = 0; k < bkgSets.size(); k++){
-                for(HTensor& tensor : *bkgIter[k]){
-                    if(tensor.isEven.item<bool>() == trainEven){        
-                        batch.push_back(tensor);
-                        weights.push_back(wBkg);     
-                    }
+                    batch.push_back(tensor);
+                    weights.push_back(wSig);     
                 }
             }
     
+            for(int k = 0; k < bkgSets.size(); k++){
+                for(HTensor& tensor : *bkgIter[k]){
+                    batch.push_back(tensor);
+                    weights.push_back(wBkg);     
+                }
+            }
+
             //Shuffle batch
             int seed = int(std::time(0));
 
@@ -131,7 +125,7 @@ float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, 
             torch::Tensor predictionTest = tagger->forward(test.charged, test.neutral, test.SV);
             torch::Tensor lossTest = torch::binary_cross_entropy(predictionTest, test.label, weightTest);
 
-            if(finishedBatches % 20 == 0) Utils::DrawScore(predictionTrain, train.label, scorePath);
+            if(finishedBatches % 20 == 0) Utils::DrawScore(predictionTrain, train.label, outDir);
 
             meanTrainLoss = (meanTrainLoss*finishedBatches + lossTrain.item<float>())/(finishedBatches+1);
             meanTestLoss = (meanTestLoss*finishedBatches + lossTest.item<float>())/(finishedBatches+1);
@@ -163,8 +157,8 @@ float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, 
         //Save model
         if(!optimize){
             tagger->to(torch::kCPU);
-            torch::save(tagger, scorePath + "/htagger.pt");
-            std::cout << "Model was saved: " + scorePath + "/htagger.pt" << std::endl;
+            torch::save(tagger, outDir + "/htagger.pt");
+            std::cout << "Model was saved: " + outDir + "/htagger.pt" << std::endl;
             tagger->to(device);
         }
     }
@@ -175,15 +169,20 @@ float Train(std::shared_ptr<HTagger> tagger, std::vector<HTagDataset>& sigSets, 
 int main(int argc, char** argv){
     //Parser arguments
     Parser parser(argc, argv);
-    bool optimize = parser.GetValue<bool>("optimize");  
-    bool trainEven = parser.GetValue<bool>("even"); 
+    
+    std::string outPath = parser.GetValue<std::string>("out-dir");
+    std::vector<std::string> bkgFiles = parser.GetVector<std::string>("bkg-files");
+    std::vector<std::string> sigFiles = parser.GetVector<std::string>("sig-files");
+    std::vector<std::string> channels = parser.GetVector<std::string>("channels");
+    std::vector<std::string> cuts = parser.GetVector<std::string>("cuts");
 
+    bool optimize = parser.GetValue<bool>("optimize");
     std::string optParam = parser.GetValue<std::string>("opt-param", "");
     std::unique_ptr<Frame> hyperParam;
 
     if(optParam != "") hyperParam = std::make_unique<Frame>(optParam);
 
-    int batchSize = 2*parser.GetValue<int>("batch-size", optParam != "" ? hyperParam->Get("batchSize", 0) : 2000);
+    int batchSize = parser.GetValue<int>("batch-size", optParam != "" ? hyperParam->Get("batchSize", 0) : 2000);
     int nHidden = parser.GetValue<int>("n-hidden", optParam != ""  ? hyperParam->Get("nHidden", 0) : 140);
     int nConvFilter = parser.GetValue<int>("n-convfilter", optParam != "" ? hyperParam->Get("nConvFilter", 0) : 130);
     int kernelSize = parser.GetValue<int>("n-kernelsize", optParam != "" ? hyperParam->Get("kernelSize", 0) : 57);
@@ -199,49 +198,45 @@ int main(int argc, char** argv){
     std::shared_ptr<HTagger> tagger = std::make_shared<HTagger>(7, nHidden, nConvFilter, kernelSize, dropOut, device);
     tagger->Print();
 
-    if(tagger->GetNWeights() > 200000) throw std::runtime_error("Number of weights too big");
-
-    //File names and channels for training
-    std::vector<std::string> sigNames = {
-                                    "HPlusAndH_ToWHH_ToL4B_200_100",
-                                    "HPlusAndH_ToWHH_ToL4B_300_100",
-                                    "HPlusAndH_ToWHH_ToL4B_400_100",
-                                    "HPlusAndH_ToWHH_ToL4B_500_100", 
-                                    "HPlusAndH_ToWHH_ToL4B_600_100",
-    };
-
-    std::vector<std::string> bkgNames = {
-                "TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8",                   
-    };
+    if(tagger->GetNWeights() > 400000) throw std::runtime_error("Number of weights too big");
 
     //Pytorch dataset class
     std::vector<HTagDataset> sigSets, bkgSets;
     std::vector<std::shared_ptr<TFile>> files;
     std::vector<std::shared_ptr<TTree>> trees;
 
-    for(const std::string& chan: {"Ele2J1FJ", "Muon2J1FJ", "Ele2FJ", "Muon2FJ"}){
-        std::vector<std::string> sigFiles;
-        std::vector<std::string> bkgFiles;
+    for(const std::string& chan: channels){
+        for(const std::string& file: sigFiles){
+            if(StrUtil::Find(file, chan).empty()) continue;
 
-        for(const std::string& name: sigNames){
-            files.push_back(std::make_shared<TFile>(StrUtil::Merge(std::getenv("CHDIR"), "/Skim/Channels/", chan, "/", name, "/merged/", name, ".root").c_str(), "READ"));
+            std::string cleanJet = !StrUtil::Find(chan, "Muon").empty() ? "mu/m" : "e/m";
+
+            files.push_back(std::make_shared<TFile>(file.c_str(), "READ"));
             trees.push_back(std::shared_ptr<TTree>(files.back()->Get<TTree>(chan.c_str())));
 
-            sigSets.push_back(HTagDataset(trees.back(), 0, device, true, 25));
+            sigSets.push_back(HTagDataset(files.back(), trees.back(), cuts, cleanJet, 0, device, true, 25));
 
             if(!StrUtil::Find(chan, "2FJ").empty()){
-                sigSets.push_back(HTagDataset(trees.back(), 1, device, true, 25));
+                sigSets.push_back(HTagDataset(files.back(), trees.back(), cuts, cleanJet, 1, device, true, 25));
             }
         }
 
-        for(const std::string& name: bkgNames){
-            files.push_back(std::make_shared<TFile>(StrUtil::Merge(std::getenv("CHDIR"), "/Skim/Channels/", chan, "/", name, "/merged/", name, ".root").c_str(), "READ"));
+        for(const std::string& file: bkgFiles){
+            if(StrUtil::Find(file, chan).empty()) continue;
+
+            std::string cleanJet = !StrUtil::Find(chan, "Muon").empty() ? "mu/m" : "e/m";
+
+            files.push_back(std::make_shared<TFile>(file.c_str(), "READ"));
             trees.push_back(std::shared_ptr<TTree>(files.back()->Get<TTree>(chan.c_str())));
 
-            bkgSets.push_back(HTagDataset(trees.back(), 0, device, false, 6));
+            bkgSets.push_back(HTagDataset(files.back(), trees.back(), cuts, cleanJet, 0, device, false, 6));
+
+            if(!StrUtil::Find(chan, "2FJ").empty()){
+                bkgSets.push_back(HTagDataset(files.back(), trees.back(), cuts, cleanJet, 1, device, false, 6));
+            }
         }
     }
 
-    float bestLoss = Train(tagger, sigSets, bkgSets, device, batchSize, lr, trainEven, optimize);
+    float bestLoss = Train(outPath, tagger, sigSets, bkgSets, device, batchSize, lr, optimize);
     if(optimize) std::cout << "Best loss value: " << bestLoss << std::endl;
 }
