@@ -18,8 +18,8 @@ namespace VUtil{
     /**
     * @brief Concept that checks if Func type is invocable and returs type T
     */
-    template <typename Func, typename inType, typename outType>
-    concept Invocable = std::is_invocable_r<outType, Func, inType>::value;
+    template <typename Func, typename outType, typename... inType>
+    concept Invocable = std::is_invocable_r<outType, Func, inType...>::value;
 
     /**
     * @brief Concept that checks object is a std::vector
@@ -39,7 +39,7 @@ namespace VUtil{
     * @param function Generic callable function, which executables elementwise on the input vector  
     * @return Return vector of type outType
     */
-    template <typename outType, typename inType, Invocable<inType, outType> Func>
+    template <typename outType, typename inType, Invocable<outType, inType> Func>
     std::vector<outType> Transform(const std::vector<inType>& vec, const Func& function){
         std::vector<outType> out;
 
@@ -161,9 +161,13 @@ namespace VUtil{
     std::vector<T> Range(const T& start, const T& end, const int& steps){
         std::vector<T> out;
 
-        for(int step=0; step < steps; step++){
-            out.push_back(start+step*(end-start)/(steps-1));
-        }        
+        if(steps > 1){
+            for(int step=0; step < steps; step++){
+                out.push_back(start+step*(end-start)/(steps-1));
+            }
+        }
+        
+        else if(steps == 1) out.push_back(start);
 
         return out;
     }
@@ -224,6 +228,27 @@ namespace VUtil{
         }
 
         return keys;
+    }
+
+    template<typename T, Invocable<bool, T, T> Func>    
+    std::vector<int> SortedIndices(const std::vector<T>& input, const Func sortFunc){    
+        std::vector<int> idx = VUtil::Range(0, int(input.size()) - 1, int(input.size()));
+
+        std::function<bool(int, int)> sort = [&](int i1, int i2){return sortFunc(input[i1], input[i2]);};
+        std::sort(idx.begin(), idx.end(), sort);
+ 
+        return idx;
+    }
+
+    template<typename T>    
+    std::vector<T> SortByIndex(const std::vector<T>& input, const std::vector<int> idx){
+        std::vector<T> out(idx.size(), 0);
+
+        for(int i = 0; i < idx.size(); i++){
+            out[i] = input[idx[i]];
+        }
+
+        return out;
     }
 };
 
