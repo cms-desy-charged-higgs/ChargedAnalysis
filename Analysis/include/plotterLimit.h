@@ -20,6 +20,7 @@
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/mathutil.h>
+#include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Analysis/include/plotter.h>
 
 class PlotterLimit : public Plotter{
