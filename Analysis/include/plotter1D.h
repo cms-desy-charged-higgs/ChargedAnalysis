@@ -29,11 +29,12 @@ class Plotter1D : public Plotter{
 
         std::string channel;
         std::vector<std::string> processes;
+        std::string era; 
 
 
     public:
         Plotter1D();
-        Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes);
+        Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         

@@ -2,10 +2,11 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes) :
+Plotter1D::Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era) :
     Plotter(histdir), 
     channel(channel),
-    processes(processes){}
+    processes(processes),
+    era(era){}
 
 void Plotter1D::ConfigureHists(){
     for(std::string process: processes){
@@ -131,7 +132,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             frame->Draw();
 
             //Draw Title
-            PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle("2017"));
+            PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
             //Draw data and MC
             if(background.count(param)){
@@ -171,7 +172,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 TCanvas* c = new TCanvas("canvas",  "canvas", 1000, 1000);
 
                 PUtil::DrawShapes(c, statUnc, hist);
-                PUtil::DrawHeader(c, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle("2017"));
+                PUtil::DrawHeader(c, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
                 std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 

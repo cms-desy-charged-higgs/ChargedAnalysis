@@ -18,10 +18,11 @@ class Plotter2D : public Plotter{
         std::string channel;
         std::vector<std::string> processes;
         std::vector<std::string> parameters;
+        std::string era;
 
     public:
         Plotter2D();
-        Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes);
+        Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
         

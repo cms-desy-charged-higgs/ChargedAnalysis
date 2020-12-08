@@ -2,10 +2,11 @@
 
 Plotter2D::Plotter2D() : Plotter(){}
 
-Plotter2D::Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes) :
+Plotter2D::Plotter2D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era) :
     Plotter(histdir), 
     channel(channel),
-    processes(processes){}
+    processes(processes),
+    era(era){}
 
 void Plotter2D::ConfigureHists(){
     for(std::string process: processes){
@@ -84,7 +85,7 @@ void Plotter2D::Draw(std::vector<std::string> &outdirs){
                 std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 
                 hist->DrawNormalized("CONT4Z");
-                PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress");
+                PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
                 for(std::string outdir: outdirs){
                     canvas->SaveAs((outdir + "/" + param + "_" + mass + "_sig.pdf").c_str());

@@ -13,13 +13,14 @@ int main(int argc, char *argv[]){
     std::string channel = parser.GetValue<std::string>("channel");
     std::vector<std::string> processes = parser.GetVector<std::string>("processes");
     std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
+    std::string era = parser.GetValue<std::string>("era", "2017");
 
     //Call and run plotter class
-    Plotter1D plotter1D(histDir, channel, processes);
+    Plotter1D plotter1D(histDir, channel, processes, era);
     plotter1D.ConfigureHists();
     plotter1D.Draw(outDirs);
 
-    Plotter2D plotter2D(histDir, channel, processes);
+    Plotter2D plotter2D(histDir, channel, processes, era);
     plotter2D.ConfigureHists();
     plotter2D.Draw(outDirs);
 }
