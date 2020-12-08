@@ -26,17 +26,16 @@ void PlotterLimit::ConfigureHists(){
                 std::string sigName = StrUtil::Replace("HPlus@_h@", "@", mHC, mh);
                 std::string inDir  = StrUtil::Join("/", limitDir, channel, era, sigName, "Limit/limit.root");
 
-                std::shared_ptr<TFile> limitFile(TFile::Open(inDir.c_str(), "READ"));
-                std::shared_ptr<TTree> limitTree(limitFile->Get<TTree>("limit"));
+                std::shared_ptr<TFile> limitFile = RUtil::Open(inDir);
+                std::shared_ptr<TTree> limitTree = RUtil::GetSmart<TTree>(limitFile.get(), "limit");
 
                 //Set branch for reading limits
                 std::vector<double> limitValues;
-                TLeaf* limitValue = limitTree->GetLeaf("limit");       
+                TLeaf* limitValue = RUtil::Get<TLeaf>(limitTree.get(), "limit");       
 
                 //Values
                 for(int k=0; k < 5; k++){
-                    limitValue->GetBranch()->GetEntry(k);
-                    limitValues.push_back(*(double*)limitValue->GetValuePointer() * xSecs[idx]);
+                    limitValues.push_back(RUtil::GetEntry<double>(limitValue, k) * xSecs[idx]);
                 }
 
                 expected[channel]->SetBinContent(i+1, j+1, limitValues[2]);    
