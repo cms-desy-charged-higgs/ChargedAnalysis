@@ -11,12 +11,14 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <experimental/source_location>
 
 #include <TFile.h>
 #include <TTree.h>
 #include <TBranch.h>
 
 #include <ChargedAnalysis/Utility/include/extension.h>
+#include <ChargedAnalysis/Utility/include/rootutil.h>
 
 /**
 * @brief Class for appending quantities on existing ROOT TTrees 

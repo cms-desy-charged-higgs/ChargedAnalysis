@@ -18,8 +18,8 @@ void TreeAppender::Append(const std::string& outName){
     at::set_num_threads(1);
 
     //Get old Tree
-    std::shared_ptr<TFile> oldF(TFile::Open(fileName.c_str(), "READ"));
-    std::shared_ptr<TTree> oldT(oldF->Get<TTree>(treeName.c_str()));
+    std::shared_ptr<TFile> oldF = RUtil::Open(fileName);
+    std::shared_ptr<TTree> oldT = RUtil::GetSmart<TTree>(oldF.get(), treeName);
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << treeName << "'" << std::endl;
