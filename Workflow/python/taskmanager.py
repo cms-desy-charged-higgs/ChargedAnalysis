@@ -223,7 +223,12 @@ class TaskManager(object):
 
                         else:
                             task["status"] = "FAILED"
-                            raise RuntimeError("Local job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
+
+                            if task.tries == 3:
+                                raise RuntimeError("Local job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
+                            else:
+                                task.tries += 1
+                                task["status"] = "VALID"
 
                 ##Handle condor jobs
                 if task["run-mode"] == "Condor":
@@ -249,7 +254,14 @@ class TaskManager(object):
 
                         else:
                             task["status"] = "FAILED"
-                            raise RuntimeError("Condor job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
+
+                            if task.tries == 3:
+                                raise RuntimeError("Condor job failed: {}. For error code look in {}/err.txt".format(task["name"], task["dir"]))
+
+                            else:
+                                task.tries += 1
+                                task["run-mode"] = "Local"
+                                task["status"] = "VALID"
 
                     if True in ["SYSTEM_PERIODIC_REMOVE" in line for line in condorLog]:
                         task["status"] = "VALID"

@@ -20,6 +20,9 @@ class Task(ABC, dict):
         ##Depth in the depedency graph
         self.depth = 0
 
+        ##Number of trys
+        self.tries = 1
+
         ##Check if prepare function is already called
         self.isPrepared = False
 
