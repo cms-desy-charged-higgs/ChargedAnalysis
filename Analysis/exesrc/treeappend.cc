@@ -1,6 +1,8 @@
 #include <ChargedAnalysis/Analysis/include/treeappender.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
 
+#include <ChargedAnalysis/Utility/include/rootutil.h>
+
 #include <torch/torch.h>
 
 int main(int argc, char* argv[]){
@@ -17,6 +19,6 @@ int main(int argc, char* argv[]){
     TreeAppender appender(fileName, treeName, era, functions);
     appender.Append(tmpFile);
 
-    std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
+    if(RUtil::Open(tmpFile)) std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
 }
 
