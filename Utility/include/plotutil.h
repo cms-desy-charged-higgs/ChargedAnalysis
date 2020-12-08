@@ -27,6 +27,8 @@ namespace PUtil{
     void DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
     void DrawLegend(TPad* pad, TLegend* legend, const int& nColumns);
     void DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig);
+    
+    void DrawConfusion(const std::vector<int>& trueLabel, const std::vector<int>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir);
 
     std::string GetChannelTitle(const std::string& channel);
     std::string GetLumiTitle(const std::string& lumi);
