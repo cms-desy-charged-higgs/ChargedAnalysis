@@ -28,18 +28,28 @@ class TreeAppend(Task):
         skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].replace("[C]", channel).replace("[E]", era))
 
         for fileName in os.listdir(skimDir):
-            ##Configuration for treeread Task
-            task = {
-                "name": "Append_{}_{}".format(channel, fileName), 
-                "display-name": "Append: {} ".format(channel),
-                "dir":  "{}/{}/merged".format(skimDir, fileName),
-                "out-name": "{}.root".format(fileName),
-                "channel": channel,
-                "functions": config["functions"].get("all", []) + config["functions"].get(channel, []),
-                "run-mode": config["run-mode"],
-                "era": era,
-            }
+            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+                for shift in ["Up", "Down"]:
+                    ##Skip Down for nominal case
+                    if syst == "" and shift == "Down":
+                        continue
+                    systName = "{}{}".format(syst, shift) if syst != "" else ""
 
-            tasks.append(TreeAppend(task))
+                    if "Run2" in fileName and syst != "":
+                        continue
+
+                    ##Configuration for treeread Task
+                    task = {
+                        "name": "Append_{}_{}__{}_{}".format(channel, fileName, era, systName), 
+                        "display-name": "Append: {} ".format(channel),
+                        "dir":  "{}/{}/merged/{}".format(skimDir, fileName, systName),
+                        "out-name": "{}.root".format(fileName),
+                        "channel": channel,
+                        "functions": config["functions"].get("all", []) + config["functions"].get(channel, []),
+                        "run-mode": config["run-mode"],
+                        "era": era,
+                    }
+
+                    tasks.append(TreeAppend(task))
 
         return tasks       
