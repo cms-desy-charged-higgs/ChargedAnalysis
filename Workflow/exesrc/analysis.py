@@ -6,6 +6,8 @@ from treeread import TreeRead
 from treeslim import TreeSlim
 from treeappend import TreeAppend
 
+from estimate import Estimate
+
 from plot import Plot
 from plotlimit import PlotLimit
 from plotpostfit import PlotPostfit
@@ -15,6 +17,7 @@ from combineCards import CombineCards
 from limit import Limit
 
 from dnn import DNN
+from htagger import HTagger
 
 from mergeskim import MergeSkim
 from merge import Merge
@@ -30,7 +33,7 @@ import numpy
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "BDT", "Append", "Limit", "DNN", "Slim", "Merge"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--era", nargs='+', default = [""])
     parser.add_argument("--check-output", action = "store_true")
@@ -52,12 +55,13 @@ def taskReturner(taskName, era, **kwargs):
 
     tasks = {
         "Append": lambda : append(config),
-        "BDT": lambda : bdt(config),
+        "HTagger": lambda : htagger(config),
         "DNN": lambda : dnn(config),
         "Plot": lambda : plot(config),
         "Limit": lambda : limit(config),
         "Slim": lambda : slim(config),
-        "Merge": lambda: merge(config)
+        "Merge": lambda: merge(config),
+        "Estimate": lambda : estimate(config),
     }
 
     return tasks[taskName]
@@ -84,6 +88,19 @@ def dnn(config):
             c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
 
             dnnTask = DNN.configure(c, evType, config["masses"], era)
+            allTasks.extend(dnnTask)
+
+    return allTasks
+
+def htagger(config):
+    allTasks = []
+
+    for era in config["era"]:
+        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
+            c = copy.deepcopy(config)
+            c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
+
+            dnnTask = HTagger.configure(c, evType, era)
             allTasks.extend(dnnTask)
 
     return allTasks    
@@ -132,6 +149,27 @@ def merge(config):
         dCacheTasks = DCache.configure(config, [task for task in mergeTasks if not "tmp" in task["dir"]])
 
     return mergeTasks + dCacheTasks
+    
+def estimate(config):
+    allTasks = []
+
+    for era in config["era"]:
+        for channel in config["channels"]:
+            haddTasks = [] 
+        
+            for process in config["estimate-process"]:
+                c = copy.deepcopy(config)
+                c["dir"] = "{}/{}-Region".format(config["dir"], process)
+                c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
+                
+                treeTasks = TreeRead.configure(c, channel, era, prefix=process)
+                haddTasks.extend(Merge.configure(c, treeTasks, "plot", era = era, channel = channel, prefix=process))
+                allTasks.extend(treeTasks)
+                
+            estimateTasks = Estimate.configure(config, haddTasks, era = era, channel = channel)
+            allTasks.extend(haddTasks + estimateTasks)
+   
+    return allTasks
 
 def plot(config):
     allTasks = []
