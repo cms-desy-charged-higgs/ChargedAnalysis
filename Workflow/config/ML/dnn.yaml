@@ -6,7 +6,7 @@ channels:
     - Muon4J
     - Ele4J
 
-run-mode: Local
+run-mode: Condor
 
 hyper-opt: DNN/Analysis/HyperOpt/[C]/[E]/hyperparameter.csv
 
@@ -19,16 +19,19 @@ masses:
     - 500
     - 600
 
-backgrounds:
-    - TT-1L
-    - TT-2L
-    - T
+classes:
+    - TT1L
+    - TT2L
 
-is-parametrized: false
-
-dir: DNN/Analysis/[T]/[C]/[E]
+Misc:
+    - DYJ
+    - WJ
 
 signal: HPlus[MHC]_h100_4B
+
+is-parametrized: true
+
+dir: DNN/Analysis/[T]/[C]/[E]
 
 clean-jets:
     Muon4J: mu/m
@@ -75,141 +78,130 @@ cuts:
 
 parameters:
     all:
-        - f:n=HT/csv:v=0
-        - f:n=N/p:n=j/csv:v=0
-        - f:n=Pt/p:n=met/csv:v=0
-        - f:n=Phi/p:n=met/csv:v=0
+        - f:n=HT
+        - f:n=N/p:n=j
+        - f:n=Pt/p:n=met
+        - f:n=Phi/p:n=met
 
     Muon4J:
-        - f:n=Pt/p:n=mu,i=1/csv:v=0
-        - f:n=Phi/p:n=mu,i=1/csv:v=0
-        - f:n=Eta/p:n=mu,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=1/csv:v=0
-        - f:n=Pt/p:n=j,i=1/csv:v=0
-        - f:n=Phi/p:n=j,i=1/csv:v=0
-        - f:n=Eta/p:n=j,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=2/csv:v=0
-        - f:n=Pt/p:n=j,i=2/csv:v=0
-        - f:n=Phi/p:n=j,i=2/csv:v=0
-        - f:n=Eta/p:n=j,i=2/csv:v=0
-        - f:n=Mass/p:n=j,i=3/csv:v=0
-        - f:n=Pt/p:n=j,i=3/csv:v=0
-        - f:n=Phi/p:n=j,i=3/csv:v=0
-        - f:n=Eta/p:n=j,i=3/csv:v=0
-        - f:n=Mass/p:n=j,i=4/csv:v=0
-        - f:n=Pt/p:n=j,i=4/csv:v=0
-        - f:n=Phi/p:n=j,i=4/csv:v=0
-        - f:n=Eta/p:n=j,i=4/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
+        - f:n=Pt/p:n=mu,i=1
+        - f:n=Phi/p:n=mu,i=1
+        - f:n=Eta/p:n=mu,i=1
+        - f:n=Mass/p:n=j,i=1
+        - f:n=Pt/p:n=j,i=1
+        - f:n=Phi/p:n=j,i=1
+        - f:n=Eta/p:n=j,i=1
+        - f:n=Mass/p:n=j,i=2
+        - f:n=Pt/p:n=j,i=2
+        - f:n=Phi/p:n=j,i=2
+        - f:n=Eta/p:n=j,i=2
+        - f:n=Mass/p:n=j,i=3
+        - f:n=Pt/p:n=j,i=3
+        - f:n=Phi/p:n=j,i=3
+        - f:n=Eta/p:n=j,i=3
+        - f:n=Mass/p:n=j,i=4
+        - f:n=Pt/p:n=j,i=4
+        - f:n=Phi/p:n=j,i=4
+        - f:n=Eta/p:n=j,i=4
 
     Ele4J:
-        - f:n=Pt/p:n=e,i=1/csv:v=0
-        - f:n=Phi/p:n=e,i=1/csv:v=0
-        - f:n=Eta/p:n=e,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=1/csv:v=0
-        - f:n=Pt/p:n=j,i=1/csv:v=0
-        - f:n=Phi/p:n=j,i=1/csv:v=0
-        - f:n=Eta/p:n=j,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=2/csv:v=0
-        - f:n=Pt/p:n=j,i=2/csv:v=0
-        - f:n=Phi/p:n=j,i=2/csv:v=0
-        - f:n=Eta/p:n=j,i=2/csv:v=0
-        - f:n=Mass/p:n=j,i=3/csv:v=0
-        - f:n=Pt/p:n=j,i=3/csv:v=0
-        - f:n=Phi/p:n=j,i=3/csv:v=0
-        - f:n=Eta/p:n=j,i=3/csv:v=0
-        - f:n=Mass/p:n=j,i=4/csv:v=0
-        - f:n=Pt/p:n=j,i=4/csv:v=0
-        - f:n=Phi/p:n=j,i=4/csv:v=0
-        - f:n=Eta/p:n=j,i=4/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
-
+        - f:n=Pt/p:n=e,i=1
+        - f:n=Phi/p:n=e,i=1
+        - f:n=Eta/p:n=e,i=1
+        - f:n=Mass/p:n=j,i=1
+        - f:n=Pt/p:n=j,i=1
+        - f:n=Phi/p:n=j,i=1
+        - f:n=Eta/p:n=j,i=1
+        - f:n=Mass/p:n=j,i=2
+        - f:n=Pt/p:n=j,i=2
+        - f:n=Phi/p:n=j,i=2
+        - f:n=Eta/p:n=j,i=2
+        - f:n=Mass/p:n=j,i=3
+        - f:n=Pt/p:n=j,i=3
+        - f:n=Phi/p:n=j,i=3
+        - f:n=Eta/p:n=j,i=3
+        - f:n=Mass/p:n=j,i=4
+        - f:n=Pt/p:n=j,i=4
+        - f:n=Phi/p:n=j,i=4
+        - f:n=Eta/p:n=j,i=4
     Muon2J1FJ:
-        - f:n=Pt/p:n=mu,i=1/csv:v=0
-        - f:n=Phi/p:n=mu,i=1/csv:v=0
-        - f:n=Eta/p:n=mu,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=1/csv:v=0
-        - f:n=Pt/p:n=j,i=1/csv:v=0
-        - f:n=Phi/p:n=j,i=1/csv:v=0
-        - f:n=Eta/p:n=j,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=2/csv:v=0
-        - f:n=Pt/p:n=j,i=2/csv:v=0
-        - f:n=Phi/p:n=j,i=2/csv:v=0
-        - f:n=Eta/p:n=j,i=2/csv:v=0
-        - f:n=Mass/p:n=fj,i=1/csv:v=0
-        - f:n=Pt/p:n=fj,i=1/csv:v=0
-        - f:n=Phi/p:n=fj,i=1/csv:v=0
-        - f:n=Eta/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=1/csv:v=0
-        - f:n=N/p:n=sj/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
-        - f:n=N/p:n=bsj,wp=l/csv:v=0
+        - f:n=Pt/p:n=mu,i=1
+        - f:n=Phi/p:n=mu,i=1
+        - f:n=Eta/p:n=mu,i=1
+        - f:n=Mass/p:n=j,i=1
+        - f:n=Pt/p:n=j,i=1
+        - f:n=Phi/p:n=j,i=1
+        - f:n=Eta/p:n=j,i=1
+        - f:n=Mass/p:n=j,i=2
+        - f:n=Pt/p:n=j,i=2
+        - f:n=Phi/p:n=j,i=2
+        - f:n=Eta/p:n=j,i=2
+        - f:n=Mass/p:n=fj,i=1
+        - f:n=Pt/p:n=fj,i=1
+        - f:n=Phi/p:n=fj,i=1
+        - f:n=Eta/p:n=fj,i=1
+        - f:n=Tau,v=1/p:n=fj,i=1
+        - f:n=Tau,v=2/p:n=fj,i=1
+        - f:n=Tau,v=3/p:n=fj,i=1
+        - f:n=N/p:n=sj
 
     Ele2J1FJ:
-        - f:n=Pt/p:n=e,i=1/csv:v=0
-        - f:n=Phi/p:n=e,i=1/csv:v=0
-        - f:n=Eta/p:n=e,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=1/csv:v=0
-        - f:n=Pt/p:n=j,i=1/csv:v=0
-        - f:n=Phi/p:n=j,i=1/csv:v=0
-        - f:n=Eta/p:n=j,i=1/csv:v=0
-        - f:n=Mass/p:n=j,i=2/csv:v=0
-        - f:n=Pt/p:n=j,i=2/csv:v=0
-        - f:n=Phi/p:n=j,i=2/csv:v=0
-        - f:n=Eta/p:n=j,i=2/csv:v=0
-        - f:n=Mass/p:n=fj,i=1/csv:v=0
-        - f:n=Pt/p:n=fj,i=1/csv:v=0
-        - f:n=Phi/p:n=fj,i=1/csv:v=0
-        - f:n=Eta/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=1/csv:v=0
-        - f:n=N/p:n=sj/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
-        - f:n=N/p:n=bsj,wp=l/csv:v=0
-
+        - f:n=Pt/p:n=e,i=1
+        - f:n=Phi/p:n=e,i=1
+        - f:n=Eta/p:n=e,i=1
+        - f:n=Mass/p:n=j,i=1
+        - f:n=Pt/p:n=j,i=1
+        - f:n=Phi/p:n=j,i=1
+        - f:n=Eta/p:n=j,i=1
+        - f:n=Mass/p:n=j,i=2
+        - f:n=Pt/p:n=j,i=2
+        - f:n=Phi/p:n=j,i=2
+        - f:n=Eta/p:n=j,i=2
+        - f:n=Mass/p:n=fj,i=1
+        - f:n=Pt/p:n=fj,i=1
+        - f:n=Phi/p:n=fj,i=1
+        - f:n=Eta/p:n=fj,i=1
+        - f:n=Tau,v=1/p:n=fj,i=1
+        - f:n=Tau,v=2/p:n=fj,i=1
+        - f:n=Tau,v=3/p:n=fj,i=1
+        - f:n=N/p:n=sj
+        
     Muon2FJ:
-        - f:n=Pt/p:n=mu,i=1/csv:v=0
-        - f:n=Phi/p:n=mu,i=1/csv:v=0
-        - f:n=Eta/p:n=mu,i=1/csv:v=0
-        - f:n=Mass/p:n=fj,i=1/csv:v=0
-        - f:n=Pt/p:n=fj,i=1/csv:v=0
-        - f:n=Phi/p:n=fj,i=1/csv:v=0
-        - f:n=Eta/p:n=fj,i=1/csv:v=0
-        - f:n=Mass/p:n=fj,i=2/csv:v=0
-        - f:n=Pt/p:n=fj,i=2/csv:v=0
-        - f:n=Phi/p:n=fj,i=2/csv:v=0
-        - f:n=Eta/p:n=fj,i=2/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=2/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=2/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=2/csv:v=0
-        - f:n=N/p:n=sj/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
-        - f:n=N/p:n=bsj,wp=l/csv:v=0
+        - f:n=Pt/p:n=mu,i=1
+        - f:n=Phi/p:n=mu,i=1
+        - f:n=Eta/p:n=mu,i=1
+        - f:n=Mass/p:n=fj,i=1
+        - f:n=Pt/p:n=fj,i=1
+        - f:n=Phi/p:n=fj,i=1
+        - f:n=Eta/p:n=fj,i=1
+        - f:n=Mass/p:n=fj,i=2
+        - f:n=Pt/p:n=fj,i=2
+        - f:n=Phi/p:n=fj,i=2
+        - f:n=Eta/p:n=fj,i=2
+        - f:n=Tau,v=1/p:n=fj,i=1
+        - f:n=Tau,v=2/p:n=fj,i=1
+        - f:n=Tau,v=3/p:n=fj,i=1
+        - f:n=Tau,v=1/p:n=fj,i=2
+        - f:n=Tau,v=2/p:n=fj,i=2
+        - f:n=Tau,v=3/p:n=fj,i=2
+        - f:n=N/p:n=sj
 
     Ele2FJ:
-        - f:n=Pt/p:n=e,i=1/csv:v=0
-        - f:n=Phi/p:n=e,i=1/csv:v=0
-        - f:n=Eta/p:n=e,i=1/csv:v=0
-        - f:n=Mass/p:n=fj,i=1/csv:v=0
-        - f:n=Pt/p:n=fj,i=1/csv:v=0
-        - f:n=Phi/p:n=fj,i=1/csv:v=0
-        - f:n=Eta/p:n=fj,i=1/csv:v=0
-        - f:n=Mass/p:n=fj,i=2/csv:v=0
-        - f:n=Pt/p:n=fj,i=2/csv:v=0
-        - f:n=Phi/p:n=fj,i=2/csv:v=0
-        - f:n=Eta/p:n=fj,i=2/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=1/p:n=fj,i=2/csv:v=0
-        - f:n=Tau,v=2/p:n=fj,i=1/csv:v=0
-        - f:n=Tau,v=3/p:n=fj,i=1/csv:v=0
-        - f:n=N/p:n=sj/csv:v=0
-        - f:n=N/p:n=bj,wp=l/csv:v=0
-        - f:n=N/p:n=bsj,wp=l/csv:v=0
+        - f:n=Pt/p:n=e,i=1
+        - f:n=Phi/p:n=e,i=1
+        - f:n=Eta/p:n=e,i=1
+        - f:n=Mass/p:n=fj,i=1
+        - f:n=Pt/p:n=fj,i=1
+        - f:n=Phi/p:n=fj,i=1
+        - f:n=Eta/p:n=fj,i=1
+        - f:n=Mass/p:n=fj,i=2
+        - f:n=Pt/p:n=fj,i=2
+        - f:n=Phi/p:n=fj,i=2
+        - f:n=Eta/p:n=fj,i=2
+        - f:n=Tau,v=1/p:n=fj,i=1
+        - f:n=Tau,v=2/p:n=fj,i=1
+        - f:n=Tau,v=3/p:n=fj,i=1
+        - f:n=Tau,v=1/p:n=fj,i=2
+        - f:n=Tau,v=2/p:n=fj,i=2
+        - f:n=Tau,v=3/p:n=fj,i=2
+        - f:n=N/p:n=sj
