@@ -3,21 +3,20 @@ import os
 from time import sleep
 
 class TaskMonitor(object):
-    def __init__(self, logWindows=False):
+    def __init__(self, nTotal):
         self.columns, self.rows = os.get_terminal_size()
-
-        self._statusColor = {
-            "RUNNING": "blue",
-            "VALID": "yellow",
-            "SUBMITTED": "magenta",
-            "FINISHED": "green",
-            "FAILED": "red",
-            "TOTAL": "white",
-        }
-
+        self.nTotal = nTotal
         self.windowOut = []
 
-    def __colorize(self, color, string):
+        self.statusColor = {
+            "Running": "blue",
+            "Valid": "yellow",
+            "Submitted": "magenta",
+            "Finished": "green",
+            "Failed": "red",
+        }
+
+    def __colorize(self, color, status):
         colors = {
             "green": "\033[92m{}\033[39m",
             "blue": "\033[94m{}\033[39m",
@@ -28,9 +27,9 @@ class TaskMonitor(object):
             "underline": "\033[4m{}\033[0m",
         }
 
-        return colors[color].format(string)
+        return colors[color].format(status)
 
-    def __produceStatLine(self, values):
+    def __produceLine(self, values):
         totalLen = sum([len(status) + 3 + len(str(value)) for status, value in values.items()])
         distance = int((self.columns-totalLen)/(len(values.keys()) + 1))
 
@@ -40,47 +39,43 @@ class TaskMonitor(object):
             if index == 0:
                 statusLine +=  " "*distance
 
-            statusLine += self.__colorize(self._statusColor[status], status) + ": {} ".format(value) + " "*distance
+            color = self.statusColor[status] if status in self.statusColor else "white"
+
+            statusLine += self.__colorize(color, status.upper()) + ": {} ".format(value) + " "*distance
 
         return statusLine
 
-    def updateMonitor(self, time, localStats, condorStats):
-        completedLine = "COMPLETED: {}/{} ({:0.2f} %) \t TIME PASSED: {:0.2f} s".format(
-                            localStats["FINISHED"] + condorStats["FINISHED"], 
-                            localStats["TOTAL"] + condorStats["TOTAL"], 
-                            100*(localStats["FINISHED"]+condorStats["FINISHED"])/(localStats["TOTAL"]+condorStats["TOTAL"]), 
-                            time
-                        )
+    def updateMonitor(self, time, status):
+        sleep(0.1)
+    
+        nFinished = sum(t.get("Finished", 0) for t in status.values())
+    
+        statLine = {
+            "completed": "{}/{} ({:0.2f} %)".format(nFinished, self.nTotal, 100*nFinished/self.nTotal),
+            "time passed": "{:0.2f} s".format(time)
+        }
         
         if self.windowOut:
             sys.stdout.write(u"\u001b[1000D")
-            sys.stdout.write(u"\u001b[{}A".format(len(self.windowOut)))
+            sys.stdout.write(u"\u001b[{}A".format(2*len(self.windowOut)))
 
         self.windowOut = [
-            "",
-            "TASK MONITOR (see http://localhost:2000/workflow.html)".center(self.columns),
             "."*self.columns, 
-            "",
             " "*(int(self.columns/2. - 5)) + self.__colorize("underline", "STATISTICS"),
-            "",
-            " "*(int(self.columns/4.)) + completedLine,
-            "",
-            " "*(int(self.columns/2. - 5)) + self.__colorize("underline", "LOCAL JOBS"),
-            "",
-            self.__produceStatLine(localStats),
-            "",
-            " "*(int(self.columns/2. - 5)) + self.__colorize("underline", "CONDOR JOBS"),
-            "",
-            self.__produceStatLine(condorStats),
-            "",
-            "."*self.columns, 
-            "",
+            self.__produceLine(statLine),
         ]
+        
+        for runType, stat in status.items():
+            self.windowOut.extend([
+                " "*(int(self.columns/2. - len(runType)/2.)) + self.__colorize("underline", runType.upper()),
+                self.__produceLine(stat),
+            ])
+        
+        self.windowOut.append("."*self.columns)
 
         for out in self.windowOut:
             print(" "*self.columns)
             sys.stdout.write(u"\u001b[1000D")
             sys.stdout.write(u"\u001b[1A")
             print(out)
-
-        sleep(0.1)
+            print("")
