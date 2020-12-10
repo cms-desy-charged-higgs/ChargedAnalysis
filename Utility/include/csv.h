@@ -33,18 +33,6 @@ class CSV{
                 throw std::runtime_error(StrUtil::PrettyError(location, "Can not read in '", mode, "' filemode!"));
             }
 
-            T out; 
-            
-            //Check if current row is read out, return column direcly
-            if(rowIdx == row){
-                std::stringstream s;
-                s << currentRow.at(row);
-                s >> out;
-                
-                return out;
-            }
-        
-            //Seek file position and read out line
             if(row >= linePos.size()){
                 throw std::runtime_error(StrUtil::PrettyError(location, "Line number '", row, " too large with '", linePos.size() ,"'number of lines in file!"));
             }
@@ -52,7 +40,19 @@ class CSV{
             if(column >= colNames.size()){
                 throw std::runtime_error(StrUtil::PrettyError(location, "Column number '", column, " too large with '", colNames.size() ,"'number of columns in file!"));
             }
-            
+
+            T out; 
+
+            //Check if current row is read out, return column direcly
+            if(rowIdx == row){
+                std::stringstream s;
+                s << currentRow.at(column);
+                s >> out;
+                
+                return out;
+            }
+
+            //Seek file position and read out line
             file.clear();
             file.seekg(linePos.at(row));
             std::string line;
