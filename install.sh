@@ -21,7 +21,7 @@ source $CHDIR/Anaconda3/bin/activate
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch-nightly -y
 
 conda install -c anaconda git make pyyaml cmake pandas -y
-conda install -c conda-forge boost vdt root -y
+conda install -c conda-forge boost vdt root eigen -y
 
 ##Git standalone analysis code and compile everything
 cd $CHDIR
