@@ -21,6 +21,9 @@ HTagger::HTagger(const int& nFeat, const int& nHidden, const int& nConvFilter, c
     lstmSV = register_module("LSTM SV input", torch::nn::LSTM(torch::nn::LSTMOptions(nFeat, nHidden).batch_first(true)));
     lstmSV->pretty_print(modelSummary); modelSummary << "\n";
 
+    normHidden = register_module("Norm layer", torch::nn::BatchNorm1d(nHidden));
+    normHidden->pretty_print(modelSummary); modelSummary << "\n";
+
     convLayer = register_module("Conv layer 1", torch::nn::Conv1d(3, nConvFilter, kernelSize));
     convLayer->pretty_print(modelSummary); modelSummary << "\n";
 
