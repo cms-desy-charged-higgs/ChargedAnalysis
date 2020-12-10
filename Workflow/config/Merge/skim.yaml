@@ -1,3 +1,14 @@
+shape-systs:
+    all:
+        - ""
+        - JECTotal
+        - JER
+        - energyScale
+        - energySigma
+
 skim-dir: Skim/Inclusive/[E]
 dCache: Skim/Inclusive/[E]/[P]
+
 run-mode: Condor
+
+
