@@ -14,9 +14,10 @@ int main(int argc, char* argv[]){
     std::string cleanJet = parser.GetValue<std::string>("clean-jet", "");
     std::vector<std::string> scaleDirs = parser.GetVector<std::string>("syst-dirs", {});
     std::vector<std::string> scaleSysts = parser.GetVector<std::string>("scale-syst", {""});
+    std::string scaleFactors = parser.GetValue<std::string>("scale-factors", "");
     int era = parser.GetValue<int>("era", 2017);
 
     //Create treereader instance
-    TreeReader reader(parameters, cuts, outDir, outFile, channel, scaleDirs, scaleSysts, era);
+    TreeReader reader(parameters, cuts, outDir, outFile, channel, scaleDirs, scaleSysts, scaleFactors, era);
     reader.EventLoop(fileName, cleanJet);
 }

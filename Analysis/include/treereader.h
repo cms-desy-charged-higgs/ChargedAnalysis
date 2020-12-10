@@ -18,7 +18,9 @@
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
+#include <ChargedAnalysis/Utility/include/csv.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
+#include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Utility/include/mathutil.h>
 #include <ChargedAnalysis/Analysis/include/treeparser.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
@@ -32,6 +34,7 @@ class TreeReader {
         std::string channel;
         std::vector<std::string> systDirs;
         std::vector<std::string> scaleSysts;
+        std::string scaleFactors;
         int era;
 
         std::shared_ptr<TFile> inputFile;
@@ -64,7 +67,7 @@ class TreeReader {
 
     public:
         TreeReader();
-        TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const int& era = 2017);
+        TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const std::string& scaleFactors, const int& era = 2017);
 
         void EventLoop(const std::string& fileName, const std::string& cleanJet);
 };

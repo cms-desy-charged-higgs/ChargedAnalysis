@@ -4,7 +4,7 @@
 
 TreeReader::TreeReader(){}
 
-TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const int& era):
+TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const std::string& scaleFactors, const int& era):
     parameters(parameters),
     cutStrings(cutStrings),
     outDir(outDir),
@@ -12,6 +12,7 @@ TreeReader::TreeReader(const std::vector<std::string> &parameters, const std::ve
     channel(channel),
     systDirs(systDirs),
     scaleSysts(scaleSysts),
+    scaleFactors(scaleFactors),
     era(era){}
 
 void TreeReader::PrepareLoop(){
@@ -39,7 +40,7 @@ void TreeReader::PrepareLoop(){
 
             for(const std::string& parameter: parameters){
                 //Functor structure and arguments
-                TreeFunction function(inputFile, inputTree->GetName(), era);
+                TreeFunction function(inputFile, inputTree->GetName(), era, scaleSysts.size() != 1);
         
                 //Read in everything, orders matter
                 parser.GetParticle(parameter, function);
@@ -113,7 +114,7 @@ void TreeReader::PrepareLoop(){
 
     for(const std::string& cut: cutStrings){
         //Functor structure and arguments
-        TreeFunction function(inputFile, inputTree->GetName());
+        TreeFunction function(inputFile, inputTree->GetName(), era, scaleSysts.size() != 1);
 
         parser.GetParticle(cut, function);
         parser.GetFunction(cut, function);
@@ -131,10 +132,10 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
     Utils::RunTime timer;
 
     //Get input tree
-    inputFile.reset(Utils::CheckNull<TFile>(TFile::Open(fileName.c_str(), "READ")));
-    inputTree.reset(Utils::CheckNull<TTree>(inputFile->Get<TTree>(channel.c_str())));
+    inputFile = RUtil::Open(fileName);
+    inputTree = RUtil::GetSmart<TTree>(inputFile.get(), channel);
 
-    TLeaf* nTrueInter = inputTree->GetLeaf("Misc_TrueInteraction");
+    TLeaf* nTrueInter = RUtil::Get<TLeaf>(inputTree.get(), "Misc_TrueInteraction");
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << channel << std::endl;
@@ -174,15 +175,15 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
 
     //Get number of generated events
     if(inputFile->GetListOfKeys()->Contains("nGen")){
-        nGen = inputFile->Get<TH1F>("nGen")->Integral();
+        nGen = RUtil::Get<TH1F>(inputFile.get(), "nGen")->Integral();
     }
 
     if(inputFile->GetListOfKeys()->Contains("xSec")){
-        xSec = inputFile->Get<TH1F>("xSec")->GetBinContent(1);
+        xSec = RUtil::Get<TH1F>(inputFile.get(), "xSec")->GetBinContent(1);
     }
 
     if(inputFile->GetListOfKeys()->Contains("Lumi")){
-        lumi = inputFile->Get<TH1F>("Lumi")->GetBinContent(1);
+        lumi = RUtil::Get<TH1F>(inputFile.get(), "Lumi")->GetBinContent(1);
     }
 
     //Set all branch addresses needed for the event
@@ -195,10 +196,10 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
     if(inputFile->GetListOfKeys()->Contains("puMC")){
         isData = false;
 
-        std::shared_ptr<TH1F> puMC(static_cast<TH1F*>(inputFile->Get("puMC")));
-        std::shared_ptr<TH1F> puReal(static_cast<TH1F*>(inputFile->Get("pileUp")));
-        std::shared_ptr<TH1F> puRealUp(static_cast<TH1F*>(inputFile->Get("pileUpUp")));
-        std::shared_ptr<TH1F> puRealDown(static_cast<TH1F*>(inputFile->Get("pileUpDown")));
+        std::shared_ptr<TH1F> puMC = RUtil::GetSmart<TH1F>(inputFile.get(), "puMC");
+        std::shared_ptr<TH1F> puReal = RUtil::GetSmart<TH1F>(inputFile.get(), "pileUp");
+        std::shared_ptr<TH1F> puRealUp = RUtil::GetSmart<TH1F>(inputFile.get(), "pileUpUp"); 
+        std::shared_ptr<TH1F> puRealDown = RUtil::GetSmart<TH1F>(inputFile.get(), "pileUpDown");
 
         pileUpWeight.reset(static_cast<TH1F*>(puReal->Clone()));
         pileUpWeightUp.reset(static_cast<TH1F*>(puRealUp->Clone()));
@@ -214,14 +215,23 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
         pileUpWeightDown->Divide(puMC.get());
     }
 
-    //Weight with all variations
-
+    //Data driven scale factors
+    float sf = 1.;
+    if(!scaleFactors.empty()){  
+        std::string fileName = StrUtil::Split(scaleFactors, "+")[0];
+        std::string process = StrUtil::Split(scaleFactors, "+")[1];
+      
+        CSV scaleFactors(fileName, "r", "\t");
+        std::vector<std::string> processes = scaleFactors.GetColumn("Process");
+        sf = scaleFactors.Get<float>(VUtil::Find(processes, process).at(0), "Factor");
+    }
+    
     //Cutflow
-    std::shared_ptr<TH1F> cutflow(inputFile->Get<TH1F>(("cutflow_" + channel).c_str()));
+    std::shared_ptr<TH1F> cutflow = RUtil::GetSmart<TH1F>(inputFile.get(), "cutflow_" + channel);
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
     cutflow->Scale(1./nGen);
 
-    for (int i = 0; i < inputTree->GetEntries(); i++){
+    for (int i = 0; i < inputTree->GetEntries(); ++i){
         if(i % 100000 == 0 and i != 0){
             std::cout << "Processed events: " << i << " (" << i/timer.Time() << " eve/s)" << std::endl;
         }
@@ -231,14 +241,14 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
         nTrueInter->GetBranch()->GetEntry(i);
 
         //Multiply all common weights
-        float weight = xSec*lumi/nGen;
+        float weight = xSec*lumi/nGen*sf;
         if(pileUpWeight!=nullptr) weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(*(float*)nTrueInter->GetValuePointer()));
 
         //Check if event passed all cuts
         passed=true;
 
         for(int j=0; j < cutFunctions.size(); j++){
-            passed = passed && cutFunctions[j].GetPassed();
+            passed *= cutFunctions[j].GetPassed();
 
             if(passed){
                 weight *= cutFunctions[j].GetWeight();
@@ -262,11 +272,12 @@ void TreeReader::EventLoop(const std::string &fileName, const std::string& clean
         //Fill histogram with systematic shifts
         for(int syst = 0; syst < scaleSysts.size() - 1; syst++){
             for(int shift = 0; shift < 2; shift++){
-                weight = xSec*lumi/nGen;
+                weight = xSec*lumi/nGen*sf;
                 if(pileUpWeight!=nullptr) weight *= pileUpWeight->GetBinContent(pileUpWeight->FindBin(*(float*)nTrueInter->GetValuePointer()));
 
-                for(int j=0; j < cutFunctions.size(); j++){ 
-                    weight *= VUtil::At(cutFunctions[j].GetSystWeight(), MUtil::RowMajIdx({scaleSysts.size() - 1, 2}, {syst, shift}));
+                for(int j=0; j < cutFunctions.size(); j++){
+                    const std::vector<float>& systWeights = cutFunctions[j].GetSystWeight();
+                    weight *= VUtil::At(systWeights, MUtil::RowMajIdx({scaleSysts.size() - 1, 2}, {syst, shift}));
                 }
 
                 for(int j=0; j < hist1DFunctions.size(); j++){

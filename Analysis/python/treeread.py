@@ -2,6 +2,7 @@ from task import Task
 
 import os
 import yaml
+import csv
 
 class TreeRead(Task):
     def __init__(self, config = {}):
@@ -20,6 +21,7 @@ class TreeRead(Task):
                 "--clean-jet", self["clean-jet"],
                 "--scale-syst", *self["scale-syst"],    
                 "--syst-dirs", *self["syst-dirs"], 
+                "--scale-factors", self["scale-factors"],
                 "--era", self["era"]
         ]
         
@@ -54,6 +56,25 @@ class TreeRead(Task):
                     jobNr = 0
                     fileNames = []
 
+                    ##Data driven scale factors           
+                    scaleFactors = ""
+
+                    if "scaleFactors" in config:
+                        if "Single" not in process and "HPlus" not in process:
+                            scaleFactors = "{}/{}".format(os.environ["CHDIR"], config["scaleFactors"].replace("[C]", channel).replace("[E]", era))
+
+                            with open(scaleFactors) as f:
+                                reader = csv.reader(f, delimiter='\t')
+
+                                toAppend = "+Misc"
+
+                                for row in reader:
+                                    if process in row:
+                                       toAppend = "+" + process
+                                       break 
+
+                                scaleFactors += toAppend
+
                     ##List of filenames for each process
                     for d in os.listdir(skimDir):
                         for processName in processDic[process]:
@@ -79,6 +100,7 @@ class TreeRead(Task):
                             "scale-syst": scaleSysts,
                             "syst-dirs": [outDir.replace("unmerged/", "unmerged/{}{}/".format(scaleSyst, scaleShift)) for scaleSyst in scaleSysts if scaleSyst != "" for scaleShift in ["Up", "Down"]],
                             "era": era,
+                            "scale-factors": scaleFactors,
                         }
 
                         tasks.append(TreeRead(task))
