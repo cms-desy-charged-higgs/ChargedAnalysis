@@ -17,6 +17,7 @@
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
+#include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Utility/include/mathutil.h>
 
 enum class Axis{X, Y};
@@ -24,7 +25,7 @@ enum class Axis{X, Y};
 class TreeFunction{
     private:
         enum Particle{VACUUM, ELECTRON = 11, MUON = 13, BJET = 6, BSUBJET, JET, FATJET, SUBJET, MET = 12, HIGGS = 25, CHAREDHIGGS = 37, W = 24};
-        enum WP{NOTCLEAN = -10, NONE, LOOSE, MEDIUM, TIGHT};
+        enum WP{NONE, LOOSE, MEDIUM, TIGHT, NOTCLEAN = -10};
         enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
         enum Systematic{NOMINAL, BTAG, SUBBTAG, MUTRIGG, MUID, MUISO, ELERECO, ELEID};
@@ -36,6 +37,7 @@ class TreeFunction{
         std::shared_ptr<TFile> inputFile;
         TTree* inputTree;
         int era;
+        bool useSyst;
         std::vector<Systematic> systematics;
 
         //Define another TreeFunction if wants to make 2D distributions
@@ -111,11 +113,13 @@ class TreeFunction{
         void HT();
         void NParticle();
         void HTag();
+        void DNNClass();
         void DNN();
         void DeepAK();
+        void DeepAKClass();
 
     public:
-        TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era = 2017);
+        TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era = 2017, const bool& useSyst = false);
         ~TreeFunction();
 
         //Setter function

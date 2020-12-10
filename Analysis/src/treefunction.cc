@@ -1,9 +1,10 @@
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 
-TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era) :
+TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era, const bool& useSyst) :
     inputFile(inputFile),
     inputTree(inputFile->Get<TTree>(treeName.c_str())),
-    era(era) {
+    era(era),
+    useSyst(useSyst) {
     funcInfo = {
         {"Pt", {&TreeFunction::Pt, "p_{T}(@) [GeV]"}},
         {"Mt", {&TreeFunction::Mt, "m_{T}(@) [GeV]"}},
@@ -18,7 +19,9 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
         {"EvNr", {&TreeFunction::EventNumber, "Event number"}},
         {"HTag", {&TreeFunction::HTag, "Higgs score(@)"}},
         {"DAK8", {&TreeFunction::DeepAK, "DeepAK8 score(@)"}},
+        {"DAK8C", {&TreeFunction::DeepAKClass, "DeepAK8 class"}},
         {"DNN", {&TreeFunction::DNN, "DNN score(m_{H^{#pm}} = @ GeV)"}},
+        {"DNNC", {&TreeFunction::DNNClass, "DNN class (m_{H^{#pm}} = @ GeV)"}},
     };
 
     partInfo = {
@@ -82,7 +85,9 @@ void TreeFunction::SetP1(const std::string& part, const int& idx, const std::str
     idx1 = idx-1;
     genMother1 = genMother;
 
-    partLabel1 = Utils::Format<std::string>("@", std::get<3>(VUtil::At(partInfo, part)), idx1 == -1. ? "" : std::to_string(idx1+1), true);
+    partLabel1 = std::get<3>(VUtil::At(partInfo, part));
+    if(!StrUtil::Find(partLabel1, "@").empty())
+        partLabel1 = StrUtil::Replace(partLabel1, "@", idx1 == -1. ? "" : std::to_string(idx1+1));
     partName1 = part;
     wpName1 = wp;
 }
@@ -102,7 +107,9 @@ void TreeFunction::SetP2(const std::string& part, const int& idx, const std::str
     idx2 = idx-1;
     genMother2 = genMother;
 
-    partLabel2 = Utils::Format<std::string>("@", std::get<3>(VUtil::At(partInfo, part)), idx2 == -1. ? "" : std::to_string(idx2+1), true);
+    partLabel2 = std::get<3>(VUtil::At(partInfo, part));
+    if(!StrUtil::Find(partLabel2, "@").empty())
+        partLabel2 = StrUtil::Replace(partLabel2, "@", idx1 == -1. ? "" : std::to_string(idx2+1));
     partName2 = part;
     wpName2 = wp;
 }
@@ -118,13 +125,13 @@ void TreeFunction::SetCleanJet(const std::string& part, const std::string& wp){
     }
 
     if(part1 == JET or part1 == BJET){
-        cleanPhi = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", std::get<1>(VUtil::At(partInfo, part))).c_str());
-        cleanEta = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", std::get<1>(VUtil::At(partInfo, part))).c_str());
-        ID = inputTree->GetLeaf(Utils::Format<std::string>("@", "@_ID", std::get<1>(VUtil::At(partInfo, part))).c_str());
-        Isolation = inputTree->GetLeaf(Utils::Format<std::string>("@", part == "e" ? "@_Isolation" : "@_isoID", std::get<1>(VUtil::At(partInfo, part))).c_str());
+        cleanPhi = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_Phi", "@", std::get<1>(VUtil::At(partInfo, part))));
+        cleanEta =  RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_Eta", "@", std::get<1>(VUtil::At(partInfo, part))));
+        ID = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_ID", "@", std::get<1>(VUtil::At(partInfo, part))));
+        Isolation =  RUtil::Get<TLeaf>(inputTree, StrUtil::Replace(part == "e" ? "@_Isolation" : "@_isoID", "@", std::get<1>(VUtil::At(partInfo, part))));
 
-        jetPhi = inputTree->GetLeaf("Jet_Phi");
-        jetEta = inputTree->GetLeaf("Jet_Eta");
+        jetPhi = RUtil::Get<TLeaf>(inputTree, "Jet_Phi");
+        jetEta = RUtil::Get<TLeaf>(inputTree, "Jet_Eta");
         cleanPart = std::get<0>(VUtil::At(partInfo, part));
         cleanedWP = std::get<0>(VUtil::At(wpInfo, wp));
     }
@@ -162,8 +169,8 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
     }
 
     if(genMother1 != -1.){
-        particleID = inputTree->GetLeaf("GenParticle_ParticleID");
-        motherID = inputTree->GetLeaf("GenParticle_MotherID");
+        particleID = RUtil::Get<TLeaf>(inputTree, "GenParticle_ParticleID");
+        motherID = RUtil::Get<TLeaf>(inputTree, "GenParticle_MotherID");
     }
 
     this->funcPtr = std::get<0>(VUtil::At(funcInfo, funcName));
@@ -173,46 +180,46 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
     std::string part2Prefix = genMother1 == -1. ? std::get<1>(partInfo[partName2]) : "GenParticle";
 
     if(funcName == "Pt"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Pt", part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Pt", "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Mt"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Mt", part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Mt", "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Eta"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Eta", part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Eta", "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Phi"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Phi", part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Phi", "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "Mass"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Mass", part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Mass", "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "dPhi"){
         for(const std::string part : {part1Prefix, part2Prefix}){
-            TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
+            TLeaf* phi = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_Phi", "@", part));
             quantities.push_back(std::move(phi));
         }
     }
 
     else if(funcName == "dR"){
         for(const std::string part : {part1Prefix, part2Prefix}){
-            TLeaf* phi = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Phi", part).c_str()));
-            TLeaf* eta = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "@_Eta", part).c_str()));
+            TLeaf* phi = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_Phi", "@", part));
+            TLeaf* eta = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("@_Eta", "@", part));
             quantities.push_back(std::move(phi));
             quantities.push_back(std::move(eta));
         }
@@ -220,39 +227,55 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
     else if(funcName == "HT"){
         for(const std::string& jetName : {"Jet", "FatJet"}){
-            const std::string branchName = Utils::Format<std::string>("@", "@_Pt", jetName);
-            TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+            const std::string branchName = StrUtil::Replace("@_Pt", "@", jetName);
+            TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
             quantities.push_back(std::move(leaf));
         }
     }
 
     else if(funcName == "Tau"){
-        const std::string branchName = Utils::Format<std::string>("@", "@_Njettiness" + inputValue, part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("@_Njettiness" + inputValue, "@", part1Prefix);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "HTag"){
         const std::string branchName = "ML_HTagFJ" + std::to_string(idx1+1);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
     else if(funcName == "DNN"){
-        const std::string branchName = Utils::Format<int>("@", "ML_DNN@", std::atoi(inputValue.c_str()));
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        const std::string branchName = StrUtil::Replace("DNN_@", "@", inputValue);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
+    }
+
+
+    else if(funcName == "DNNC"){
+        for(const std::string p : {"HPlus", "TT1L", "TT2L", "Misc"}){
+            const std::string branchName = StrUtil::Replace("DNN_@@", "@", p, inputValue);
+            TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
+            quantities.push_back(std::move(leaf));
+        }
     }
 
     else if(funcName == "DAK8"){
-        std::string taggerName = Utils::Format<std::string>("$", "@_$VsHiggs", inputValue);
-        const std::string branchName = Utils::Format<std::string>("@", taggerName, part1Prefix);
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+        std::string branchName = StrUtil::Replace("@_DeepAK8@", "@", part1Prefix, inputValue);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
         quantities.push_back(std::move(leaf));
     }
 
+    else if(funcName == "DAK8C"){
+        for(const std::string p : {"Higgs", "Top", "W", "QCD"}){
+            std::string branchName = StrUtil::Replace("@_DeepAK8@", "@", part1Prefix, p);
+            TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
+            quantities.push_back(std::move(leaf));
+        }
+    }
+
     else if(funcName == "EvNr"){
-        TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Misc_eventNumber"));
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, "Misc_eventNumber");
         quantities.push_back(std::move(leaf));
     }
 
@@ -260,16 +283,16 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         if(part1 == BJET or part1 == BSUBJET){
             for(const std::string& param : {"Pt", "Eta"}){
                 const std::string branchName = std::string(part1 == BJET ? "Jet" : "SubJet") + "_" + param;
-                TLeaf* leaf = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(branchName.c_str()));
+                TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
                 quantities.push_back(std::move(leaf));
             }
         }
     }
 
-    const std::string branchName1 = Utils::Format<std::string>("@", "@_Size", part1Prefix);
+    const std::string branchName1 = StrUtil::Replace("@_Size", "@", part1Prefix);
     nPart1 = inputTree->GetLeaf(branchName1.c_str());
 
-    const std::string branchName2 = Utils::Format<std::string>("@", "@_Size", part2Prefix);
+    const std::string branchName2 = StrUtil::Replace("@_Size", "@", part2Prefix);
     nPart2 = inputTree->GetLeaf(branchName2.c_str());
 
     if(wp1 != NONE){
@@ -277,50 +300,50 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
         switch(part1){
             case ELECTRON:
-                ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_ID"));
-                Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_Isolation"));
-                scaleFactors[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSF"));
-                scaleFactorsUp[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFUp"));
-                scaleFactorsDown[ELERECO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Electron_recoSFDown"));
+                ID = RUtil::Get<TLeaf>(inputTree, "Electron_ID");
+                Isolation = RUtil::Get<TLeaf>(inputTree, "Electron_Isolation");
+                scaleFactors[ELERECO] = RUtil::Get<TLeaf>(inputTree, "Electron_recoSF");
+                if(useSyst) scaleFactorsUp[ELERECO] = RUtil::Get<TLeaf>(inputTree, "Electron_recoSFUp");
+                if(useSyst) scaleFactorsDown[ELERECO] = RUtil::Get<TLeaf>(inputTree, "Electron_recoSFDown");
 
-                scaleFactors[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SF", wpname).c_str()));
-                scaleFactorsUp[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFUp", wpname).c_str()));
-                scaleFactorsDown[ELEID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Electron_@SFDown", wpname).c_str()));
+                scaleFactors[ELEID] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Electron_@SF", "@", wpname));
+                if(useSyst) scaleFactorsUp[ELEID] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Electron_@SFUp", "@", wpname));
+                if(useSyst) scaleFactorsDown[ELEID] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Electron_@SFDown", "@", wpname));
 
                 break;
 
             case MUON:
-                ID = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_ID"));
-                Isolation = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_isoID"));
+                ID = RUtil::Get<TLeaf>(inputTree, "Muon_ID");
+                Isolation = RUtil::Get<TLeaf>(inputTree, "Muon_isoID");
 
-                scaleFactors[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSF"));
-                scaleFactorsUp[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFUp"));
-                scaleFactorsDown[MUTRIGG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Muon_triggerSFDown"));
+                scaleFactors[MUTRIGG] = RUtil::Get<TLeaf>(inputTree, "Muon_triggerSF");
+                if(useSyst) scaleFactorsUp[MUTRIGG] = RUtil::Get<TLeaf>(inputTree, "Muon_triggerSFUp");
+                if(useSyst) scaleFactorsDown[MUTRIGG] = RUtil::Get<TLeaf>(inputTree, "Muon_triggerSFDown");
 
-                scaleFactors[MUID] =  Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SF", wpname).c_str()));
-                scaleFactorsUp[MUID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFUp", wpname).c_str()));
-                scaleFactorsDown[MUID] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_@SFDown", wpname).c_str()));
+                scaleFactors[MUID] =  RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_@SF", "@", wpname));
+                if(useSyst) scaleFactorsUp[MUID] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_@SFUp", "@", wpname));
+                if(useSyst) scaleFactorsDown[MUID] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_@SFDown", "@", wpname));
 
                 wpname[0] = std::toupper(wpname[0]); 
-                scaleFactors[MUISO] =  Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SF", wpname).c_str()));
-                scaleFactorsUp[MUISO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFUp", wpname).c_str()));
-                scaleFactorsDown[MUISO] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Muon_tightIso@SFDown", wpname).c_str()));
+                scaleFactors[MUISO] =  RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_tightIso@SF", "@", wpname));
+                if(useSyst) scaleFactorsUp[MUISO] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_tightIso@SFUp", "@", wpname));
+                if(useSyst) scaleFactorsDown[MUISO] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Muon_tightIso@SFDown", "@", wpname));
                 break;
 
             case BJET:
-                TrueFlavour = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_TrueFlavour"));
-                BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("Jet_CSVScore"));
-                scaleFactors[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSF", wpname).c_str()));
-                scaleFactorsUp[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFUp", wpname).c_str()));
-                scaleFactorsDown[BTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "Jet_@CSVbTagSFDown", wpname).c_str()));
+                TrueFlavour = RUtil::Get<TLeaf>(inputTree, "Jet_TrueFlavour");
+                BScore = RUtil::Get<TLeaf>(inputTree, "Jet_CSVScore");
+                scaleFactors[BTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Jet_@CSVbTagSF", "@", wpname));
+                if(useSyst) scaleFactorsUp[BTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Jet_@CSVbTagSFUp", "@", wpname));
+                if(useSyst) scaleFactorsDown[BTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("Jet_@CSVbTagSFDown", "@", wpname));
                 break;
 
             case BSUBJET:
-                TrueFlavour = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_TrueFlavour"));
-                BScore = Utils::CheckNull<TLeaf>(inputTree->GetLeaf("SubJet_CSVScore"));
-                scaleFactors[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSF", wpname).c_str()));
-                scaleFactorsUp[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFUp", wpname).c_str()));
-                scaleFactorsDown[SUBBTAG] = Utils::CheckNull<TLeaf>(inputTree->GetLeaf(Utils::Format<std::string>("@", "SubJet_@CSVbTagSFDown", wpname).c_str()));
+                TrueFlavour = RUtil::Get<TLeaf>(inputTree, "SubJet_TrueFlavour");
+                BScore = RUtil::Get<TLeaf>(inputTree, "SubJet_CSVScore");
+                scaleFactors[SUBBTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("SubJet_@CSVbTagSF", "@", wpname));
+                if(useSyst) scaleFactorsUp[SUBBTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("SubJet_@CSVbTagSFUp", "@", wpname));
+                if(useSyst) scaleFactorsDown[SUBBTAG] = RUtil::Get<TLeaf>(inputTree, StrUtil::Replace("SubJet_@CSVbTagSFDown", "@", wpname));
                 break;
 
             default: break;
@@ -333,25 +356,29 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
         wpname[0] = std::toupper(wpname[0]);
 
         if(inputFile->Get("nTrueB") != nullptr){
-            effB = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@BCSVbTag", wpname).c_str())->Clone());
-            effB->Divide(inputFile->Get<TH2F>("nTrueB"));
-            effC = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@CCSVbTag", wpname).c_str())->Clone());
-            effC->Divide(inputFile->Get<TH2F>("nTrueC")); 
-            effLight = static_cast<TH2F*>(inputFile->Get(Utils::Format<std::string>("@", "n@LightCSVbTag", wpname).c_str())->Clone());
-            effLight->Divide(inputFile->Get<TH2F>("nTrueLight")); 
+            effB = (TH2F*)RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@BCSVbTag", "@", wpname))->Clone();
+            effB->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueB"));
+            effC = (TH2F*)RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@CCSVbTag", "@", wpname))->Clone();
+            effC->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueC"));
+            effLight = (TH2F*)RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@LightCSVbTag", "@", wpname))->Clone();
+            effLight->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueLight"));
         }
     }
 
     //Set Name of functions/axis label
-    name = funcName + (inputValue != "" ? Utils::Format<std::string>("@", "_@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName2)) : "");
-    axisLabel = (genMother1 != -1. ? "Gen " : "") + std::get<1>(VUtil::At(funcInfo, funcName));;
+    name = funcName + (inputValue != "" ? StrUtil::Replace("_@", "@", inputValue) : "") + (partName1 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName1)) : "") + (idx1 != -1 ? "_" + std::to_string(idx1+1) : "") + (wp1 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName1)) : "") + (partName2 != "" ? "_" + std::get<2>(VUtil::At(partInfo, partName2)) : "") + (idx2 != -1 ? "_" + std::to_string(idx2+1) : "") + (wp2 != NONE ? "_" + std::get<1>(VUtil::At(wpInfo, wpName2)) : "");
+    axisLabel = (genMother1 != -1. ? "Gen " : "") + std::get<1>(VUtil::At(funcInfo, funcName));
 
     if(inputValue != ""){
-        axisLabel = Utils::Format<std::string>("@", axisLabel, inputValue, true);
+        if(!StrUtil::Find(axisLabel, "@").empty()){
+            axisLabel = StrUtil::Replace(axisLabel, "@", inputValue);   
+        }
     }
 
     for(const std::string partLabel : {partLabel1, partLabel2}){
-        axisLabel = Utils::Format<std::string>("@", axisLabel, partLabel, true);
+        if(!StrUtil::Find(axisLabel, "@").empty()){
+            axisLabel = StrUtil::Replace(axisLabel, "@", partLabel);
+        }
     }
 }
 
@@ -398,33 +425,28 @@ const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
 
             else scaleFactor = scaleFactors[part1 == BJET ? BTAG : SUBBTAG];
 
-            if(scaleFactor->GetBranch()->GetReadEntry() != entry) scaleFactor->GetBranch()->GetEntry(entry);
-            if(TrueFlavour->GetBranch()->GetReadEntry() != entry) TrueFlavour->GetBranch()->GetEntry(entry);
-            if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-            if(quantities[1]->GetBranch()->GetReadEntry() != entry) quantities[1]->GetBranch()->GetEntry(entry);
+            const std::vector<float>& sf = RUtil::GetVecEntry<float>(scaleFactor, entry);
+            const std::vector<char>& trueFlav = RUtil::GetVecEntry<char>(TrueFlavour, entry);
 
-            std::vector<float>* sf = (std::vector<float>*)scaleFactor->GetValuePointer();
-            std::vector<char>* trueFlav = (std::vector<char>*)TrueFlavour->GetValuePointer();
+            const std::vector<float>& jetPt = RUtil::GetVecEntry<float>(quantities[0], entry);
+            const std::vector<float>& jetEta = RUtil::GetVecEntry<float>(quantities[1], entry);
 
-            std::vector<float>* jetPt = (std::vector<float>*)quantities[0]->GetValuePointer();
-            std::vector<float>* jetEta = (std::vector<float>*)quantities[1]->GetValuePointer();
-
-            for(unsigned int i = 0; i < sf->size(); i++){
+            for(unsigned int i = 0; i < sf.size(); i++){
                 float eff;
     
-                if(std::abs(trueFlav->at(i)) == 5) eff = effB->GetBinContent(effB->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
-                else if(std::abs(trueFlav->at(i)) == 4) eff = effC->GetBinContent(effC->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
-                else eff = effLight->GetBinContent(effLight->FindBin(VUtil::At(*jetPt, i), VUtil::At(*jetEta, i)));
+                if(std::abs(trueFlav.at(i)) == 5) eff = effB->GetBinContent(effB->FindBin(VUtil::At(jetPt, i), VUtil::At(jetEta, i)));
+                else if(std::abs(trueFlav.at(i)) == 4) eff = effC->GetBinContent(effC->FindBin(VUtil::At(jetPt, i), VUtil::At(jetEta, i)));
+                else eff = effLight->GetBinContent(effLight->FindBin(VUtil::At(jetPt, i), VUtil::At(jetEta, i)));
 
                 if(eff == 0) continue;
 
                 if(whichWP(part1, i) >= wp1){
-                    wData *= VUtil::At(*sf, i) * eff;
+                    wData *= VUtil::At(sf, i) * eff;
                     wMC *= eff;
                 }
     
                 else{
-                    wData *= 1 - VUtil::At(*sf, i)*eff;
+                    wData *= 1 - VUtil::At(sf, i)*eff;
                     wMC *= (1 - eff);
                 }
             }
@@ -441,14 +463,12 @@ const float TreeFunction::GetWeight(const Systematic syst, const Shift& shift){
                 }
 
                 else scaleFactor = scaleFactors[sys];
+       
+                const std::vector<float>& sf = RUtil::GetVecEntry<float>(scaleFactor, entry);
 
-                if(scaleFactor->GetBranch()->GetReadEntry() != entry) scaleFactor->GetBranch()->GetEntry(entry);
-
-                std::vector<float>* sf = (std::vector<float>*)scaleFactor->GetValuePointer();
-
-                for(int i = 0; i < sf->size(); i++){
+                for(int i = 0; i < sf.size(); i++){
                     if(whichWP(part1, i) >= wp1){
-                        weight *= Utils::CheckZero(VUtil::At(*sf, i));  
+                        weight *= Utils::CheckZero(VUtil::At(sf, i));  
                     }
                 }
             }
@@ -472,7 +492,7 @@ const bool TreeFunction::GetPassed(){
         case BIGGER:
             return this->Get<Axis::X>() > compValue;
 
-            case SMALLER:
+        case SMALLER:
             return this->Get<Axis::X>() < compValue;
 
         case EQUAL:
@@ -509,18 +529,14 @@ const std::string TreeFunction::GetName(){
 int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx, const WP& wp, const int& genMother){
     if((nPart == nullptr or idx == -1) and genMother == -1.) return -1.;
 
-    int realIdx = 0;
-    int counter = idx;
+    int realIdx = 0, counter = idx;
 
     if(genMother != -1.){
-        if(particleID->GetBranch()->GetReadEntry() != entry) particleID->GetBranch()->GetEntry(entry);
-        if(motherID->GetBranch()->GetReadEntry() != entry) motherID->GetBranch()->GetEntry(entry);
-
-        std::vector<char>* partID = static_cast<std::vector<char>*>(particleID->GetValuePointer());
-        std::vector<char>* mothID = static_cast<std::vector<char>*>(motherID->GetValuePointer());
+        const std::vector<char>& partID = RUtil::GetVecEntry<char>(particleID, entry);
+        const std::vector<char>& mothID = RUtil::GetVecEntry<char>(motherID, entry);
    
-        for(int i = 0; i < partID->size(); i++){
-            if(VUtil::At(*partID, i) == part and VUtil::At(*mothID, i) == genMother){
+        for(int i = 0; i < partID.size(); i++){
+            if(VUtil::At(partID, i) == part and VUtil::At(mothID, i) == genMother){
                 counter--;
                 realIdx = i;
                 if(counter <= 0) return realIdx;
@@ -529,15 +545,14 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
     }
 
     else{
-        if(nPart->GetBranch()->GetReadEntry() != entry) nPart->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart->GetValuePointer();
-        if(idx >= *n) return -1.;
+        const char& n = RUtil::GetEntry<char>(nPart1, entry);
+        if(idx >= n) return -1.;
         
         while(counter != 0){
             if(whichWP(part, realIdx) >= wp) counter--;
    
             realIdx++; 
-            if(realIdx >= *n) return -1.;
+            if(realIdx >= n) return -1.;
         }
 
         return realIdx;
@@ -545,34 +560,26 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
 }
 
 TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
-    std::vector<char>* id;
-    std::vector<char>* isoID;
-    std::vector<float>* iso; 
-    std::vector<float>* score;
+    std::vector<char> id, isoID;
+    std::vector<float> iso, score;
 
     switch(part){
         case ELECTRON:
-            if(ID->GetBranch()->GetReadEntry() != entry) ID->GetBranch()->GetEntry(entry);
-            if(Isolation->GetBranch()->GetReadEntry() != entry) Isolation->GetBranch()->GetEntry(entry);
+            id = RUtil::GetVecEntry<char>(ID, entry);
+            iso = RUtil::GetVecEntry<float>(Isolation, entry);
 
-            id = (std::vector<char>*)ID->GetValuePointer();
-            iso = (std::vector<float>*)Isolation->GetValuePointer();
-
-            if(VUtil::At(*id, idx) > MEDIUM && VUtil::At(*iso, idx) < 0.15) return TIGHT;
-            if(VUtil::At(*id, idx) > LOOSE && VUtil::At(*iso, idx) < 0.20) return MEDIUM;
-            if(VUtil::At(*id, idx) > NONE && VUtil::At(*iso, idx) < 0.25) return LOOSE;
+            if(VUtil::At(id, idx) > MEDIUM && VUtil::At(iso, idx) < 0.15) return TIGHT;
+            if(VUtil::At(id, idx) > LOOSE && VUtil::At(iso, idx) < 0.20) return MEDIUM;
+            if(VUtil::At(id, idx) > NONE && VUtil::At(iso, idx) < 0.25) return LOOSE;
             return NONE;
 
         case MUON:
-            if(ID->GetBranch()->GetReadEntry() != entry) ID->GetBranch()->GetEntry(entry);
-            if(Isolation->GetBranch()->GetReadEntry() != entry) Isolation->GetBranch()->GetEntry(entry);
+            id = RUtil::GetVecEntry<char>(ID, entry);
+            isoID = RUtil::GetVecEntry<char>(Isolation, entry);
 
-            id = (std::vector<char>*)ID->GetValuePointer();
-            isoID = (std::vector<char>*)Isolation->GetValuePointer();
-
-            if(VUtil::At(*id, idx) > MEDIUM && VUtil::At(*isoID, idx) > MEDIUM) return TIGHT;
-            if(VUtil::At(*id, idx) > LOOSE && VUtil::At(*isoID, idx) > MEDIUM) return MEDIUM;
-            if(VUtil::At(*id, idx) > NONE && VUtil::At(*isoID, idx) > MEDIUM) return LOOSE;
+            if(VUtil::At(id, idx) > MEDIUM && VUtil::At(isoID, idx) > MEDIUM) return TIGHT;
+            if(VUtil::At(id, idx) > LOOSE && VUtil::At(isoID, idx) > MEDIUM) return MEDIUM;
+            if(VUtil::At(id, idx) > NONE && VUtil::At(isoID, idx) > MEDIUM) return LOOSE;
             return NONE;
 
 
@@ -590,12 +597,11 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             }
 
         case BSUBJET:
-            if(BScore->GetBranch()->GetReadEntry() != entry) BScore->GetBranch()->GetEntry(entry);
-            score = (std::vector<float>*)BScore->GetValuePointer();
+            score = RUtil::GetVecEntry<float>(BScore, entry);
 
-            if(VUtil::At(*score, idx) > tightBCut[era]) return TIGHT;
-            if(VUtil::At(*score, idx) > mediumBCut[era]) return MEDIUM;
-            if(VUtil::At(*score, idx) > looseBCut[era]) return LOOSE;
+            if(VUtil::At(score, idx) > tightBCut[era]) return TIGHT;
+            if(VUtil::At(score, idx) > mediumBCut[era]) return MEDIUM;
+            if(VUtil::At(score, idx) > looseBCut[era]) return LOOSE;
 
         default: return NONE;
     }
@@ -605,153 +611,116 @@ template const std::string TreeFunction::GetName<Axis::X>();
 template const std::string TreeFunction::GetName<Axis::Y>();
 
 bool TreeFunction::isCleanJet(const int& idx){
-    if(cleanPhi->GetBranch()->GetReadEntry() != entry) cleanPhi->GetBranch()->GetEntry(entry);
-    if(cleanEta->GetBranch()->GetReadEntry() != entry) cleanEta->GetBranch()->GetEntry(entry);
-    if(jetPhi->GetBranch()->GetReadEntry() != entry) jetPhi->GetBranch()->GetEntry(entry);
-    if(jetEta->GetBranch()->GetReadEntry() != entry) jetEta->GetBranch()->GetEntry(entry);
+    const std::vector<float>& phi = RUtil::GetVecEntry<float>(cleanPhi, entry);
+    const std::vector<float>& eta = RUtil::GetVecEntry<float>(cleanEta, entry);
+    const std::vector<float>& jPhi = RUtil::GetVecEntry<float>(jetPhi, entry);
+    const std::vector<float>& jEta = RUtil::GetVecEntry<float>(jetEta, entry);
 
-    const std::vector<float>* phi = (std::vector<float>*)cleanPhi->GetValuePointer();
-    const std::vector<float>* eta = (std::vector<float>*)cleanEta->GetValuePointer();
-    const std::vector<float>* jPhi = (std::vector<float>*)jetPhi->GetValuePointer();
-    const std::vector<float>* jEta = (std::vector<float>*)jetEta->GetValuePointer();
-
-    for(unsigned int i = 0; i < phi->size(); i++){
+    for(unsigned int i = 0; i < phi.size(); i++){
         if(whichWP(cleanPart, i) < cleanedWP) continue;
-        if(std::sqrt(std::pow(VUtil::At(*phi, i) - VUtil::At(*jPhi, idx), 2) + std::pow(VUtil::At(*eta, i) - VUtil::At(*jEta, idx), 2)) < 0.4) return false;        
+        if(std::sqrt(std::pow(VUtil::At(phi, i) - VUtil::At(jPhi, idx), 2) + std::pow(VUtil::At(eta, i) - VUtil::At(jEta, idx), 2)) < 0.4) return false;        
     }
 
     return true;
 }
 
 void TreeFunction::Pt(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-
-    if(realIdx1 != -1){
-        const std::vector<float>* pt = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = VUtil::At(*pt, realIdx1);
-    }
-
-    else{
-        const float* pt = (float*)quantities[0]->GetValuePointer();
-        value = *pt;
-    }
+    if(realIdx1 != -1) value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
+    else value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::Phi(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-
-    if(realIdx1 != -1){
-        const std::vector<float>* phi = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = VUtil::At(*phi, realIdx1);
-    }
-
-    else{
-        const float* phi = (float*)quantities[0]->GetValuePointer();
-        value = *phi;
-    }
+    if(realIdx1 != -1) value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
+    else value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::Mass(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-
-    if(realIdx1 != -1){
-        const std::vector<float>* mass = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = VUtil::At(*mass, realIdx1);
-    }
-
-    else{
-        const float* mass = (float*)quantities[0]->GetValuePointer();
-        value = *mass;
-    }
+    if(realIdx1 != -1) value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
+    else value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::Mt(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-
-    const float* mt = (float*)quantities[0]->GetValuePointer();
-    value = *mt;
+    value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::Eta(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-
-    if(realIdx1 != -1){
-        const std::vector<float>* eta = (std::vector<float>*)quantities[0]->GetValuePointer();
-        value = VUtil::At(*eta, realIdx1);
-    }
-
-    else{
-        const float* eta = (float*)quantities[0]->GetValuePointer();
-        value = *eta;
-    }
+    if(realIdx1 != -1) value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
+    else value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::DeltaPhi(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    if(quantities[1]->GetBranch()->GetReadEntry() != entry) quantities[1]->GetBranch()->GetEntry(entry);
-
-    float phi1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[0]->GetValuePointer())->at(realIdx1) : *(float*)quantities[0]->GetValuePointer();
-    float phi2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[1]->GetValuePointer())->at(realIdx2) : *(float*)quantities[1]->GetValuePointer();
+    float phi1 = realIdx1 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1) : RUtil::GetEntry<float>(quantities[0], entry);
+    float phi2 = realIdx2 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[1], entry), realIdx2) : RUtil::GetEntry<float>(quantities[1], entry);
 
     value = std::acos(std::cos(phi1)*std::cos(phi2) + std::sin(phi1)*std::sin(phi2));
 }
 
 void TreeFunction::DeltaR(){
-    for(TLeaf* quan: quantities){
-        if(quan->GetBranch()->GetReadEntry() != entry) quan->GetBranch()->GetEntry(entry);
-    }
-
-    float phi1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[0]->GetValuePointer())->at(realIdx1) : *(float*)quantities[0]->GetValuePointer();
-    float phi2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[1]->GetValuePointer())->at(realIdx2) : *(float*)quantities[1]->GetValuePointer();
-    float eta1 = realIdx1 != -1 ? static_cast<std::vector<float>*>(quantities[2]->GetValuePointer())->at(realIdx1) : *(float*)quantities[2]->GetValuePointer();
-    float eta2 = realIdx2 != -1 ? static_cast<std::vector<float>*>(quantities[3]->GetValuePointer())->at(realIdx2) : *(float*)quantities[3]->GetValuePointer();
+    float phi1 = realIdx1 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1) : RUtil::GetEntry<float>(quantities[0], entry);
+    float phi2 = realIdx2 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[1], entry), realIdx2) : RUtil::GetEntry<float>(quantities[1], entry);
+    float eta1 = realIdx1 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[2], entry), realIdx1) : RUtil::GetEntry<float>(quantities[2], entry);
+    float eta2 = realIdx2 != -1 ? VUtil::At(RUtil::GetVecEntry<float>(quantities[3], entry), realIdx2) : RUtil::GetEntry<float>(quantities[3], entry);
 
     value = std::sqrt(std::pow(phi1-phi2, 2) + std::pow(eta1-eta2, 2));
 }
 
 void TreeFunction::JetSubtiness(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    const std::vector<float>* tau = (std::vector<float>*)quantities[0]->GetValuePointer();
-
-    value = VUtil::At(*tau, realIdx1);
+    value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
 }
 
 void TreeFunction::EventNumber(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    const float* evNr = (float*)quantities[0]->GetValuePointer();
-
-    value = Utils::BitCount(int(*evNr));
+    value = Utils::BitCount(int(RUtil::GetEntry<float>(quantities[0], entry)));
 }
 
 void TreeFunction::HTag(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    const float* htag = (float*)quantities[0]->GetValuePointer();
-
-    value = *htag;
+    value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::DeepAK(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    const std::vector<float>* score = (std::vector<float>*)quantities[0]->GetValuePointer();
+    value = VUtil::At(RUtil::GetVecEntry<float>(quantities[0], entry), realIdx1);
+}
 
-    value = VUtil::At(*score, realIdx1);
+void TreeFunction::DeepAKClass(){
+    float max = 0;
+    int maxIdx = 0;
+
+    for(int i = 0; i < quantities.size(); ++i){
+        const float& v = VUtil::At(RUtil::GetVecEntry<float>(quantities[i], entry), realIdx1);
+        if(v > max){
+            maxIdx = i;
+            max = v;
+        }
+    }
+
+    value = maxIdx;
+}
+
+void TreeFunction::DNNClass(){
+    float max = 0;
+    int maxIdx = 0;
+
+    for(int i = 0; i < quantities.size(); ++i){
+        const float& v = RUtil::GetEntry<float>(quantities[i], entry);
+        if(v > max){
+            maxIdx = i;
+            max = v;
+        }
+    }
+  
+    value = maxIdx;
 }
 
 void TreeFunction::DNN(){
-    if(quantities[0]->GetBranch()->GetReadEntry() != entry) quantities[0]->GetBranch()->GetEntry(entry);
-    const float* score = (float*)quantities[0]->GetValuePointer();
-
-    value = *score;
+    value = RUtil::GetEntry<float>(quantities[0], entry);
 }
 
 void TreeFunction::HT(){
     value = 0;
 
-    for(const TLeaf* jet : quantities){
-        if(jet->GetBranch()->GetReadEntry() != entry) jet->GetBranch()->GetEntry(entry);
-        const std::vector<float>* jetPt = (std::vector<float>*)jet->GetValuePointer();
+    for(TLeaf* jet : quantities){
+        const std::vector<float>& jetPt = RUtil::GetVecEntry<float>(jet, entry);
 
-        for(const float& pt : *jetPt){
+        for(const float& pt : jetPt){
             value += pt;
         }
     }
@@ -761,38 +730,30 @@ void TreeFunction::NParticle(){
     value = 0;
 
     if(part1 == ELECTRON or part1 == MUON){
-        if(ID->GetBranch()->GetReadEntry() != entry) ID->GetBranch()->GetEntry(entry);
-        std::vector<char>* id = (std::vector<char>*)ID->GetValuePointer();
+        const std::vector<char>& id = RUtil::GetVecEntry<char>(ID, entry);
 
-        for(int i = 0; i < id->size(); i++){
+        for(int i = 0; i < id.size(); i++){
             if(whichWP(part1, i) >= wp1) value++;       
         }
     }
 
     else if(part1 == JET){
-        if(nPart1->GetBranch()->GetReadEntry() != entry) nPart1->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart1->GetValuePointer();
+        const char& n = RUtil::GetEntry<char>(nPart1, entry);
 
-        for(int i = 0; i < *n; i++){
+        for(int i = 0; i < n; ++i){
             if(whichWP(part1, i) >= wp1) value++;       
         }
-
-        value = *n;
     }
 
     else if(part1 == BJET or part1 == BSUBJET){
-        if(BScore->GetBranch()->GetReadEntry() != entry) BScore->GetBranch()->GetEntry(entry);
-        std::vector<float>* score = (std::vector<float>*)BScore->GetValuePointer();
+        const std::vector<float>& score = RUtil::GetVecEntry<float>(BScore, entry);
 
-        for(int i = 0; i < score->size(); i++){
+        for(int i = 0; i < score.size(); i++){
             if(whichWP(part1, i) >= wp1) value++;       
         }
     }
 
     else{
-        if(nPart1->GetBranch()->GetReadEntry() != entry) nPart1->GetBranch()->GetEntry(entry);
-        const char* n = (char*)nPart1->GetValuePointer();
-
-        value = *n;
+        value = RUtil::GetEntry<char>(nPart1, entry);
     }
 }
