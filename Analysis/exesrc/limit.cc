@@ -16,4 +16,7 @@ int main(int argc, char* argv[]){
 
     std::system(StrUtil::Merge("combine ", "-n ", tmp, " ", cardDir, "/datacard.txt").c_str());
     std::system(StrUtil::Merge("mv ", "higgsCombine", tmp, "*.root ", outDir, "/limit.root").c_str());
+
+    std::system(StrUtil::Merge("combine ", "-n ", tmp, " ", cardDir, "/datacard.txt ", "-M FitDiagnostics --rMin -1 --rMax 2 --saveShapes --saveWithUncertainties").c_str());
+    std::system(StrUtil::Merge("mv ", "fitDiagnostics", tmp, "*.root ", outDir, "/fitshapes.root").c_str());
 }
