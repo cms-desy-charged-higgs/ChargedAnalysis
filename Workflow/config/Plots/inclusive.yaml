@@ -1,145 +1,63 @@
+dir: Inclusive/[C]/[E]
+
+run-mode: Local
+
+skim-dir: Skim/Inclusive/[E]
+
 channels:
-    - mu4j
-    - e4j
-    - mu2j1fj
-    - e2j1fj
-    - mu2fj
-    - e2fj
-
-dir: Inclusive
-
-run-mode: Condor
-
-number-events: 300000
+    - MuonIncl
+    - EleIncl
 
 processes:
     - W+j
-    - QCD
     - DY+j
-    - TT+j-1L
-    - TT+j-2L 
-    - TT+j-H
+    - TT-1L
+    - TT-2L
     - TT+V
     - VV+VVV 
     - T
+    - HPlus200_h100_4B
+    - QCD
 
 data:
-    mu4j: 
-        - SingleMu
-    e4j: 
+    EleIncl: 
         - SingleE
 
-    mu2j1fj: 
+    MuonIncl:
         - SingleMu
-    e2j1fj: 
-        - SingleE
 
-    mu2fj: 
-        - SingleMu
-    e2fj: 
-        - SingleE
+clean-jet:
+    EleIncl: e/m
+    MuonIncl: mu/m
 
-x-parameters:
+parameters:
     all:
-        - pt_met
-        - phi_met
-        - N_j
+        - f:n=N/p:n=j/h:nxb=10,xl=0,xh=10
+        - f:n=N/p:n=fj/h:nxb=4,xl=0,xh=4
+        - f:n=N/p:n=bj,wp=l/h:nxb=6,xl=0,xh=6
+        - f:n=N/p:n=bj,wp=m/h:nxb=6,xl=0,xh=6
+        - f:n=N/p:n=bj,wp=t/h:nxb=6,xl=0,xh=6
+        - f:n=N/p:n=bsj,wp=l/h:nxb=6,xl=0,xh=6
+        - f:n=N/p:n=bsj,wp=m/h:nxb=6,xl=0,xh=6
+        - f:n=N/p:n=bsj,wp=t/h:nxb=6,xl=0,xh=6
+        - f:n=Pt/p:n=j,i=1/h:nxb=20,xl=30,xh=300
+        - f:n=Pt/p:n=j,i=2/h:nxb=20,xl=30,xh=300
+        - f:n=Pt/p:n=met/h:nxb=20,xl=0,xh=200
+        - f:n=HT/h:nxb=20,xl=30,xh=700
 
-    mu4j:
-        - pt_mu1
-        - phi_mu1
-        - eta_mu1
-        - pt_j1
-        - phi_j1
-        - eta_j1
-        - pt_j2
-        - phi_j2
-        - eta_j2
+    EleIncl:
+        - f:n=Pt/p:n=e,i=1,wp=m/h:nxb=20,xl=20,xh=200
 
-    e4j:
-        - pt_e1
-        - phi_e1
-        - eta_e1
-        - pt_j1
-        - phi_j1
-        - eta_j1
-        - pt_j2
-        - phi_j2
-        - eta_j2
+    MuonIncl:
+        - f:n=Pt/p:n=mu,i=1,wp=m/h:nxb=20,xl=20,xh=200
 
-    e2j1fj:
-        - pt_e1
-        - phi_e1
-        - eta_e1
-        - pt_j1
-        - phi_j1
-        - eta_j1
-        - pt_j2
-        - phi_j2
-        - eta_j2
-        - pt_fj1
-        - phi_fj1
-        - eta_fj1
-
-    mu2j1fj:
-        - pt_mu1
-        - phi_mu1
-        - eta_mu1
-        - pt_j1
-        - phi_j1
-        - eta_j1
-        - pt_j2
-        - phi_j2
-        - eta_j2
-        - pt_fj1
-        - phi_fj1
-        - eta_fj1
-
-    e2fj:
-        - pt_e1
-        - phi_e1
-        - eta_e1
-        - pt_fj1
-        - phi_fj1
-        - eta_fj1
-        - pt_fj2
-        - phi_fj2
-        - eta_fj2
-
-
-    mu2fj:
-        - pt_fj1
-        - phi_fj1
-        - eta_fj1
-        - pt_fj2
-        - phi_fj2
-        - eta_fj2
- 
 cuts:
-    mu4j:
-        - N_0_mu_==_1
-        - N_1_e_==_0
-        - N_j_beq_4
+    EleIncl:
+       # - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
+       # - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=30
+        - f:n=N/p:n=e,wp=m/c:n=equal,v=1
 
-    e4j:
-        - N_1_e_==_1
-        - N_0_mu_==_0
-        - N_j_beq_4
-
-    mu2j1fj:
-        - N_0_mu_==_1
-        - N_1_e_==_0
-        - N_j_beq_2
-
-    e2j1fj:
-        - N_1_e_==_1
-        - N_0_mu_==_0
-        - N_j_beq_2
-
-    mu2fj:
-        - N_0_mu_==_1
-        - N_1_e_==_0
-
-    e2fj:
-        - N_1_e_==_1
-        - N_0_mu_==_0
+    MuonIncl:
+        - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
+       # - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=25
+       # - f:n=N/p:n=e,wp=m/c:n=equal,v=0
