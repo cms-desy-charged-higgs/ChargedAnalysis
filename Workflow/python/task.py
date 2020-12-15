@@ -12,9 +12,6 @@ class Task(dict, object):
         self["status"] = "None"
         self["run-mode"] = "Local"
 
-        if "display-name" not in self:
-            self["display-name"] = self["name"]
-
         ##Update config
         self.update(config)
 
@@ -60,7 +57,7 @@ class Task(dict, object):
         with open("{}/task.yaml".format(self["dir"]), "w") as task:
             yaml.dump(dict(self), task, default_flow_style=False)
 
-    def __call__(self):
+    def run(self):
         ##Set niceness super high
         os.nice(19)
 
