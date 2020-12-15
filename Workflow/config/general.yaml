@@ -13,7 +13,32 @@ scale-systs:
 cuts:
     all: []
 
-data: {}
-
 y-parameters:
     all: []
+
+data:
+    Ele4J: 
+        - SingleE
+
+    Ele2J1FJ: 
+        - SingleE
+
+    Ele2FJ: 
+        - SingleE
+
+    Muon4J: 
+        - SingleMu
+
+    Muon2J1FJ: 
+        - SingleMu
+
+    Muon2FJ: 
+        - SingleMu
+
+clean-jet:
+    Ele4J: e/m
+    Ele2J1FJ: e/m
+    Ele2FJ: e/m
+    Muon4J: mu/m
+    Muon2J1FJ: mu/m
+    Muon2FJ: mu/m
