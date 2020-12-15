@@ -2,6 +2,7 @@ import time
 import os
 import copy
 import subprocess
+import csv
 
 from taskmonitor import TaskMonitor
 
@@ -9,7 +10,7 @@ import multiprocessing as mp
 from collections import deque
 
 class TaskManager(object):
-    def __init__(self, tasks, dir = ""):
+    def __init__(self, tasks, dir = "", condorSub = "$CHDIR/ChargedAnalysis/Workflow/templates/tasks.sub"):
         self.time = time.time()
         self._tasks = {t["name"]: t for t in tasks}
         
@@ -22,13 +23,24 @@ class TaskManager(object):
             
         self.dir = dir if dir else "Tasks/{}".format(time.asctime().replace(" ", "_").replace(":", "_"))
         os.makedirs(self.dir)
+
+        self.condorSub = condorSub
         
         self.monitor = TaskMonitor(len(tasks))
         
         self.remove = []
         self.runningTasks = {}
         self.status = {}
-        
+
+        ##Write summary to csv file
+        self.summary = csv.DictWriter(open("{}/summary.csv".format(self.dir), "w"), fieldnames = ["Task", "Dir", "Status"])
+        self.summary.writeheader()
+
+    def __del__(self):
+        ##Write remaining jobs in case of failure
+        for t in self._tasks.values():
+            self.summary.writerow({"Task": t["name"], "Dir": t["dir"], "Status": t["status"]})
+
     def __changeStatus(self, task, status, runType):
         if task["status"] != "None":
             ##Decrement number of old status
@@ -61,12 +73,12 @@ class TaskManager(object):
         
     def __getJobs(self):
         pool = mp.Pool(processes=20)
-        condorSubmit = "condor_submit tasks.sub -batch-name TaskManager -queue DIR in "
+        condorSubmit = "condor_submit {} -batch-name TaskManager -queue DIR in ".format(self.condorSub)
         
         while(self._tasks):
             for name, task in self._tasks.items():
                 ##Ignore if running task
-                if task["status"] == "Running":
+                if task["status"] == "Running" or task["status"] == "Finished":
                     continue
             
                 ##Check if dependencies all finished and if no circular dependency
@@ -82,7 +94,8 @@ class TaskManager(object):
                 
                 ##Local job configuration
                 if task["run-mode"] == "Local":
-                    task.job = pool.apply_async(copy.deepcopy(task))
+                    task.job = pool.apply_async(copy.deepcopy(task.run))
+
                     self.__changeStatus(task, "Running", "Local")
                     self.runningTasks.setdefault("Local", deque()).append(task)
                     
@@ -107,7 +120,8 @@ class TaskManager(object):
                 
             ##Remove finished jobs
             while(self.remove):
-                self._tasks.pop(self.remove.pop())
+                t = self._tasks.pop(self.remove.pop())
+                self.summary.writerow({"Task": t["name"], "Dir": t["dir"], "Status": t["status"]})
                 
     def run(self, dryRun = False):
         ##Create directories/executable etc.
