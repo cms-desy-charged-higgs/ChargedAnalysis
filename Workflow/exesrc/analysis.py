@@ -1,28 +1,7 @@
 #!/usr/bin/env python3
 
 from taskmanager import TaskManager
-
-from treeread import TreeRead
-from treeslim import TreeSlim
-from treeappend import TreeAppend
-
-from estimate import Estimate
-
-from plot import Plot
-from plotlimit import PlotLimit
-from plotpostfit import PlotPostfit
-
-from datacard import Datacard
-from combineCards import CombineCards
-from limit import Limit
-
-from dnn import DNN
-from htagger import HTagger
-
-from mergeskim import MergeSkim
-from merge import Merge
-
-from dcache import DCache
+from configuration import *
 
 import os
 import argparse
@@ -66,123 +45,18 @@ def taskReturner(taskName, era, **kwargs):
 
     return tasks[taskName]
 
-def append(config):
-    allTasks = []
-    dCacheTasks = []
-
-    for era in config["era"]:
-        for channel in config["channels"]:
-            allTasks.extend(TreeAppend.configure(config, channel, era))
-
-    if "dCache"  in config:
-        dCacheTasks = DCache.configure(config, allTasks)
-
-    return allTasks + dCacheTasks 
-
-def dnn(config):
-    allTasks = []
-
-    for era in config["era"]:
-        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
-            c = copy.deepcopy(config)
-            c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-
-            dnnTask = DNN.configure(c, evType, config["masses"], era)
-            allTasks.extend(dnnTask)
-
-    return allTasks
-
-def htagger(config):
-    allTasks = []
-
-    for era in config["era"]:
-        for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
-            c = copy.deepcopy(config)
-            c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
-
-            dnnTask = HTagger.configure(c, evType, era)
-            allTasks.extend(dnnTask)
-
-    return allTasks    
-            
-def limit(config):
-    allTasks = []
-    cardTasks = []
-
-    for era in config["era"]:
-        for channel in config["channels"]:
-            conf = copy.deepcopy(config)
-            conf["parameters"][channel] = [param.replace("[MHC]", str(mHC)) for param in config["parameters"][channel] for mHC in conf["charged-masses"]]
-            conf["processes"] = conf["backgrounds"] + [config["signal"].replace("[MHC]", str(mHC)).replace("[MH]", str(mh)) for mHC in conf["charged-masses"] for mh in conf["neutral-masses"]]
-
-            if conf["data"]:
-                conf["processes"] += [conf["data"]["channel"]]
-
-            treeTasks = TreeRead.configure(conf, channel, era) 
-            haddTasks = Merge.configure(conf, treeTasks, "plot", era = era, channel = channel)
-            datacardTasks = Datacard.configure(conf, channel, era, haddTasks)
-            limitTasks = Limit.configure(conf, channel, era, datacardTasks)
-    
-            cardTasks.extend(datacardTasks)
-            allTasks.extend(treeTasks+haddTasks+datacardTasks+limitTasks)
-
-    combinedCardsTask = CombineCards.configure(config, cardTasks)
-    for era in config["era"]:
-        allTasks.extend(Limit.configure(conf, "Combined", era, combinedCardsTask))
-    allTasks.extend(Limit.configure(conf, "Combined", "RunII", combinedCardsTask))
-    allTasks.extend(PlotLimit.configure(config, allTasks))
-
-    return allTasks + combinedCardsTask
-
-def slim(config):
-    slimTasks = TreeSlim.configure(config)
-    mergeTasks = Merge.configure(config, slimTasks, "slim")
-    dCacheTasks = DCache.configure(config, mergeTasks)
-
-    return slimTasks + mergeTasks + dCacheTasks
-
-def merge(config):
-    mergeTasks = MergeSkim.configure(config)
-    dCacheTasks = []
-
-    if "dCache"  in config:
-        dCacheTasks = DCache.configure(config, [task for task in mergeTasks if not "tmp" in task["dir"]])
-
-    return mergeTasks + dCacheTasks
-    
-def estimate(config):
-    allTasks = []
-
-    for era in config["era"]:
-        for channel in config["channels"]:
-            haddTasks = [] 
-        
-            for process in config["estimate-process"]:
-                c = copy.deepcopy(config)
-                c["dir"] = "{}/{}-Region".format(config["dir"], process)
-                c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
-                
-                treeTasks = TreeRead.configure(c, channel, era, prefix=process)
-                haddTasks.extend(Merge.configure(c, treeTasks, "plot", era = era, channel = channel, prefix=process))
-                allTasks.extend(treeTasks)
-                
-            estimateTasks = Estimate.configure(config, haddTasks, era = era, channel = channel)
-            allTasks.extend(haddTasks + estimateTasks)
-   
-    return allTasks
-
 def plot(config):
-    allTasks = []
+    tasks = []
 
-    for era in config["era"]:
-        for channel in config["channels"]:
-            treeTasks = TreeRead.configure(config, channel, era)
-            haddTasks = Merge.configure(config, treeTasks, "plot", era = era, channel = channel)
-            histTasks = Plot.configure(config, haddTasks, channel, era)
+    for channel in config["channels"]:
+        for era in config["era"]:
+            for process in config["processes"]:
+                for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+                    for shift in ["Up", "Down"]:
+                        treeread(tasks, config, channel, era, process, syst, shift)
+                        mergeHists(tasks, config, channel, era, process, syst, shift)
 
-            allTasks.extend(treeTasks+haddTasks+histTasks)
-
-    return allTasks
+    return tasks
 
 def main():
     args = parser()
@@ -191,9 +65,8 @@ def main():
     tasks = taskReturner(args.task, args.era, config=args.config)()
 
     ##Run the manager
-    with TaskManager(args.check_output, args.no_http) as manager:
-        manager.tasks = tasks
-        manager.run()
+    manager = TaskManager(tasks)
+    manager.run()
 
 if __name__=="__main__":
     main()
