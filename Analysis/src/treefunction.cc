@@ -20,7 +20,7 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
         {"HTag", {&TreeFunction::HTag, "Higgs score(@)"}},
         {"DAK8", {&TreeFunction::DeepAK, "DeepAK8 score(@)"}},
         {"DAK8C", {&TreeFunction::DeepAKClass, "DeepAK8 class"}},
-        {"DNN", {&TreeFunction::DNN, "DNN score(m_{H^{#pm}} = @ GeV)"}},
+        {"DNN", {&TreeFunction::DNN, "DNN score @ (m_{H^{#pm}} = @ GeV)"}},
         {"DNNC", {&TreeFunction::DNNClass, "DNN class (m_{H^{#pm}} = @ GeV)"}},
     };
 
@@ -371,7 +371,11 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
     if(inputValue != ""){
         if(!StrUtil::Find(axisLabel, "@").empty()){
-            axisLabel = StrUtil::Replace(axisLabel, "@", inputValue);   
+            if(funcName == "DNN"){
+                axisLabel = StrUtil::Replace(axisLabel, "@", inputValue.substr(0, inputValue.size() - 3), inputValue.substr(inputValue.size() - 3, inputValue.size()));  
+            }
+
+            else axisLabel = StrUtil::Replace(axisLabel, "@", inputValue);   
         }
     }
 
