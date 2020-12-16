@@ -1,16 +1,16 @@
 channels:
     - Muon2FJ
-    - Ele2FJ
-    - Muon2J1FJ
-    - Ele2J1FJ
-    - Ele4J
-    - Muon4J
+   # - Ele2FJ
+   # - Muon2J1FJ
+   # - Ele2J1FJ
+   # - Ele4J
+   # - Muon4J
     
 run-mode: Local
 
 skim-dir: Skim/Channels/[C]/[E]
 
-dir: BkgEstimation/[C]/[E]
+dir: BkgEstimation/[C]/[E]/Tight/[MHC]
 
 processes:
     - WJ
@@ -21,6 +21,13 @@ processes:
     - VV 
     - T
     - QCD
+
+charged-masses:
+    - 200
+    - 300
+    - 400 
+    - 500
+    - 600
     
 data:
     Ele4J: 
@@ -58,7 +65,7 @@ parameters:
 estimate-process:
     TT1L:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=1
+            - f:n=DNNC,v=[MHC]/c:n=equal,v=1
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -78,6 +85,10 @@ estimate-process:
             - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
             - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
             - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=1/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=2/c:n=equal,v=0
+            - f:n=DAK8,v=QCD/p:n=fj,i=1/c:n=smaller,v=0.1
+            - f:n=DAK8,v=QCD/p:n=fj,i=2/c:n=smaller,v=0.1
 
         Ele2FJ:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -100,7 +111,7 @@ estimate-process:
             
     TT2L:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=2
+            - f:n=DNNC,v=[MHC]/c:n=equal,v=2
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -120,11 +131,15 @@ estimate-process:
             - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
             - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
             - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=1/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=2/c:n=equal,v=0
 
         Ele2FJ:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
             - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
             - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
+            - f:n=DAK8,v=QCD/p:n=fj,i=1/c:n=smaller,v=0.1
+            - f:n=DAK8,v=QCD/p:n=fj,i=2/c:n=smaller,v=0.1
 
         Ele2J1FJ:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -142,7 +157,7 @@ estimate-process:
    
     Misc:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=3
+            - f:n=DNNC,v=[MHC]/c:n=equal,v=3
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -162,6 +177,10 @@ estimate-process:
             - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
             - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
             - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=1/c:n=equal,v=0
+            - f:n=DAK8C/p:n=fj,i=2/c:n=equal,v=0
+            - f:n=DAK8,v=QCD/p:n=fj,i=1/c:n=smaller,v=0.1
+            - f:n=DAK8,v=QCD/p:n=fj,i=2/c:n=smaller,v=0.1
 
         Ele2FJ:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1

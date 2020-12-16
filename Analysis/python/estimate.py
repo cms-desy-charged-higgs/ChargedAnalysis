@@ -27,12 +27,12 @@ class Estimate(Task):
         self["output"] = ["{}/{}.pdf".format(self["dir"], "kappa")]
 
     @staticmethod
-    def configure(config, haddTasks, channel, era):
-        outDir = os.environ["CHDIR"] + "/" + config["dir"].replace("[E]", era).replace("[C]", channel)
+    def configure(config, haddTasks, channel, era, mass):
+        outDir = os.environ["CHDIR"] + "/" + config["dir"].replace("[E]", era).replace("[C]", channel).replace("[MHC]", mass)
         data = config["data"][channel][0]
     
         task = {
-                "name": "Estimate_{}_{}".format(channel, era),
+                "name": "Estimate_{}_{}_{}".format(channel, era, mass),
                 "processes": list(config["estimate-process"].keys()),
                 "parameter": config["parameter"],
                 "dependencies": [t["name"] for t in haddTasks],
@@ -40,7 +40,7 @@ class Estimate(Task):
         }
           
         for process in config["estimate-process"].keys():
-            fileNames = ["{}/{}".format(t["dir"], t["out-name"]) for t in haddTasks if "{}-Region".format(process) in t["dir"]]
+            fileNames = ["{}/{}".format(t["dir"], t["out-name"]) for t in haddTasks if "{}-Region".format(process) in t["dir"] and mass in t["dir"]]
                   
             for p in reversed(config["estimate-process"]):
                 for idx, f in enumerate(fileNames):

@@ -155,19 +155,21 @@ def estimate(config):
 
     for era in config["era"]:
         for channel in config["channels"]:
-            haddTasks = [] 
-        
-            for process in config["estimate-process"]:
-                c = copy.deepcopy(config)
-                c["dir"] = "{}/{}-Region".format(config["dir"], process)
-                c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
-                
-                treeTasks = TreeRead.configure(c, channel, era, prefix=process)
-                haddTasks.extend(Merge.configure(c, treeTasks, "plot", era = era, channel = channel, prefix=process))
-                allTasks.extend(treeTasks)
-                
-            estimateTasks = Estimate.configure(config, haddTasks, era = era, channel = channel)
-            allTasks.extend(haddTasks + estimateTasks)
+            for mass in config["charged-masses"]:
+                haddTasks = [] 
+            
+                for process in config["estimate-process"]:
+                    c = copy.deepcopy(config)
+                    c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("[MHC]", str(mass))
+                    c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
+                    c["cuts"] = {key: [cut.replace("[MHC]", str(mass)) for cut in c["cuts"][key]] for key in c["cuts"]}
+                    
+                    treeTasks = TreeRead.configure(c, channel, era, prefix=process + str(mass))
+                    haddTasks.extend(Merge.configure(c, treeTasks, "plot", era = era, channel = channel, prefix=process + str(mass)))
+                    allTasks.extend(treeTasks)
+                    
+                estimateTasks = Estimate.configure(config, haddTasks, era = era, channel = channel, mass = str(mass))
+                allTasks.extend(haddTasks + estimateTasks)
    
     return allTasks
 
