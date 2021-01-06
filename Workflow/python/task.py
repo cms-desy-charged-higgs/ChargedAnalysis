@@ -55,7 +55,7 @@ class Task(dict, object):
 
         ##Dump self config in yaml format
         with open("{}/task.yaml".format(self["dir"]), "w") as task:
-            yaml.dump(dict(self), task, default_flow_style=False)
+            yaml.dump(dict(self), task, default_flow_style=False, indent=4)
 
     def run(self):
         ##Set niceness super high
