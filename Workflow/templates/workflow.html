@@ -97,7 +97,7 @@
 
                             let line = document.createElementNS('http://www.w3.org/2000/svg','line');
                             line.setAttribute('x1', parseInt(obj.style.left) + parseInt(obj.clientWidth) + "px");
-                            line.setAttribute('x2', parseInt(obj.style.left) + columnMargin + "px");
+                            line.setAttribute('x2', parseInt(obj.style.left) + (column - obj.getAttribute("column"))*columnMargin + "px");
                             line.setAttribute('y1', parseInt(obj.style.top) + obj.clientHeight/2. + "px");
                             line.setAttribute('y2', 0.5*rowMargin + rows[column]*rowMargin + "px");
                             line.setAttribute("stroke", 'black');
@@ -121,11 +121,6 @@
         <svg id="lines">
         </svg>
 
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="l", dependent=''></div>
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="m", dependent=''></div>
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="a", dependent=''></div>
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="n", dependent="l,m,a"></div>
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="d", dependent="n"></div>
-        <div class='task' data='{"Hello":"World"}' onmouseover='show(this)' id="e", dependent="d,l,a"></div>
+        <div class='task' data='{data}' onmouseover='show(this)' id="{id}", dependent='{dependent}'></div>
     </body>
 </html>
