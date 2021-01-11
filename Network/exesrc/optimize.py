@@ -13,6 +13,7 @@ from multiprocessing import Pool, cpu_count
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--dir", type=str, action="store", required = True, help="Dir with DNN information")
+    parser.add_argument("--out-dir", type=str, action="store", required = True, help="Output dir to save csv")
     parser.add_argument("--channels", type=str, nargs = "+", required = True, help="Channel name")
     parser.add_argument("--era", type=str, nargs = "+", required = True, help="Era")
     parser.add_argument("--type", type=str, action="store", required = True, choices = ["DNN", "HTag"], help="Which DNN to optimize")
@@ -122,8 +123,8 @@ def main():
 
         for era in args.era:
             for channel in args.channels:
-                outDir = "{}/HyperOpt/{}/{}".format(args.dir, channel, era)
-                oldExe = "{}/Even/{}/{}/run.sh".format(args.dir, channel, era)
+                outDir = "{}/{}/{}".format(args.out_dir, channel, era)
+                oldExe = "{}/{}/{}/Even/run.sh".format(args.dir, channel, era)
                 
                 jobDirs, params = prepareJobs(oldExe, hyperParam)
                 jobs.append(pool.apply_async(optimize, args = (outDir, jobDirs, params)))
@@ -143,7 +144,7 @@ def main():
                 "n-kernelsize": [np.random.randint, (2, 200)],
         }
 
-        outDir = "{}/HyperOpt".format(args.dir)
+        outDir = "{}".format(args.out_dir)
         oldExe = "{}/Even/{}/run.sh".format(args.dir, args.era)
 
         optimize(hyperParam, outDir, oldExe)
