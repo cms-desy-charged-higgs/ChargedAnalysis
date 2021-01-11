@@ -9,7 +9,7 @@ int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
 
-    std::string fileName = parser.GetValue<std::string>("file-name");
+    std::string fileName = parser.GetValue<std::string>("out-file");
     std::string treeName = parser.GetValue<std::string>("tree-name");
     int era = parser.GetValue<int>("era");
     std::vector<std::string> functions = parser.GetVector<std::string>("functions");
