@@ -15,29 +15,26 @@
 #include <Rtypes.h>
 
 #include <ChargedAnalysis/Analysis/include/plotter.h>
-#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/rootutil.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 
 class Plotter1D : public Plotter{
-    
     private:
-        std::map<std::string, std::vector<TH1F*>> background;
-        std::map<std::string, std::vector<TH1F*>> signal;
-        std::map<std::string, TH1F*> data;
-        std::map<std::string, TH1F*> bkgSum;
+        std::map<std::string, std::vector<std::shared_ptr<TH1F>>> background, signal;
+        std::map<std::string, std::shared_ptr<TH1F>> data, bkgSum;
 
         std::vector<std::string> parameters;
 
-        std::string channel;
-        std::vector<std::string> processes;
-        std::string era; 
+        std::string channel, era;
+        std::vector<std::string> bkgProcesses, bkgFiles, sigProcesses, sigFiles;
+        std::string dataProcess, dataFile;
 
 
     public:
         Plotter1D();
-        Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era);
+        Plotter1D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::vector<std::string>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::vector<std::string>& sigFiles, const std::string& data, const std::string& dataFile);
         void ConfigureHists();
-        void Draw(std::vector<std::string> &outdirs);
-        
+        void Draw(std::vector<std::string> &outdirs);   
 };
 
 #endif
