@@ -86,7 +86,7 @@ def mergeHists(tasks, config, channel, era, process, syst, shift, postFix = ""):
 
     systName = "{}{}".format(syst, shift) if syst != "" else ""
 
-    outDir = config["dir"].format_map(dd(str, {"D": "Plots", "C": channel, "E": era})) + "/{}/{}/merged".format(process, systName)
+    outDir = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era})) + "/{}/{}/merged".format(process, systName)
 
     for t in tasks:
         if "TreeRead_{}_{}_{}_{}".format(channel, era, process, systName) in t["name"]:
@@ -204,6 +204,41 @@ def sendToDCache(config, tasks, removePrefix, postFix = ""):
 
         tasks.append(Task(task, "--"))
 
+def bkgEstimation(config, tasks, channel, era, mass, postFix = ""):
+    outDir = config["dir"].format_map(dd(str, {"D": "ScaleFactor", "C": channel, "E": era, "MHC": mass}))
+    data = config["data"][channel][0]
+
+    depTasks = [t for t in tasks if "MergeHists_{}_{}".format(channel, era) in t["name"]]
+
+    task = {
+        "name": "Estimate_{}_{}_{}".format(channel, era, mass, postFix),
+        "dir": outDir,
+        "executable": "estimate",
+        "dependencies": [t["name"] for t in depTasks],
+        "arguments": {
+            "out-dir": outDir,
+            "processes": list(config["estimate-process"].keys()),
+            "parameter": config["parameter"],
+        }
+    }
+          
+    for process in config["estimate-process"].keys():
+        fileNames = [t["arguments"]["out-file"] for t in depTasks if "{}-Region".format(process) in t["dir"]]
+                  
+        for p in reversed(config["estimate-process"]):
+            for idx, f in enumerate(fileNames):
+                if p in f.split("/")[-1]:
+                    fileNames.pop(idx)
+                    fileNames.insert(0, f)
+                        
+                elif data in f.split("/")[-1]:
+                    dataFile = fileNames.pop(idx)
+                        
+        task["arguments"]["{}-bkg-files".format(process)] = fileNames
+        task["arguments"]["{}-data-file".format(process)] = dataFile
+
+    tasks.append(Task(task, "--"))
+
 def DNN(tasks, config, channel, era, evType, postFix = ""):
     processes = yaml.safe_load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"))
 
@@ -228,7 +263,7 @@ def DNN(tasks, config, channel, era, evType, postFix = ""):
     os.makedirs(outDir, exist_ok=True)
 
     with open(outDir + "/parameter.txt", "w") as param:
-        for parameter in config["parameters"]:
+        for parameter in config["parameters"].get("all", []) + config["parameters"].get(channel, []):
             param.write(parameter + "\n")
                 
     with open(outDir + "/classes.txt", "w") as param:

@@ -10,6 +10,8 @@ import copy
 import sys
 import numpy
 
+from collections import defaultdict as dd
+
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate"])
@@ -39,9 +41,9 @@ def plot(config):
 
     for channel in config["channels"]:
         for era in config["era"]:
-            processes = sorted(config["processes"] + config.get("data", {}).get("channel", []))
+            processes = sorted(config["processes"] + config.get("data", {}).get(channel, []))
 
-            for process in config["processes"]:
+            for process in processes:
                 for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
                     for shift in ["Up", "Down"]:
                         treeread(tasks, config, channel, era, process, syst, shift)
@@ -79,6 +81,26 @@ def append(config):
 
     sendToDCache(config, tasks, os.environ["CHDIR"])
     
+    return tasks
+
+def estimate(config):
+    tasks = []
+
+    for channel in config["channels"]:
+        for era in config["era"]:
+            for mass in config["charged-masses"]:
+                for process in config["estimate-process"]:
+                    c = copy.deepcopy(config)
+                    c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("{MHC}", mass)
+                    c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
+                    c["cuts"] = {key: [cut.format_map(dd(str, {"MHC": mass})) for cut in c["cuts"][key]] for key in c["cuts"]}
+                                        
+                    for procc in config["processes"] + config["data"][channel]:
+                        treeread(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
+                        mergeHists(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
+                        
+                bkgEstimation(config, tasks, channel, era, str(mass))
+
     return tasks
 
 def main():
