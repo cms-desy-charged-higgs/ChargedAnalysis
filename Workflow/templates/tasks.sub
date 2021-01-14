@@ -1,0 +1,6 @@
+universe = vanilla
+executable = $(DIR)/run.sh
+getenv = True
+log = $(DIR)/log.txt
+error = $(DIR)/err.txt
+output = $(DIR)/out.txt

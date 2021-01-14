@@ -19,7 +19,6 @@ struct DNNModel : torch::nn::Module{
         //Output layer
         torch::nn::BatchNorm1d outNormLayer{nullptr};
         torch::nn::Linear outLayer{nullptr};
-        torch::nn::LogSoftmax softLayer{nullptr};
 
         //Other stuff
         int nInput;

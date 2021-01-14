@@ -2,67 +2,77 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(std::string &histdir, std::string &channel, std::vector<std::string> &processes, const std::string& era) :
-    Plotter(histdir), 
-    channel(channel),
-    processes(processes),
-    era(era){}
+Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::vector<std::string>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::vector<std::string>& sigFiles, const std::string& data, const std::string& dataFile) :
+    Plotter(), 
+    channel(channel), 
+    era(era), 
+    bkgProcesses(bkgProcesses), 
+    bkgFiles(bkgFiles), 
+    sigProcesses(sigProcesses), 
+    sigFiles(sigFiles), 
+    dataProcess(data), 
+    dataFile(dataFile){}
 
 void Plotter1D::ConfigureHists(){
-    for(std::string process: processes){
-        std::string fileName = histdir + "/" + process + "/merged/" + process + ".root";
-        TFile* file = TFile::Open(fileName.c_str());
+    //Read out parameter
+    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles, bkgFiles).at(0));
 
-        std::cout << "Read histograms from file: '" + fileName + "'" << std::endl;
-
-        if(parameters.empty()){
-            for(int i = 0; i < file->GetListOfKeys()->GetSize(); i++){
-                if(file->Get(file->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH1F::Class())){
-                    parameters.push_back(file->GetListOfKeys()->At(i)->GetName());  
-                }
-            }
+    for(int i = 0; i < f->GetListOfKeys()->GetSize(); ++i){
+        if(f->Get(f->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH1F::Class())){
+            parameters.push_back(f->GetListOfKeys()->At(i)->GetName());  
         }
+    }
+
+    for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
+        std::shared_ptr<TFile> file = RUtil::Open(bkgFiles.at(i));
 
         for(std::string& param: parameters){
-            TH1F* hist = file->Get<TH1F>(param.c_str());
-  
-            if(hist == nullptr){
-                throw std::runtime_error("Did not found histogram '" + param + "' in file '" + fileName + "'");
-            }
+            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
-            //Data configuration
-            if(Utils::Find<std::string>(process, "Single") != -1. or Utils::Find<std::string>(process, "JetHT") != -1.){
-                hist->SetMarkerStyle(20);
-                hist->SetName("data");
+            //Set Style
+            hist->SetFillStyle(1001);
+            hist->SetFillColor(colors.at(bkgProcesses.at(i)));
+            hist->SetLineColor(colors.at(bkgProcesses.at(i)));
+            hist->SetName(bkgProcesses.at(i).c_str());
+            hist->SetDirectory(0);
 
-                data[param] = hist;
-            }
+            background[param].push_back(hist);
 
-            //Signal configuration
-            else if(Utils::Find<std::string>(process, "HPlus") != -1.){
-                hist->SetLineWidth(1 + 3*signal[param].size());
-                hist->SetLineColor(kBlack);
-
-                std::vector<std::string> massStrings = Utils::SplitString<std::string>(process, "_");
-
-                hist->SetName(("H^{#pm}_{" + massStrings[0].substr(5,7)
- + "}+h_{" + massStrings[1].substr(1,3) + "}").c_str());
-
-                signal[param].push_back(hist);
-            }
-
-            //Background configuration
+            //Total bkg sum
+            if(bkgSum.count(param)) bkgSum[param]->Add(hist.get());
             else{
-                hist->SetFillStyle(1001);
-                hist->SetFillColor(colors.at(process));
-                hist->SetLineColor(colors.at(process));
-                hist->SetName(process.c_str());            
-
-                background[param].push_back(hist);
-
-                if(bkgSum.count(param)) bkgSum[param]->Add(hist);
-                else bkgSum[param] = (TH1F*)hist->Clone();
+                bkgSum[param] = RUtil::CloneSmart(hist.get());
+                bkgSum[param]->SetDirectory(0);
             }
+        }
+    }
+
+    for(std::size_t i = 0; i < sigProcesses.size(); ++i){
+        std::shared_ptr<TFile> file = RUtil::Open(sigFiles.at(i));
+
+        for(std::string& param: parameters){
+            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
+
+            hist->SetLineWidth(1 + 3*signal[param].size());
+            hist->SetLineColor(kBlack);
+            hist->SetName(sigProcesses.at(i).c_str());    
+            hist->SetDirectory(0);        
+
+            signal[param].push_back(hist);
+        }
+    }
+
+    if(dataProcess != ""){
+        std::shared_ptr<TFile> file = RUtil::Open(dataFile);
+
+        for(std::string& param: parameters){
+            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
+
+            hist->SetMarkerStyle(20);
+            hist->SetName("data");
+            hist->SetDirectory(0);
+
+            data[param] = hist;
         }
     }
 }
@@ -73,52 +83,51 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
     for(std::string& param: parameters){
         //All canvases/pads
-        TCanvas* canvas = new TCanvas("canvas",  "canvas", 1000, 1000);
-        TPad* mainPad = new TPad("mainPad", "mainPad", 0., 0. , 1., 1.);
+        std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("canvas",  "canvas", 1000, 1000);
+        std::shared_ptr<TPad> mainPad = std::make_shared<TPad>("mainPad", "mainPad", 0., 0. , 1., 1.);
 
         //Draw main pad
-        PUtil::SetPad(mainPad);
+        PUtil::SetPad(mainPad.get());
         mainPad->Draw();
 
         //Sort histograms by integral and fill to HStack
-        THStack* allBkgs = new THStack();
-        TH1F* statUnc;
+        std::shared_ptr<THStack> allBkgs = std::make_shared<THStack>();
+        std::shared_ptr<TH1F> statUnc;
 
         if(background.count(param)){
-            std::sort(background[param].begin(), background[param].end(), [](TH1F* h1, TH1F* h2){return h1->Integral() < h2->Integral();});
+            std::sort(background[param].begin(), background[param].end(), [&](std::shared_ptr<TH1F> h1, std::shared_ptr<TH1F> h2){return h1->Integral() < h2->Integral();});
 
-            for(TH1F* hist: background[param]){allBkgs->Add(hist);}
+            for(std::shared_ptr<TH1F>& hist: background[param]){allBkgs->Add(hist.get());}
 
-            statUnc = (TH1F*)bkgSum[param]->Clone();
+            statUnc = RUtil::CloneSmart(bkgSum[param].get());
             statUnc->SetFillStyle(3354);
             statUnc->SetFillColorAlpha(kBlack, 0.8);
             statUnc->SetMarkerColor(kBlack);
         }
 
         //Rerverse sort histograms by integral and fill to Legend
-        TLegend* legend = new TLegend(0., 0., 1, 1);
+        std::shared_ptr<TLegend> legend = std::make_shared<TLegend>(0., 0., 1, 1);
 
-        if(data.count(param)) legend->AddEntry(data[param], data[param]->GetName(), "EP");
+        if(data.count(param)) legend->AddEntry(data[param].get(), data[param]->GetName(), "EP");
 
         if(background.count(param)){
-            std::sort(background[param].begin(), background[param].end(), [](TH1F* h1, TH1F* h2){return h1->Integral() > h2->Integral();});
-            for(TH1F* hist: background[param]){legend->AddEntry(hist, hist->GetName(), "F");}
-            legend->AddEntry(statUnc, "Stat. unc.", "F");
+            std::sort(background[param].begin(), background[param].end(), [&](std::shared_ptr<TH1F> h1, std::shared_ptr<TH1F> h2){return h1->Integral() > h2->Integral();});
+            for(std::shared_ptr<TH1F>& hist: background[param]){legend->AddEntry(hist.get(), hist->GetName(), "F");}
+            legend->AddEntry(statUnc.get(), "Stat. unc.", "F");
         }
 
         if(signal.count(param)){
-            for(TH1F* hist: signal[param]){legend->AddEntry(hist, hist->GetName(), "L");}
+            for(std::shared_ptr<TH1F>& hist: signal[param]){legend->AddEntry(hist.get(), hist->GetName(), "L");}
         }
 
         //Frame hist
-        TH1F* frame = bkgSum.count(param) ? (TH1F*)bkgSum[param]->Clone() : data.count(param) ? (TH1F*)data[param]->Clone() :
-        (TH1F*)signal[param][0]->Clone();
+        std::shared_ptr<TH1F> frame = bkgSum.count(param) ? RUtil::CloneSmart(bkgSum[param].get()) : data.count(param) ? RUtil::CloneSmart(data[param].get()) : RUtil::CloneSmart(signal[param][0].get());
         frame->Reset();
-        PUtil::SetHist(mainPad, frame, "Events");
+        PUtil::SetHist(mainPad.get(), frame.get(), "Events");
 
         //Draw ratio
         if(bkgSum.count(param) and data.count(param)){
-            PUtil::DrawRatio(canvas, mainPad, data[param], bkgSum[param], "Data/Pred");
+            PUtil::DrawRatio(canvas.get(), mainPad.get(), data[param].get(), bkgSum[param].get(), "Data/Pred");
         }
 
         for(int isLog=0; isLog < 2; isLog++){
@@ -132,7 +141,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             frame->Draw();
 
             //Draw Title
-            PUtil::DrawHeader(mainPad, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
+            PUtil::DrawHeader(mainPad.get(), PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
             //Draw data and MC
             if(background.count(param)){
@@ -143,14 +152,14 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             if(data.count(param)) data[param]->Draw("E SAME");
 
             if(signal.count(param)){
-                for(TH1F* hist: signal[param]){hist->Draw("HIST SAME");}
+                for(std::shared_ptr<TH1F>& hist: signal[param]){hist->Draw("HIST SAME");}
             }
 
             //Redraw axis
             gPad->RedrawAxis();
 
             //Draw Legend
-            PUtil::DrawLegend(mainPad, legend, 5);
+            PUtil::DrawLegend(mainPad.get(), legend.get(), 5);
 
             //Save everything
             std::string extension = isLog ? "_log" : "";
@@ -164,15 +173,13 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             }
         }
 
-        delete legend; delete mainPad, delete canvas;
-
         //Draw shape plots if signal is there
         if(signal.count(param) and param != "cutflow"){
-            for(TH1F* hist: signal[param]){
-                TCanvas* c = new TCanvas("canvas",  "canvas", 1000, 1000);
+            for(std::shared_ptr<TH1F>& hist: signal[param]){
+                std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("canvasSig",  "canvasSig", 1000, 1000);
 
-                PUtil::DrawShapes(c, statUnc, hist);
-                PUtil::DrawHeader(c, PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
+                PUtil::DrawShapes(c.get(), statUnc.get(), hist.get());
+                PUtil::DrawHeader(c.get(), PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
                 std::string mass = std::string(hist->GetName()).substr(std::string(hist->GetName()).find("H^{#pm}_{") + 9, 3);
 
@@ -182,8 +189,6 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
                     std::cout << "Saved plot: '" + outdir + "/" + param + "_" + mass + "_shape.pdf'" << std::endl;
                 }
-
-                delete c;
             }
         }
     }

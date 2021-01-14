@@ -8,9 +8,9 @@ channels:
 
 run-mode: Condor
 
-hyper-opt: DNN/Analysis/HyperOpt/[C]/[E]/hyperparameter.csv
+hyper-opt: $CHDIR/Results/DNN/HyperOpt/{C}/{E}/hyperparameter.csv
 
-skim-dir: Skim/Channels/[C]/[E]
+skim-dir: Skim/Channels/{C}/{E}
 
 masses:
     - 200
@@ -26,12 +26,13 @@ classes:
 Misc:
     - DYJ
     - WJ
+    - VV
+    - T 
+    - TTV
 
-signal: HPlus[MHC]_h100_4B
+signal: HPlus{MHC}_h100_4B
 
-is-parametrized: true
-
-dir: DNN/Analysis/[T]/[C]/[E]
+dir: Main/{C}/{E}/{T}
 
 clean-jets:
     Muon4J: mu/m
@@ -47,12 +48,14 @@ cuts:
         - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
         - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
         - f:n=N/p:n=j/c:n=bigger,v=3
+        - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
 
     Ele2J1FJ:
         - f:n=N/p:n=e,wp=m/c:n=equal,v=1
         - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
         - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
         - f:n=N/p:n=j/c:n=bigger,v=1
+        - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
 
     Ele2FJ:
         - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -64,12 +67,14 @@ cuts:
         - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
         - f:n=N/p:n=e,wp=m/c:n=equal,v=0
         - f:n=N/p:n=j/c:n=bigger,v=3
+        - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
 
     Muon2J1FJ:
         - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
         - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
         - f:n=N/p:n=e,wp=m/c:n=equal,v=0
         - f:n=N/p:n=j/c:n=bigger,v=1
+        - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
 
     Muon2FJ:
         - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
@@ -124,6 +129,7 @@ parameters:
         - f:n=Pt/p:n=j,i=4
         - f:n=Phi/p:n=j,i=4
         - f:n=Eta/p:n=j,i=4
+
     Muon2J1FJ:
         - f:n=Pt/p:n=mu,i=1
         - f:n=Phi/p:n=mu,i=1

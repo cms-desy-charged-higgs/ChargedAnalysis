@@ -186,48 +186,51 @@ void PUtil::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
     PUtil::DrawLegend(canvas, l, 2);
 }
 
-void PUtil::DrawConfusion(const std::vector<int>& trueLabel, const std::vector<int>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir){
+void PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir){
     int nClasses = classNames.size();
 
     //Set canvas/hist
     std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("c", "c", 1000, 1000);
     std::shared_ptr<TH2F> confusion = std::make_shared<TH2F>("h", "h", nClasses, 0, nClasses, nClasses, 0, nClasses);
-    
-    //Style stuff
-    PUtil::SetStyle();
-    gStyle->SetPaintTextFormat("4.3f");
-    confusion->SetMarkerSize(2);
-    PUtil::SetPad(canvas.get());
-    PUtil::SetHist(canvas.get(), confusion.get(), "Predicted label");
-    confusion->GetXaxis()->SetTitle("True label");
+    std::shared_ptr<TH2F> confusionNormed = RUtil::CloneSmart<TH2F>(confusion.get());
     
     //Set alphanumeric labels
     for(int i = 0; i < classNames.size(); ++i){
-        confusion->GetXaxis()->SetBinLabel(i + 1, classNames.at(i).c_str()); 
-        confusion->GetYaxis()->SetBinLabel(i + 1, classNames.at(i).c_str()); 
+        confusionNormed->GetXaxis()->SetBinLabel(i + 1, classNames.at(i).c_str()); 
+        confusionNormed->GetYaxis()->SetBinLabel(classNames.size() - i, classNames.at(i).c_str()); 
     }
+
+    //Style stuff
+    PUtil::SetStyle();
+    PUtil::SetPad(canvas.get());
+    PUtil::SetHist(canvas.get(), confusionNormed.get(), "");
+
+    gStyle->SetPaintTextFormat("4.3f");
+    confusionNormed->SetMarkerSize(2);
+    confusionNormed->GetXaxis()->SetTitle("Predicted label");
+    confusionNormed->GetYaxis()->SetTitle("True label");
     
     //Fill confusion matrix
     for(int i = 0; i < trueLabel.size(); ++i){
-        confusion->Fill(trueLabel.at(i), predLabel.at(i));
+        confusion->Fill(predLabel.at(i), trueLabel.at(i));
     }
     
     //Normalize
-    for(int i = 0; i < trueLabel.size(); ++i){
+    for(int i = 0; i < nClasses; ++i){
         float nTotal = 0.;
         
-        for(int j = 0; j < trueLabel.size(); ++j){
-            nTotal += confusion->GetBinContent(i + 1, j + 1);
+        for(int j = 0; j < nClasses; ++j){
+            nTotal += confusion->GetBinContent(j + 1, nClasses - i);
         }
         
-        for(int j = 0; j < trueLabel.size(); ++j){
-            confusion->SetBinContent(i + 1, j + 1, confusion->GetBinContent(i + 1, j + 1)/nTotal);
+        for(int j = 0; j < nClasses; ++j){
+            confusionNormed->SetBinContent(j + 1, i + 1, confusion->GetBinContent(j + 1, nClasses - i)/nTotal);
         }
     }
     
     //Draw and save
-    confusion->Draw("COL");
-    confusion->Draw("TEXT SAME");
+    confusionNormed->Draw("COL");
+    confusionNormed->Draw("TEXT SAME");
     
     canvas->SaveAs((outDir + "/confusion.pdf").c_str());
 }

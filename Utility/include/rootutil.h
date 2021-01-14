@@ -101,6 +101,41 @@ namespace RUtil{
     std::shared_ptr<outType> GetSmart(inType* obj, const std::string& getName, const std::experimental::source_location& location = std::experimental::source_location::current()){
         return std::shared_ptr<outType>(RUtil::Get<outType>(obj, getName, location));
     }
+
+    /**
+    * @brief Clone ROOT object with exception handling
+    *
+    * Example:
+    * @code
+    * TH1F* h2 = RUtil::Clone<TH1F>(h1);
+    * @endcode
+    *
+    * @param obj Object to clone
+    * @param location Standard library object containing the file positions
+    * @return Return shared pointer of wished pointer
+    */
+    template<typename T>
+    T* Clone(T* obj, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        //Check if objects is not null pointer
+        if(obj == nullptr){
+            throw std::runtime_error(StrUtil::PrettyError(location, "Null pointer is given!"));
+        }
+
+        return static_cast<T*>(obj->Clone());
+    }
+    
+
+    /**
+    * @brief Wrapper of the RUtil::Clone function to return shared pointer
+    *
+    * @param obj Object to clone
+    * @param location Standard library object containing the file positions
+    * @return Return shared pointer of wished pointer
+    */
+    template<typename T>
+    std::shared_ptr<T> CloneSmart(T* obj, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        return std::shared_ptr<T>(RUtil::Clone<T>(obj, location));
+    }
     
     /**
     * @brief Get data from given TLeaf with given entry number

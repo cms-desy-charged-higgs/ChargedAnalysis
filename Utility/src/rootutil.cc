@@ -5,12 +5,12 @@ std::shared_ptr<TFile> RUtil::Open(const std::string& fileName, const std::exper
     
     //Check if file is not null pointer
     if(file == nullptr){
-        throw std::runtime_error(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), "ROOT file not existing: ", fileName));
+        throw std::runtime_error(StrUtil::PrettyError(location, "ROOT file not existing: ", fileName));
     }
 
     //Check if file is not zombie
     if(file->IsZombie()){
-        throw std::runtime_error(StrUtil::Merge("In file '", location.file_name(), "' in fuction '", location.function_name(), "' in line ", location.line(), "ROOT file is Zombie: ", fileName));
+        throw std::runtime_error(StrUtil::PrettyError(location, "ROOT file is Zombie: ", fileName));
     }
 
     return file;

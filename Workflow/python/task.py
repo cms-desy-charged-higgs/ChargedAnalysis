@@ -1,125 +1,70 @@
-from abc import ABC, abstractmethod
 import os
+import yaml
+import time
 import subprocess
 
-class Task(ABC, dict):
-    def __init__(self, config = {}):
-        ##Default values
+class Task(dict, object):
+    def __init__(self, config = {}, argPrefix = ""):
+        ##Set default values
         self["name"] = "Task_{}".format(id(self))
-        self["status"] = "VALID"
-        self["dir"] = os.getcwd() + "/"
+        self["dir"] = "Task_{}".format(id(self))
         self["dependencies"] = []
+        self["status"] = "None"
         self["run-mode"] = "Local"
 
-        ##Update with input config
+        ##Update config
         self.update(config)
 
-        ##List with dependent tasks
-        self.dependencies = []
+        ##Argument from constructor
+        self.argPrefix = argPrefix
 
-        ##Depth in the depedency graph
-        self.depth = 0
+        ##Check if all necessary things are provided
+        for arg in ["executable", "arguments"]:
+            if arg not in self:
+                raise RuntimeError("Task is missing crucial information: {}".format(arg))
 
-        ##Number of trys
-        self.tries = 1
+    def prepare(self):
+        ##Create directory of this task
+        os.makedirs(self["dir"], exist_ok = True)
 
-        ##Check if prepare function is already called
-        self.isPrepared = False
-
-        ##Check if working dir should be deleted after execution
-        self.cleanDir = False
-
-        if "display-name" not in self:
-            self["display-name"] = self["name"]
-
-    def __hash__(self):
-        return id(self)
-
-    def __call__(self):
         ##Remove possible old out/err files
         for f in ["out", "log", "err"]:
-            subprocess.run(["command", "rm", "-rf", "{}/{}.txt".format(self["dir"], f)])
+            with open("{}/{}.txt".format(self["dir"], f), "w") as f: 
+                f.write("")
 
-        ##Write shell exucutable with command
-        self.createExe()
-
-        subprocess.run(["chmod", "a+x", "{}/run.sh".format(self["dir"])], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        ##Run locally if wished
-        if self["run-mode"] == "Local":
-            return self.runLocal()
-
-    def runLocal(self):
-        ##Set niceness super high
-        os.nice(19)
-
-        result = subprocess.run("source {}/run.sh".format(self["dir"]), shell = True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        ##Write out out/err
-        with open("{}/out.txt".format(self["dir"]), "w") as out:
-            for line in result.stdout.decode('utf-8'):
-                out.write(line)
-
-        with open("{}/err.txt".format(self["dir"]), "w") as err:
-            for line in result.stderr.decode('utf-8'):
-                err.write(line)
-
-        return result.returncode
-
-    def getDependentFiles(self):
-        ##Loop over all dependecies and save information
-        for task in self.dependencies:
-            if type(task["output"]) == str:
-                self.setdefault("dependent-files", []).append(task["output"])
-
-            else:
-                self.setdefault("dependent-files", []).extend(task["output"])
-
-    def createDir(self):
-        ##Create directory of this task
-        os.makedirs(self["dir"], exist_ok=True)
-
-    def createExe(self):
+        ##Create nice formatted shell script with exe and parser arguments
         with open("{}/run.sh".format(self["dir"]), "w") as exe:
-            exe.write("#!/bin/bash\n")
-            exe.write("source $CHDIR/ChargedAnalysis/setenv.sh Analysis\n\n")
+            exe.write("#!/bin/bash\n\n")
             exe.write("{} \\".format(self["executable"]))
             exe.write("\n")
     
-            for line in self["arguments"]:
-                exe.write("{}{} \\".format(2*" " if "--" in str(line) else 6*" ", line))
+            for arg, values in self["arguments"].items():
+                exe.write("{}{}{} \\".format(2*" ", self.argPrefix, arg))
                 exe.write("\n")
-    
-    def checkOutput(self):
-        self.output()
 
-        ##Check if output already exists
-        if type(self["output"]) == str:
-            return os.path.exists(self["output"])
+                if type(values) == list:
+                    for v in values:
+                        exe.write("{}{} \\".format(6*" ", v))
+                        exe.write("\n")
 
-        else:
-            for output in self["output"]:
-                if not os.path.exists(output):
-                    return False
+                else:
+                    exe.write("{}{} \\".format(6*" ", values))
+                    exe.write("\n")
 
-            return True    
+        subprocess.run("chmod a+x {}/run.sh".format(self["dir"]), shell = True)
 
-    def prepare(self):
-        self.getDependentFiles()
-        self.createDir()
-        self.output()
-        self.run()
+        ##Dump self config in yaml format
+        with open("{}/task.yaml".format(self["dir"]), "w") as task:
+            yaml.dump(dict(self), task, default_flow_style=False, indent=4)
 
-        self.isPrepared=True
-
-    def clearWorkDir(self):
-        subprocess.run(["command", "rm", "-rf", self["dir"]])
-          
-    ##Abstract functions which has to be overwritten
-    @abstractmethod
     def run(self):
-        pass
+        ##Set niceness super high
+        os.nice(19)
 
-    @abstractmethod
-    def output(self):
-        pass
+        ##Call subproces and run executable
+        with open("{}/out.txt".format(self["dir"]), "w") as out, open("{}/err.txt".format(self["dir"]), "w") as err, open("{}/log.txt".format(self["dir"]), "w") as log:
+            log.write("[{}] Job started\n\n".format(time.asctime()))
+            result = subprocess.run("source {}/run.sh".format(self["dir"]), shell = True, stdout = out, stderr = err)
+            log.write("[{}] Job finished with returncode {}".format(time.asctime(), result.returncode))
+                               
+        return result.returncode

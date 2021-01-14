@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            html, body {height : 100%}
+
+            dd {margin-left: 15px;}
+
+            div {font-size: 70%; position:absolute; border-radius: 20px; border-style: solid; border-width: 2px; box-shadow: 5px 5px 2px grey;}
+            div.task {text-align: center; width: 250px; height: 40px;}
+            div.yaml {padding:10px; display: none; top: 0px; left: 0px; width: auto; height: auto; z-index: 1; background-color: white}
+                        
+            svg {width: 100%; height: 100%; top:0; left:0; position: absolute;}
+            object {width: 200px; height: 1000px;}
+
+        </style>
+
+        <script>
+            function niceDict(str, data){
+                var niceStr = "<dl>"
+
+                for (const [key, value] of Object.entries(data)){
+                    if(typeof value == "object"){
+                        if(Array.isArray(value)){
+                            niceStr += "<dt>" + "<b style=color:brown> " + key + "</b>:" + "</dt>";
+
+                            for(const s of value){
+                                niceStr += "<dt> -" + s + "</dt>";
+                            }
+                        }
+
+                        else{
+                            niceStr += "<dt>" + "<b style=color:brown> " + key + "</b>:" + "</dt>";
+                            niceStr += "<dd>" + niceDict(str, value) + "</dd>";
+                        }
+                    }
+              
+
+                    else{
+                        niceStr += "<dt>" + "<b style=color:brown> " + key + "</b>: " + value + "</dt>";
+                    }
+                }
+    
+                return str + niceStr + "</dl>";
+            }
+
+            function show(x){
+                var div = document.getElementsByClassName("yaml")[0];
+                div.style.display = 'block';
+
+                if(x.className != "yaml"){
+                    var data = JSON.parse(x.getAttribute("data"));
+
+                    div.style.top = x.style.top;
+                    div.style.left = parseInt(x.style.left) + 260 + "px";
+
+                    div.innerHTML = niceDict("", data);
+                }
+            }
+
+            function hide(){
+                var div = document.getElementsByClassName('yaml')[0];
+                div.style.display = 'none';
+            }
+
+            function createBody(){
+                var rowMargin = 50;
+                var columnMargin = 350;
+                var rows = {0:0};
+
+                var svg = document.getElementById("lines");
+
+                for(const element of document.getElementsByClassName("task")){
+                    if(element.getAttribute("dependent").length == 0){
+                        element.setAttribute("column", 0);
+                        element.setAttribute("row", rows[0]);
+                        rows[0]++; 
+                    }
+
+                    else{
+                        var dependencies = element.getAttribute("dependent").split(",");
+                        var column = parseInt(document.getElementById(dependencies[0]).getAttribute("column")) + 1;
+
+                        if(column in rows){
+                            rows[column]++;
+                        }
+
+                        else{
+                            rows[column] = 0;
+                        }
+
+                        element.setAttribute("row", rows[column]);
+
+                        for(const dep of dependencies){
+                            var obj = document.getElementById(dep);
+                            console.log(obj.clientWidth);
+
+                            let line = document.createElementNS('http://www.w3.org/2000/svg','line');
+                            line.setAttribute('x1', parseInt(obj.style.left) + parseInt(obj.clientWidth) + "px");
+                            line.setAttribute('x2', parseInt(obj.style.left) + (column - obj.getAttribute("column"))*columnMargin + "px");
+                            line.setAttribute('y1', parseInt(obj.style.top) + obj.clientHeight/2. + "px");
+                            line.setAttribute('y2', 0.5*rowMargin + rows[column]*rowMargin + "px");
+                            line.setAttribute("stroke", 'black');
+
+                            svg.appendChild(line);
+                        }
+
+                        element.setAttribute("column", column);
+                    }
+
+                    element.style = 'left:' + element.getAttribute("column")*columnMargin + 'px; top:' + element.getAttribute("row")*rowMargin + 'px';
+                    element.innerHTML = element.id; 
+                }
+            }
+        </script>
+    </head>
+
+    <body onload="createBody()">
+        <div class='yaml' ondblclick='hide()'></div>
+
+        <svg id="lines">
+        </svg>
+
+        <div class='task' data='{data}' onmouseover='show(this)' id="{id}", dependent='{dependent}'></div>
+    </body>
+</html>

@@ -123,7 +123,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
 
     //Path with DNN infos
-    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/DNN/Analysis/";  
+    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/Results/DNN/";  
 
     //Set tree parser and tree functions
     TreeParser parser;
@@ -132,10 +132,8 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     evNr.SetFunction<Axis::X>("EvNr"); 
 
     //Read txt with parameter used in the trainind and set tree function
-    std::ifstream params(StrUtil::Join("/", dnnPath, "Even", channel, era, "parameter.txt")); 
+    std::ifstream params(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/parameter.txt")); 
     std::string parameter;
-  
-    std::cout << "Hello" << std::endl;    
 
     while(getline(params, parameter)){
         TreeFunction func(file, channel);
@@ -148,7 +146,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     params.close();
     
     //Get classes
-    std::ifstream clsFile(StrUtil::Join("/", dnnPath, "Even", channel, era, "classes.txt")); 
+    std::ifstream clsFile(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/classes.txt")); 
     std::string cls;
     
     std::vector<std::string> classes;
@@ -161,7 +159,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     clsFile.close();
     
         //Get classes
-    std::ifstream massFile(StrUtil::Join("/", dnnPath, "Even", channel, era, "masses.txt")); 
+    std::ifstream massFile(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/masses.txt")); 
     std::string mass;
     
     std::vector<int> masses;
@@ -193,8 +191,8 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
     
     model[0]->Print();
 
-    torch::load(model[0], StrUtil::Join("/", dnnPath, "Even", channel, era, "model.pt"));
-    torch::load(model[1], StrUtil::Join("/", dnnPath, "Odd", channel, era, "model.pt"));
+    torch::load(model[0], StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/model.pt"));
+    torch::load(model[1], StrUtil::Join("/", dnnPath, "Main", channel, era, "Odd/model.pt"));
 
     torch::NoGradGuard no_grad;
 

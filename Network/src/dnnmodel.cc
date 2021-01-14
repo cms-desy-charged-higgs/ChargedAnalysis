@@ -47,9 +47,6 @@ DNNModel::DNNModel(const int& nInput, const int& nNodes, const int& nHidden, con
     outLayer = register_module("Output layer", torch::nn::Linear(nNodes, nClasses));
     outLayer->pretty_print(modelSummary); modelSummary << "\n";
 
-    softLayer = register_module("LogSoftmax layer", torch::nn::LogSoftmax(1));
-    softLayer->pretty_print(modelSummary); modelSummary << "\n";
-
     modelSummary << "Number of trainable parameters: " << this->GetNWeights() << "\n";
     modelSummary << "----------------------------------------\n";
 
@@ -61,6 +58,7 @@ void DNNModel::Print(){
     //Print model summary
     std::cout << modelSummary.str() << std::endl;
 }
+
 
 int DNNModel::GetNWeights(){
     //Number of trainable parameters
@@ -93,8 +91,7 @@ torch::Tensor DNNModel::forward(torch::Tensor input, torch::Tensor masses, const
     //Output layer
     z = outNormLayer->forward(z);
     z = outLayer->forward(z);
-    z = softLayer->forward(z).squeeze();
 
-    if(predict) return torch::exp(z);
-    return z;
+    if(predict) return torch::nn::functional::softmax(z, torch::nn::functional::SoftmaxFuncOptions(1)).squeeze();
+    return z.squeeze();
 }
