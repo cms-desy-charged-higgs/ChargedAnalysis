@@ -250,6 +250,18 @@ int main(int argc, char** argv){
     std::vector<DNNDataset> sigSets;
     std::vector<DNNDataset> bkgSets;
 
+    //Create model
+    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(parameters.size(), nNodes, nLayers, dropOut, masses.size() == 1 ? false : true, bkgClasses.size() + 1, device);
+    
+    if(std::filesystem::exists(outPath + "/model.pt")) torch::load(model, outPath + "/model.pt");
+
+    model->Print();
+
+    if(optimize and model->GetNWeights() > 300000){
+        std::cout << -1 << std::endl;
+        return 0;
+    }
+
     //Collect input data
     for(std::string fileName: sigFiles){
         std::shared_ptr<TFile> file = RUtil::Open(fileName); 
@@ -270,13 +282,6 @@ int main(int argc, char** argv){
             bkgSets.push_back(std::move(bkgSet));
         }
     }
-
-    //Create model
-    std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(parameters.size(), nNodes, nLayers, dropOut, masses.size() == 1 ? false : true, bkgClasses.size() + 1, device);
-    
-    if(std::filesystem::exists(outPath + "/model.pt")) torch::load(model, outPath + "/model.pt");
-
-    model->Print();
 
     //Do training
     float bestLoss = Train(model, sigSets, bkgSets, masses, device, batchSize, lr, optimize, outPath, bkgClasses);
