@@ -8,9 +8,16 @@ channels:
     
 run-mode: Local
 
-skim-dir: Skim/Channels/[C]/[E]
+skim-dir: Skim/Channels/{C}/{E}
 
-dir: BkgEstimation/[C]/[E]
+dir: Baseline/{C}/{E}/{MHC}
+
+charged-masses:
+    - 200
+    - 300
+    - 400
+    - 500
+    - 600
 
 processes:
     - WJ
@@ -53,12 +60,12 @@ parameter: N_Jet
     
 parameters:
     all:
-        - f:n=N/p:n=j/h:nxb=20,xl=0.,xh=12
+        - f:n=N/p:n=j/h:nxb=20,xl=0.,xh=20
     
 estimate-process:
     TT1L:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=1
+            - f:n=DNNC,v={MHC}/c:n=equal,v=1
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -100,7 +107,7 @@ estimate-process:
             
     TT2L:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=2
+            - f:n=DNNC,v={MHC}/c:n=equal,v=2
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
@@ -142,7 +149,7 @@ estimate-process:
    
     Misc:
         all:
-            - f:n=DNNC,v=200/c:n=equal,v=3
+            - f:n=DNNC,v={MHC}/c:n=equal,v=3
 
         Ele4J:
             - f:n=N/p:n=e,wp=m/c:n=equal,v=1
