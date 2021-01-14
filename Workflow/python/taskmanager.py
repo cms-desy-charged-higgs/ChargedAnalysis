@@ -24,7 +24,7 @@ class TaskManager(object):
             ##Check for unique name/directory
             if len(tasks) != len(self._tasks.keys()):
                 raise RuntimeError("Each task has to have an unique name!")
-                
+
             if len(tasks) != len(set([t["dir"] for t in tasks])):
                 raise RuntimeError("Each task has to have an unique directory!")
         
@@ -128,6 +128,8 @@ class TaskManager(object):
         condorSubmit = "condor_submit {} -batch-name TaskManager -queue DIR in ".format(self.condorSub)
         
         while(self._tasks):
+            toSubmit = []
+
             ##Remove finished jobs
             while(self.remove):
                 t = self._tasks.pop(self.remove.pop())
@@ -136,7 +138,7 @@ class TaskManager(object):
             for name, task in self._tasks.items():
                 if task["status"] != "Valid":
                     continue
-   
+
                 ##Check if dependencies all finished
                 try:          
                     for dep in task["dependencies"]:
@@ -148,24 +150,26 @@ class TaskManager(object):
                 
                 ##Local job configuration
                 if task["run-mode"] == "Local":
+                    if len(self.runningTasks.get("Local", [])) >= 20:
+                        continue
+
                     task.job = pool.apply_async(copy.deepcopy(task.run))
 
                     self.__changeStatus(task, "Running", "Local")
                     self.runningTasks.setdefault("Local", OrderedDict())[name] = task 
-                    
-                    if len(self.runningTasks["Local"]) >= 20:
-                        yield True
             
                 ##Condor job configuration
                 if task["run-mode"] == "Condor":
-                    self.runningTasks.setdefault("Condor", OrderedDict())[name] = task 
-                    self.__changeStatus(task, "Submitted", "Condor")
-                    subprocess.run(condorSubmit + " ".join([task["dir"]]), shell = True, stdout=open(os.devnull, 'wb'))
+                    if len(self.runningTasks.get("Condor", [])) >= 500:
+                        continue
 
-                    if len(self.runningTasks["Condor"]) >= 1000:
-                        yield True
+                    self.runningTasks.setdefault("Condor", OrderedDict())[name] = task
+                    self.__changeStatus(task, "Submitted", "Condor")
+                    toSubmit.append(task["dir"])
                 
-            ##Yield back if task loop finished but not all resourced are used
+            if toSubmit:
+                subprocess.run(condorSubmit + " ".join(toSubmit), shell = True, stdout=open(os.devnull, 'wb'))
+
             yield True
 
     def run(self, dryRun = False):
