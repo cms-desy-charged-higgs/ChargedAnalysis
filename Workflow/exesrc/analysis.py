@@ -30,7 +30,7 @@ def taskReturner(taskName, config):
         "Plot": lambda : plot(config),
         "Limit": lambda : limit(config),
         "Slim": lambda : slim(config),
-        "Merge": lambda: merge(config),
+        "Merge": lambda: mergeskim(config),
         "Estimate": lambda : estimate(config),
     }
 
@@ -50,6 +50,41 @@ def plot(config):
                         mergeHists(tasks, config, channel, era, process, syst, shift)
 
             plotting(tasks, config, channel, era, processes)
+
+    return tasks
+
+def mergeskim(config):
+    tasks = []
+
+    for channel in config["channels"]:
+        for era in config["era"]:
+            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+                for shift in ["Up", "Down"]:
+                    mergeSkim(tasks, config, channel, era, syst, shift)
+
+    if "dCache" in config:
+        tmpTask, mergeTasks = [t for t in tasks if "tmp" in t["dir"]], [t for t in tasks if "merged" in t["dir"]]
+        sendToDCache(mergeTasks, config, os.environ["CHDIR"])
+
+        tasks = tmpTask + mergeTasks
+
+    return tasks
+
+def slim(config):
+    tasks = []
+
+    for outChannel, inChannel in config["channels"].items():
+        for era in config["era"]:
+            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(inChannel, []):
+                for shift in ["Up", "Down"]:
+                    treeslim(tasks, config, inChannel, outChannel, era, syst, shift)
+                    mergeFiles(tasks, config, inChannel, outChannel, era, syst, shift)
+
+    if "dCache" in config:
+        tmpTask, mergeTasks = [t for t in tasks if "unmerged" in t["dir"]], [t for t in tasks if not "unmerged" in t["dir"]]
+        sendToDCache(mergeTasks, config, os.environ["CHDIR"])
+
+        tasks = tmpTask + mergeTasks
 
     return tasks
 
@@ -75,11 +110,8 @@ def append(config):
                 for shift in ["Up", "Down"]:
                     treeappend(tasks, config, channel, era, syst, shift)
 
-                    if "dCache" in config:
-                        DCacheDir = config["dCache"].format_map(dd(str, {"C": channel, "E": era}))
-
-
-    sendToDCache(config, tasks, os.environ["CHDIR"])
+    if "dCache" in config:
+        sendToDCache(tasks, config, os.environ["CHDIR"])
     
     return tasks
 
@@ -91,15 +123,19 @@ def estimate(config):
             for mass in config["charged-masses"]:
                 for process in config["estimate-process"]:
                     c = copy.deepcopy(config)
-                    c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("{MHC}", mass)
+                    c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("{MHC}", str(mass))
                     c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
                     c["cuts"] = {key: [cut.format_map(dd(str, {"MHC": mass})) for cut in c["cuts"][key]] for key in c["cuts"]}
                                         
-                    for procc in config["processes"] + config["data"][channel]:
+                    processes = config["processes"] + config["data"][channel]
+
+                    for procc in processes:
                         treeread(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
                         mergeHists(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
+
+                    plotting(tasks, c, channel, era, processes, postFix = "{}_{}".format(process, str(mass)))
                         
-                bkgEstimation(config, tasks, channel, era, str(mass))
+                bkgEstimation(tasks, config, channel, era, str(mass))
 
     return tasks
 
