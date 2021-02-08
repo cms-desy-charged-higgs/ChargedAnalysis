@@ -136,6 +136,8 @@ class TaskManager(object):
                 self.summary.writerow({"Task": t["name"], "Dir": t["dir"], "Status": t["status"]})
 
             for name, task in self._tasks.items():
+                yield True
+
                 if task["status"] != "Valid":
                     continue
 
@@ -163,14 +165,16 @@ class TaskManager(object):
                     if len(self.runningTasks.get("Condor", [])) >= 500:
                         continue
 
+                    if len(toSubmit) >= 100:
+                        subprocess.run(condorSubmit + " ".join(toSubmit), shell = True, stdout=open(os.devnull, 'wb'))
+                        toSubmit.clear()
+
                     self.runningTasks.setdefault("Condor", OrderedDict())[name] = task
                     self.__changeStatus(task, "Submitted", "Condor")
                     toSubmit.append(task["dir"])
-                
+
             if toSubmit:
                 subprocess.run(condorSubmit + " ".join(toSubmit), shell = True, stdout=open(os.devnull, 'wb'))
-
-            yield True
 
     def run(self, dryRun = False):
         ##Create directories/executable etc.
@@ -196,14 +200,13 @@ class TaskManager(object):
                 if task.job.ready():
                     if task.job.get() == 0:
                         self.__changeStatus(task, "Finished", "Local")
-                        next(jobHandler, None)
                         
                     else:
                         self.__changeStatus(task, "Failed", "Local")
                      
                 else:
                     self.runningTasks["Local"][name] = task
-                    
+
             if self.runningTasks.get("Condor", []):
                 name, task = self.runningTasks["Condor"].popitem(0)
                 
@@ -216,16 +219,17 @@ class TaskManager(object):
                 if "Normal termination" in condorLog:
                     if "(return value 0)" in condorLog:
                         self.__changeStatus(task, "Finished", "Condor")
-                        next(jobHandler, None)
                         continue
                         
                     else:
                         self.__changeStatus(task, "Failed", "Condor")
                
                 self.runningTasks["Condor"][name] = task
-               
+
             ##Update monitor
             self.monitor.updateMonitor(time.time() - self.time, self.status)
 
+            next(jobHandler, None)
+               
             if not self._tasks:
                 break
