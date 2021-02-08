@@ -24,7 +24,7 @@ enum class Axis{X, Y};
 
 class TreeFunction{
     private:
-        enum Particle{VACUUM, ELECTRON = 11, MUON = 13, BJET = 6, BSUBJET, JET, FATJET, SUBJET, MET = 12, HIGGS = 25, CHAREDHIGGS = 37, W = 24};
+        enum Particle{VACUUM, ELECTRON = 11, MUON = 13, BJET = 6, BSUBJET, JET, FATJET, SUBJET, MET = 12, HIGGS = 25, CHAREDHIGGS = 37, W = 24, TRACK};
         enum WP{NONE, LOOSE, MEDIUM, TIGHT, NOTCLEAN = -10};
         enum Comparison{BIGGER, SMALLER, EQUAL, DIVISIBLE, NOTDIVISIBLE};
 
@@ -117,6 +117,7 @@ class TreeFunction{
         void DNN();
         void DeepAK();
         void DeepAKClass();
+        void Count();
 
     public:
         TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string& treeName, const int& era = 2017, const bool& useSyst = false);

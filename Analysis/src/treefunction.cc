@@ -22,6 +22,7 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
         {"DAK8C", {&TreeFunction::DeepAKClass, "DeepAK8 class"}},
         {"DNN", {&TreeFunction::DNN, "DNN score @ (m_{H^{#pm}} = @ GeV)"}},
         {"DNNC", {&TreeFunction::DNNClass, "DNN class (m_{H^{#pm}} = @ GeV)"}},
+        {"Count", {&TreeFunction::Count, "Count"}},
     };
 
     partInfo = {
@@ -38,6 +39,7 @@ TreeFunction::TreeFunction(std::shared_ptr<TFile>& inputFile, const std::string&
         {"h2", {HIGGS, "H2", "H2", "h_{2}"}},
         {"hc", {CHAREDHIGGS, "HPlus", "HPlus", "H^{#pm}"}},
         {"W", {W, "W", "W", "W^{#pm}"}},
+        {"trk", {TRACK, "IsoTrack", "IsoTrack", "Iso. track @"}},
     };
 
     wpInfo = {
@@ -253,7 +255,7 @@ void TreeFunction::SetFunction(const std::string& funcName, const std::string& i
 
 
     else if(funcName == "DNNC"){
-        for(const std::string p : {"HPlus", "TT1L", "TT2L", "Misc"}){
+        for(const std::string p : {"Misc", "TT2L", "TT1L", "HPlus"}){
             const std::string branchName = StrUtil::Replace("DNN_@@", "@", p, inputValue);
             TLeaf* leaf = RUtil::Get<TLeaf>(inputTree, branchName);
             quantities.push_back(std::move(leaf));
@@ -542,8 +544,8 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
         for(int i = 0; i < partID.size(); i++){
             if(VUtil::At(partID, i) == part and VUtil::At(mothID, i) == genMother){
                 counter--;
-                realIdx = i;
-                if(counter <= 0) return realIdx;
+                ++realIdx;
+                if(counter < 0) return realIdx;
             }
         }
     }
@@ -552,11 +554,11 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
         const char& n = RUtil::GetEntry<char>(nPart1, entry);
         if(idx >= n) return -1.;
         
-        while(counter != 0){
-            if(whichWP(part, realIdx) >= wp) counter--;
-   
-            realIdx++; 
-            if(realIdx >= n) return -1.;
+        for(int i = 0; i < n; ++i){
+            if(whichWP(part, i) >= wp) --counter;
+            if(counter < 0) return realIdx;
+
+            ++realIdx;
         }
 
         return realIdx;
@@ -564,13 +566,14 @@ int TreeFunction::whichIndex(TLeaf* nPart, const Particle& part, const int& idx,
 }
 
 TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
-    std::vector<char> id, isoID;
-    std::vector<float> iso, score;
+    std::vector<char> id, isoID, trkid, trkcharge, mcharge;
+    std::vector<float> iso, score, pt,trkpt, trketa, trkphi, trkiso, mphi, meta;
+    bool passed = true;
 
     switch(part){
         case ELECTRON:
-            id = RUtil::GetVecEntry<char>(ID, entry);
-            iso = RUtil::GetVecEntry<float>(Isolation, entry);
+            id = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "Electron_ID"), entry);
+            iso = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "Electron_Isolation"), entry);
 
             if(VUtil::At(id, idx) > MEDIUM && VUtil::At(iso, idx) < 0.15) return TIGHT;
             if(VUtil::At(id, idx) > LOOSE && VUtil::At(iso, idx) < 0.20) return MEDIUM;
@@ -578,14 +581,13 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             return NONE;
 
         case MUON:
-            id = RUtil::GetVecEntry<char>(ID, entry);
-            isoID = RUtil::GetVecEntry<char>(Isolation, entry);
+            id = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "Muon_ID"), entry);
+            isoID = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "Muon_isoID"), entry);
 
             if(VUtil::At(id, idx) > MEDIUM && VUtil::At(isoID, idx) > MEDIUM) return TIGHT;
             if(VUtil::At(id, idx) > LOOSE && VUtil::At(isoID, idx) > MEDIUM) return MEDIUM;
             if(VUtil::At(id, idx) > NONE && VUtil::At(isoID, idx) > MEDIUM) return LOOSE;
             return NONE;
-
 
         case JET:
             if(cleanPart != VACUUM){
@@ -601,11 +603,41 @@ TreeFunction::WP TreeFunction::whichWP(const Particle& part, const int& idx){
             }
 
         case BSUBJET:
-            score = RUtil::GetVecEntry<float>(BScore, entry);
+            score = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "Jet_CSVScore"), entry);
 
             if(VUtil::At(score, idx) > tightBCut[era]) return TIGHT;
             if(VUtil::At(score, idx) > mediumBCut[era]) return MEDIUM;
             if(VUtil::At(score, idx) > looseBCut[era]) return LOOSE;
+
+        case TRACK:
+            trkid = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_PDG"), entry);
+            trkpt = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_Pt"), entry);
+            trkiso = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_Isolation"), entry);
+            trkphi = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_Phi"), entry);
+            trketa = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_Eta"), entry);
+            trkcharge = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "IsoTrack_Charge"), entry);
+            mphi = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "Muon_Phi"), entry);
+            meta = RUtil::GetVecEntry<float>(RUtil::Get<TLeaf>(inputTree, "Muon_Eta"), entry);
+            mcharge = RUtil::GetVecEntry<char>(RUtil::Get<TLeaf>(inputTree, "Muon_Charge"), entry);
+
+            try{
+                if(trkpt.empty()) return NOTCLEAN;
+
+                for(unsigned int i = 0; i < mphi.size(); ++i){
+                    if(whichWP(MUON, i) < MEDIUM) continue;
+                    float dR = std::sqrt(std::pow(VUtil::At(mphi, i) - VUtil::At(trkphi, idx), 2) + std::pow(VUtil::At(meta, i) - VUtil::At(trketa, idx), 2));
+                    int diCharge = VUtil::At(mcharge, i) * VUtil::At(trkcharge, idx);
+
+                    if(dR < 0.1 or diCharge > 0) passed = false;
+                }
+
+                if(VUtil::At(trkiso, idx) < 0.2 and VUtil::At(trkpt, idx) > 20 && (abs(VUtil::At(trkid, idx)) == 11 or abs(VUtil::At(trkid, idx)) == 13) and passed) return NONE;
+                return NOTCLEAN;
+            }
+
+            catch(...){
+                return NOTCLEAN;
+            }
 
         default: return NONE;
     }
@@ -730,6 +762,10 @@ void TreeFunction::HT(){
     }
 }
 
+void TreeFunction::Count(){
+    value = std::stof(this->inputValue);
+}
+
 void TreeFunction::NParticle(){
     value = 0;
 
@@ -754,6 +790,14 @@ void TreeFunction::NParticle(){
 
         for(int i = 0; i < score.size(); i++){
             if(whichWP(part1, i) >= wp1) value++;       
+        }
+    }
+
+    else if(part1 == TRACK){
+        const char& n = RUtil::GetEntry<char>(nPart1, entry);
+
+        for(int i = 0; i < n; i++){
+            if(whichWP(part1, i) > NOTCLEAN) value++;       
         }
     }
 
