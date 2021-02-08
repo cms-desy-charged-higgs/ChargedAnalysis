@@ -112,9 +112,8 @@ namespace StrUtil{
 
         std::vector<int> occurences = Find(initial, label);
 
-        if(occurences.empty()) throw std::out_of_range(Merge("Did not found '", label, "' in string '", result, "'"));
-        if(occurences.size() < (... +  (sizeof(replace)/sizeof(replace)))) throw std::out_of_range(Merge("String '", initial, "' has less occurences of label '", label, "' than items given for replacement"));
-
+        if(occurences.empty()) return initial;
+        if(occurences.size() < (... +  (sizeof(replace)/sizeof(replace)))) return initial;
 
         std::vector<std::string> toReplace;
         (toReplace.push_back(static_cast<std::ostringstream&&>(std::ostringstream() << replace).str()), ...);
@@ -177,6 +176,26 @@ namespace StrUtil{
 
         ((result << std::forward<Args>(mergeObjects) << delimeter), ...);
         return result.str().substr(0, result.str().size() - 1);
+    }
+
+    /**
+    * @brief Capitilize given string
+    *
+    * Example:
+    * @code
+    * <std::string> s = StrUtil::Capatilize("hello World!"); //output "Hello World !"
+    * @endcode
+    *
+    * @param input Input string
+    * @return Capitilized  string
+    */
+
+    template <Streamable T = std::string>
+    std::string Capitilize(const T& input){
+        std::string result = input;
+        result[0] = std::toupper(result[0]);
+
+        return result;
     }
 };
 
