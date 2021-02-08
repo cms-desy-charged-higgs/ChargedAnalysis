@@ -15,3 +15,8 @@ std::shared_ptr<TFile> RUtil::Open(const std::string& fileName, const std::exper
 
     return file;
 }
+
+bool RUtil::BranchExists(TTree* tree, const std::string& branchName){
+    if(tree->GetListOfBranches()->FindObject(branchName.c_str())) return true;
+    return false;
+}

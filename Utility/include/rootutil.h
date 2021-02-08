@@ -36,6 +36,8 @@ namespace RUtil{
     */
 
     std::shared_ptr<TFile> Open(const std::string& fileName, const std::experimental::source_location& location = std::experimental::source_location::current());
+
+    bool BranchExists(TTree* tree, const std::string& branchName);
     
     /**
     * @brief Get object from TFile with exception handling
@@ -145,11 +147,18 @@ namespace RUtil{
     * @return Return data
     */
     template<typename T>
-    const T& GetEntry(TLeaf* leaf, const int& entry){
+    const T GetEntry(TLeaf* leaf, const int& entry){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-        T* out = static_cast<T*>(leaf->GetValuePointer());
 
-        return *out;
+        T out;
+
+        if(!StrUtil::Find(leaf->GetTypeName(), "C").empty()){
+            out = T(*static_cast<char*>(leaf->GetValuePointer()));
+        }
+
+        else out = T(*static_cast<float*>(leaf->GetValuePointer()));
+
+        return out;
     }
 
     /**
@@ -160,11 +169,22 @@ namespace RUtil{
     * @return Return vector data
     */
     template<typename T>
-    const std::vector<T>& GetVecEntry(TLeaf* leaf, const int& entry){
+    const std::vector<T> GetVecEntry(TLeaf* leaf, const int& entry){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-        std::vector<T>* out = static_cast<std::vector<T>*>(leaf->GetValuePointer());
+  
+        std::vector<T> out;
 
-        return *out;
+        if(!StrUtil::Find(leaf->GetTypeName(), "f").empty()){
+            std::vector<float>* v = static_cast<std::vector<float>*>(leaf->GetValuePointer());
+            out = std::vector<T>(v->begin(), v->end());
+        }
+
+        else{
+            std::vector<char>* v = static_cast<std::vector<char>*>(leaf->GetValuePointer());
+            out = std::vector<T>(v->begin(), v->end()); 
+        }
+        
+        return out;
     }
 };
 
