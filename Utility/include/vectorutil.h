@@ -223,11 +223,34 @@ namespace VUtil{
     std::vector<K> MapKeys(std::map<K, V> map){
         std::vector<K> keys;
 
-        for(std::pair<K, V> m : map){
+        for(std::pair<const K, V>& m : map){
             keys.push_back(m.first);
         }
 
         return keys;
+    }
+
+   /**
+    * @brief Produce a range of numbers
+    *
+    * Example:
+    * @code
+    * std::map<int, int> map = {{1, 1}, {2, 2}};
+    * std::vector<int> values = VUtil::MapValues(map); //output {1, 2}
+    * @endcode
+    *
+    * @param map Input map
+    * @return Return values of map
+    */
+    template<typename K, typename V>    
+    std::vector<V> MapValues(std::map<K, V> map){
+        std::vector<V> values;
+
+        for(std::pair<const K, V>& m : map){
+            values.push_back(m.second);
+        }
+
+        return values;
     }
 
     template<typename T, Invocable<bool, T, T> Func>    
