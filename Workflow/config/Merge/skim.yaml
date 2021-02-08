@@ -6,8 +6,12 @@ shape-systs:
         - energyScale
         - energySigma
 
-skim-dir: Skim/Inclusive/[E]
-dCache: Skim/Inclusive/[E]/[P]
+channels:
+    - Inclusive
+
+dir: Skim/{C}/{E}
+skim-dir: Skim/{C}/{E}
+dCache: Skim/{C}/{E}
 
 run-mode: Condor
 

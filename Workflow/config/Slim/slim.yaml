@@ -1,5 +1,6 @@
-skim-dir: Skim/Inclusive/[E]
-out-dir: Skim/Channels/[C]/[E]
+skim-dir: Skim/Inclusive/{E}
+out-dir: Skim/Channels/{C}/{E}
+dir: Skim/Channels/{C}/{E}
 
 run-mode: Condor
 
@@ -46,7 +47,7 @@ cuts:
     Muon2FJ:
         - f:n=N/p:n=fj/c:n=equal,v=2
 
-dCache: Skim/Channels/[C]/[E]
+dCache: Skim/Channels/{C}/{E}
 
 exclude-merging:
     - nGen
