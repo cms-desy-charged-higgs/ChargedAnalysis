@@ -18,40 +18,30 @@
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 
-bool inline Bigger(const float& v1, const float& v2){
-    return v1 != -999 and v1 >= v2; 
-}
-
-bool inline Smaller(const float& v1, const float& v2){
-    return v1 != -999 and v1 <= v2; 
-}
-
-bool inline Equal(const float& v1, const float& v2){
-    return v1 != -999 and v1 == v2; 
-}
-
-class CompiledCut;
-
 class CompiledFunc{
     private:
         float(*func)(TLeaf*, const int&);
-        float(*funcWithWp)(TLeaf*, std::vector<CompiledCut>&, const int&);
+        float(*funcWithWp)(TLeaf*, std::vector<std::shared_ptr<CompiledFunc>>&, const int&, const std::size_t&);
         TLeaf* leaf;
         int partIdx;
-        std::vector<CompiledCut> cuts;
+        std::size_t partHash;
+        std::vector<std::shared_ptr<CompiledFunc>> cuts;
+        bool(*op)(const float&, const float&);
+        float comp;
         bool isIter;
 
     public:
         CompiledFunc(){}
         CompiledFunc(float(*func)(TLeaf*, const int&), TLeaf* leaf, const int& partIdx, const bool& isIter = false) : 
             func(func), leaf(leaf), partIdx(isIter ? 0 : partIdx), cuts({}), isIter(isIter) {}
-        CompiledFunc(float(*funcWithWp)(TLeaf*, std::vector<CompiledCut>&, const int&), TLeaf* leaf, std::vector<CompiledCut>& cuts, const int& partIdx, const bool& isIter = false) : 
-            funcWithWp(funcWithWp), leaf(leaf), cuts(cuts), partIdx(isIter ? 0 : partIdx), isIter(isIter) {}
-        virtual bool GetPassed(){};
+        CompiledFunc(float(*funcWithWp)(TLeaf*, std::vector<std::shared_ptr<CompiledFunc>>&, const int&, const std::size_t&), TLeaf* leaf, std::vector<std::shared_ptr<CompiledFunc>>& cuts, const int& partIdx, const std::size_t& partHash, const bool& isIter = false) : 
+            funcWithWp(funcWithWp), leaf(leaf), cuts(cuts), partIdx(isIter ? 0 : partIdx), partHash(partHash), isIter(isIter) {}
         virtual float Get(){
             if(cuts.empty()) return (*func)(leaf, partIdx);
-            else return (*funcWithWp)(leaf, cuts, partIdx);
+            else return (*funcWithWp)(leaf, cuts, partIdx, partHash);
         }
+        virtual void AddCut(bool(*op)(const float&, const float&), const float& comp){this->op = op; this->comp = comp;};
+        virtual bool GetPassed(){return op(Get(), comp);};
         virtual void Next(){if(isIter) ++partIdx;}
         virtual void Reset(){if(isIter) partIdx = 0;}
 };
@@ -62,26 +52,16 @@ class CompiledCustomFunc : public CompiledFunc {
     private:
         float(*func)(Particles& parts);
         Particles parts;
-
-    public:
-        CompiledCustomFunc(float(*func)(Particles& parts), const Particles& parts) : func(func), parts(parts) {}
-        float Get(){return (*func)(parts);}
-        void Next(){for(auto& p : parts) p.second->Next();}
-        void Reset(){for(auto& p : parts) p.second->Reset();};
-};
-
-class CompiledCut : public CompiledFunc {
-    private:
-        std::shared_ptr<CompiledFunc> func;
         bool(*op)(const float&, const float&);
         float comp;
 
     public:
-        CompiledCut(){}
-        CompiledCut(const std::shared_ptr<CompiledFunc>& func, bool(*op)(const float&, const float&), const float& comp) : func(func), op(op), comp(comp) {}
-        bool GetPassed(){return op(func->Get(), comp);}
-        void Next(){func->Next();}
-        void Reset(){func->Reset();};
+        CompiledCustomFunc(float(*func)(Particles& parts), const Particles& parts) : func(func), parts(parts) {}
+        void AddCut(bool(*op)(const float&, const float&), const float& comp){this->op = op; this->comp = comp;};
+        float Get(){return (*func)(parts);}
+        bool GetPassed(){return op(Get(), comp);};
+        void Next(){for(auto& p : parts) p.second->Next();}
+        void Reset(){for(auto& p : parts) p.second->Reset();};
 };
 
 namespace Properties{
@@ -112,25 +92,26 @@ class NTupleReader{
         std::vector<pt::ptree> particles;
 
         std::shared_ptr<TTree> inputTree;
+        int era;
 
         std::shared_ptr<CompiledFunc> func;
-        std::shared_ptr<CompiledCut> cut;
 
         bool isCompiled = false;
         inline static int entry = 0; 
+        inline static std::map<std::size_t, std::map<int, int>> idxCache = {};
 
         static float GetEntry(TLeaf* leaf, const int& idx);
-        static float GetEntryWithWP(TLeaf* leaf, std::vector<CompiledCut>& cuts, const int& idx);
+        static float GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<CompiledFunc>>& cuts, const int& idx, const std::size_t& hash);
 
-        std::shared_ptr<CompiledFunc> compileBranchReading(const pt::ptree& func, const pt::ptree& part);
-        std::shared_ptr<CompiledFunc> compileCustomFunction(const pt::ptree& func, const std::vector<pt::ptree>& parts);
+        std::shared_ptr<CompiledFunc> compileBranchReading(pt::ptree& func, pt::ptree& part);
+        std::shared_ptr<CompiledFunc> compileCustomFunction(pt::ptree& func, std::vector<pt::ptree>& parts);
 
     public:
         NTupleReader();
-        NTupleReader(const std::shared_ptr<TTree>& inputTree);
+        NTupleReader(const std::shared_ptr<TTree>& inputTree, const int& era = 2017);
 
-        void AddParticle(const std::string& pAlias, const std::size_t& idx, const std::string& wp, const std::experimental::source_location& location = std::experimental::source_location::current());
-        void AddFunction(const std::string& fInfo, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void AddParticle(const std::string& pAlias, const int& idx, const std::string& wp, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void AddFunction(const std::string& fInfo, const std::vector<std::string>& values = {}, const std::experimental::source_location& location = std::experimental::source_location::current());
         void AddFunctionByBranchName(const std::string& branchName, const std::experimental::source_location& location = std::experimental::source_location::current());
         void AddCut(const float&, const std::string& op, const std::experimental::source_location& location = std::experimental::source_location::current());
 
@@ -142,13 +123,15 @@ class NTupleReader{
         std::string GetAxisLabel();
         std::string GetCutName();
 
-        static void SetEntry(const int& entry){NTupleReader::entry = entry;}
+        void Next();
+        void Reset();
+        static void SetEntry(const int& entry){NTupleReader::entry = entry; idxCache.clear();}
 
         //Helper function to get keys of ptree
         static std::vector<std::string> GetInfo(const pt::ptree& node, const bool GetInfo = true){
             std::vector<std::string> keys;
 
-            for(std::pair<const std::string, pt::ptree> p : node){
+            for(const std::pair<const std::string, pt::ptree>& p : node){
                 keys.push_back(GetInfo ? p.first : p.second.get_value<std::string>());
             }
 
