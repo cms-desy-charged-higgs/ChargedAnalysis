@@ -120,26 +120,27 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
 
     //Take time
     Utils::RunTime timer;
-    int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
+    std::shared_ptr<TTree> tree = RUtil::CloneSmart<TTree>(RUtil::Get<TTree>(file.get(), channel));
+    int nEntries = tree->GetEntries();
 
     //Path with DNN infos
     std::string dnnPath = std::string(std::getenv("CHDIR")) + "/Results/DNN/";  
 
     //Set tree parser and tree functions
-    TreeParser parser;
-    std::vector<TreeFunction> functions;
-    TreeFunction evNr(file, channel);
-    evNr.SetFunction<Axis::X>("EvNr"); 
+    Decoder parser;
+    std::vector<NTupleReader> functions;
+    TLeaf* evNr = RUtil::Get<TLeaf>(tree.get(), "Misc_eventNumber");
 
     //Read txt with parameter used in the trainind and set tree function
     std::ifstream params(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/parameter.txt")); 
     std::string parameter;
 
     while(getline(params, parameter)){
-        TreeFunction func(file, channel);
+        NTupleReader func(tree, era);
 
         parser.GetParticle(parameter, func);
         parser.GetFunction(parameter, func);
+        func.Compile();
 
         functions.push_back(func);
     }
@@ -179,6 +180,11 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
         }
     }
 
+    for(int& mass : masses){
+        branchNames.push_back(StrUtil::Merge("DNN_Class", mass));
+        values[branchNames.back()] = std::vector<float>(nEntries, -999.);
+    }
+
     //Frame with optimized hyperparameter
     std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(StrUtil::Join("/", dnnPath, "HyperOpt", channel, era, "hyperparameter.csv"));
 
@@ -215,16 +221,16 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
                 std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
             }
 
-            TreeFunction::SetEntry(*entry);
+            NTupleReader::SetEntry(*entry);
 
             //Fill event class with particle content
             std::vector<float> paramValues;
 
-            for(int i=0; i < functions.size(); i++){
-                paramValues.push_back(functions[i].Get<Axis::X>());
+            for(int i=0; i < functions.size(); ++i){
+                paramValues.push_back(functions[i].Get());
             }
 
-            if(int(evNr.Get<Axis::X>()) % 2 == 0){
+            if(int(1/RUtil::GetEntry<float>(evNr, *entry)*10e10) % 2 == 0){
                 evenTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 evenIndex.push_back(counter);
             }
@@ -259,12 +265,16 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
                 for(int k = 0; k < classes.size(); ++k){
                     values[branchNames[k + i*classes.size()]].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict.index({j, k}).item<float>() : evenPredict[k].item<float>();
                 }
+
+                values[StrUtil::Merge("DNN_Class", masses.at(i))].at(evenIndex.at(j)) = torch::argmax(evenPredict[j]).item<int>();
             }
 
-            for(int j = 0; j < oddTensors.size(); j++){
+            for(int j = 0; j < oddTensors.size(); ++j){
                 for(int k = 0; k < classes.size(); ++k){
                     values[branchNames[k + i*classes.size()]].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict.index({j, k}).item<float>() : oddPredict[k].item<float>();
                 }
+
+                values[StrUtil::Merge("DNN_Class", masses.at(i))].at(oddIndex.at(j)) = torch::argmax(oddPredict[j]).item<int>();
             }
         }
     }

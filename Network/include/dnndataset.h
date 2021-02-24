@@ -7,9 +7,8 @@
 #include <fstream>
 #include <vector>
 
-#include <ChargedAnalysis/Analysis/include/treefunction.h>
-#include <ChargedAnalysis/Analysis/include/treeparser.h>
-#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Analysis/include/ntuplereader.h>
+#include <ChargedAnalysis/Analysis/include/decoder.h>
 
 /**
 * @brief Structure with pytorch Tensors of event kinematics for mass-parametrized DNN
@@ -29,8 +28,8 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         int nEntries = 0;
         std::vector<int> trueIndex;
 
-        std::vector<TreeFunction> functions;
-        std::vector<TreeFunction> cuts;
+        std::vector<NTupleReader> functions;
+        std::vector<NTupleReader> cuts;
 
         torch::Device device;
         int classLabel;
@@ -42,7 +41,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @param device Pytorch class for usage of CPU/GPU
         * @param isSignal Boolean to check if files are signal files
         */
-        DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const std::string& cleanJet, torch::Device& device, const int& classLabel);
+        DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const int& era, const bool& isEven, torch::Device& device, const int& classLabel);
 
         /**
         * @brief Function to get number of events in the dataset

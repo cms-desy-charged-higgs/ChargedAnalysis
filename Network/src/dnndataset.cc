@@ -5,51 +5,47 @@
 
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 
-DNNDataset::DNNDataset(std::shared_ptr<TFile>& inFile, const std::string& treeName, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const std::string& cleanJet, torch::Device& device, const int& classLabel) :
+DNNDataset::DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const int& era, const bool& isEven, torch::Device& device, const int& classLabel) :
     device(device),
     classLabel(classLabel){
 
-    TreeParser parser;
-
-    std::vector<std::string> cleanInfo = StrUtil::Split(cleanJet, "/");
+    Decoder parser;
 
     for(const std::string& parameter: parameters){
         //Functor structure and arguments
-        TreeFunction function(inFile, treeName);
+        NTupleReader function(tree, era);
         
         //Read in everything, orders matter
         parser.GetParticle(parameter, function);
         parser.GetFunction(parameter, function);
+        function.Compile();
 
-        if(cleanInfo.size() != 1){
-            function.SetCleanJet<Axis::X>(cleanInfo[0], cleanInfo[1]);    
-        }
-        
         functions.push_back(function);
     }
 
     for(const std::string& cutName: cutNames){
         //Functor structure and arguments
-        TreeFunction cut(inFile, treeName);
+        NTupleReader cut(tree, era);
         
         //Read in everything, orders matter
         parser.GetParticle(cutName, cut);
         parser.GetFunction(cutName, cut);
         parser.GetCut(cutName, cut);
-
-        if(cleanInfo.size() != 1){
-            cut.SetCleanJet<Axis::X>(cleanInfo[0], cleanInfo[1]);    
-        }
+        cut.Compile();
         
         cuts.push_back(cut);
     }
 
-    for(int i = 0; i < inFile->Get<TTree>(treeName.c_str())->GetEntries(); i++){
-        TreeFunction::SetEntry(i);
+    TLeaf* evNr = RUtil::Get<TLeaf>(tree.get(), "Misc_eventNumber");
+
+    for(int i = 0; i < tree->GetEntries(); ++i){
+        NTupleReader::SetEntry(i);
+
+        if(int(1/RUtil::GetEntry<float>(evNr, i)*10e10) % 2 == isEven) continue; 
  
         bool passed=true;
 
-        for(TreeFunction& cut : cuts){
+        for(NTupleReader& cut : cuts){
             passed = passed && cut.GetPassed();
 
             if(!passed) break;
@@ -69,11 +65,11 @@ torch::optional<size_t> DNNDataset::size() const {
 DNNTensor DNNDataset::get(size_t index){
     int entry = trueIndex[index];
 
-    TreeFunction::SetEntry(entry);
+    NTupleReader::SetEntry(entry);
     std::vector<float> paramValues;
 
-    for(TreeFunction& func : functions){
-        paramValues.push_back(func.Get<Axis::X>());
+    for(NTupleReader& func : functions){
+        paramValues.push_back(func.Get());
     }
     
     return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({classLabel}).to(device)};
