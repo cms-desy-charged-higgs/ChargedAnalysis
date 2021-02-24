@@ -163,14 +163,48 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, s
             meanTestLoss = (meanTestLoss*j + lossTest.item<float>())/(j+1);
 
             //Draw signal/background score during training of monitoring
-            if(j % 10 == 0){
-                torch::Tensor predLab = std::get<1>(torch::max(torch::nn::functional::softmax(predictionTest, torch::nn::functional::SoftmaxFuncOptions(1)), 1));
+            if(j % 3 == 0){
+                torch::Tensor pred = torch::nn::functional::softmax(predictionTest, torch::nn::functional::SoftmaxFuncOptions(1));
+                torch::Tensor predLab = std::get<1>(torch::max(pred, 1));
                 std::vector<long> predLabel(predLab.data_ptr<long>(), predLab.data_ptr<long>() + predLab.numel());
                 
                 test.label = test.label.contiguous();
                 std::vector<long> trueLabel(test.label.data_ptr<long>(), test.label.data_ptr<long>() + test.label.numel());
                 
-                PUtil::DrawConfusion(trueLabel, predLabel, VUtil::Append(bkgClasses, "H^{#pm} + h"), outPath);
+                std::vector<std::string> allClasses = VUtil::Append(bkgClasses, "HPlus");
+                PUtil::DrawConfusion(trueLabel, predLabel, allClasses, outPath);         
+
+                for(int l = 0; l < allClasses.size(); ++l){
+                    std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("c", "c", 1000, 1000);
+                    std::shared_ptr<TLegend> leg = std::make_shared<TLegend>(0., 0., 1, 1);
+                    PUtil::SetStyle();
+                    PUtil::SetPad(c.get());
+
+                    std::vector<std::shared_ptr<TH1F>> hists;   
+
+                    for(const std::string& cls : allClasses){
+                        hists.push_back(std::make_shared<TH1F>(cls.c_str(), cls.c_str(), 20, 0, 1));
+                        hists.back()->SetLineColor(20 + 5*hists.size());
+                        hists.back()->SetLineWidth(4);
+                        hists.back()->GetXaxis()->SetTitle(("Probabilities for " + allClasses[l]).c_str());
+                        leg->AddEntry(hists.back().get(), cls.c_str(), "L");
+                    }
+
+                    PUtil::SetHist(c.get(), hists.back().get());
+    
+                    for(int n = 0; n < trueLabel.size(); ++n){
+                        if(trueLabel[n] != l) continue;
+
+                        for(int o = 0; o < allClasses.size(); ++o){
+                            hists[o]->Fill(pred[n][o].item<float>());
+                        }
+                    }
+
+                    for(const std::shared_ptr<TH1F>& h : hists) h->Draw("SAME HIST");
+                    PUtil::DrawLegend(c.get(), leg.get(), allClasses.size());
+                    
+                    c->SaveAs((outPath + "/score_" + allClasses[l] + ".pdf").c_str());
+                }
             }
 
             //Back propagation
@@ -217,7 +251,8 @@ int main(int argc, char** argv){
 
     std::string outPath = parser.GetValue<std::string>("out-path"); 
     std::string channel = parser.GetValue<std::string>("channel");
-    std::string cleanJet = parser.GetValue<std::string>("clean-jets");
+    int era = parser.GetValue<int>("era");
+    bool isEven = parser.GetValue<bool>("is-even");
     std::vector<std::string> sigFiles = parser.GetVector<std::string>("sig-files");
     std::vector<std::string> bkgClasses = parser.GetVector<std::string>("bkg-classes");
     std::vector<std::string> parameters = parser.GetVector<std::string>("parameters");
@@ -247,6 +282,7 @@ int main(int argc, char** argv){
 
     //Pytorch dataset class
     std::vector<std::shared_ptr<TFile>> files;
+    std::vector<std::shared_ptr<TTree>> trees;
     std::vector<DNNDataset> sigSets;
     std::vector<DNNDataset> bkgSets;
 
@@ -264,10 +300,10 @@ int main(int argc, char** argv){
 
     //Collect input data
     for(std::string fileName: sigFiles){
-        std::shared_ptr<TFile> file = RUtil::Open(fileName); 
-        files.push_back(file);
+        files.push_back(RUtil::Open(fileName)); 
+        trees.push_back(RUtil::GetSmart<TTree>(files.back().get(), channel));
 
-        DNNDataset sigSet(file, channel, parameters, cuts, cleanJet, device, bkgClasses.size());
+        DNNDataset sigSet(trees.back(), parameters, cuts, era, isEven, device, bkgClasses.size());
         sigSets.push_back(std::move(sigSet));
     }
 
@@ -275,10 +311,10 @@ int main(int argc, char** argv){
         std::vector<std::string> bkgFiles = parser.GetVector<std::string>(StrUtil::Replace("@-files", "@", bkgClasses.at(i)));
           
         for(std::string fileName: bkgFiles){
-            std::shared_ptr<TFile> file = RUtil::Open(fileName); 
-            files.push_back(file);
+            files.push_back(RUtil::Open(fileName)); 
+            trees.push_back(RUtil::GetSmart<TTree>(files.back().get(), channel));
 
-            DNNDataset bkgSet(file, channel, parameters, cuts, cleanJet, device, i);
+            DNNDataset bkgSet(trees.back(), parameters, cuts, era, isEven, device, i);
             bkgSets.push_back(std::move(bkgSet));
         }
     }
