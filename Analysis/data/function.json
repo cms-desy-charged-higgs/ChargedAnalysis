@@ -1,0 +1,170 @@
+{
+    "Pt": {
+        "alias": "pt",
+
+        "branch": "[P]_Pt",
+
+        "axis-name": "p_{T}([P]) [GeV]",
+
+        "hist-name": "Pt_[P]"
+    },
+
+    "Mass": {
+        "alias": "m",
+
+        "branch": "[P]_Mass",
+
+        "axis-name": "m([P]) [GeV]",
+
+        "hist-name": "Mass_[P]"
+    },
+
+    "Phi": {
+        "alias": "phi",
+
+        "branch": "[P]_Phi",
+
+        "axis-name": "#phi([P]) [rad]",
+
+        "hist-name": "Phi_[P]"
+    },
+
+    "Eta": {
+        "alias": "eta",
+
+        "branch": "[P]_Eta",
+
+        "axis-name": "#eta([P]) [rad]",
+
+        "hist-name": "Eta_[P]"
+    },
+
+    "Charge": {
+        "alias": "charge",
+
+        "branch": "[P]_Charge",
+
+        "axis-name": "elec. Char([P]) [e]",
+
+        "hist-name": "Charge_[P]"
+    },
+
+    "DiCharge": {
+        "alias": "dicharge",
+
+        "need": {
+            "charge": [
+                "P1",
+                "P2"
+             ]
+        },
+
+        "axis-name": "Charge([P1]) * Charge([P2])",
+
+        "hist-name": "DiCharge_[P1]_[P2]"
+    },
+
+    "HT": {
+        "alias": "HT",
+
+        "axis-name": "H_{T} [GeV]",
+
+        "need": {
+            "pt": [
+                "P"
+            ]
+        },
+
+        "hist-name": "HT"
+    },
+
+    "NParticle": {
+        "alias": "N",
+
+        "axis-name": "Number of [P]",
+
+        "need": {
+            "pt": [
+                "P"
+            ]
+        },
+
+        "hist-name": "N_[P]"
+    },
+
+    "dR": {
+        "alias": "dR",
+
+        "axis-name": "#Delta R([P1], [P2]) [rad]",
+
+        "need": {
+            "phi": [
+                "P1",
+                "P2"
+            ],
+
+            "eta": [
+                "P1",
+                "P2"
+            ]
+        },
+
+        "hist-name": "dR_[P1]_[P2]"
+    },
+
+    "dPhi": {
+        "alias": "dphi",
+
+        "axis-name": "#Delta #phi([P1], [P2]) [rad]",
+
+        "need": {
+            "phi": [
+                "P1",
+                "P2"
+            ]
+        },
+
+        "hist-name": "dPhi_[P1]_[P2]"
+    },
+
+    "Njettiness" : {
+        "alias": "tau",
+
+        "branch": "[P]_Njettiness[V]",
+
+        "hist-name": "Njettiness[V]_[P]",
+
+        "axis-name": "#tau_{[V]}([P])"
+    },
+
+    "DAK8" : {
+        "alias": "dAK8",
+
+        "branch":  "[P]_DeepAK8[V]",
+
+        "hist-name": "[P]_DeepAK8[V]",
+
+        "axis-name": "DeepAK8 score [V]"
+    },
+
+    "DNN" : {
+        "alias": "dnn",
+
+        "branch": "DNN_[V][V]",
+
+        "hist-name": "DNN_[V][V]",
+
+        "axis-name": "DNN score [V] (m(H^{#pm}) = [V] GeV)"
+    },
+
+    "DNNC" : {
+        "alias": "dnnc",
+
+        "branch": "DNN_Class[V]",
+
+        "hist-name": "DNNC_[V]",
+
+        "axis-name": "DNN class (m(H^{#pm}) = [V] GeV)"
+    }
+}
+    
