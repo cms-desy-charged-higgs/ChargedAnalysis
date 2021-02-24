@@ -22,6 +22,8 @@
 
 #include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
+#include <ChargedAnalysis/Analysis/include/ntuplereader.h>
+#include <ChargedAnalysis/Analysis/include/decoder.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 #include <ChargedAnalysis/Analysis/include/treeparser.h>
