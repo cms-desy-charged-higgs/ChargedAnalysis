@@ -1,10 +1,10 @@
 channels:
     - Muon2FJ
-    - Ele2FJ
-    - Muon2J1FJ
-    - Ele2J1FJ
-    - Ele4J
-    - Muon4J
+   # - Ele2FJ
+  #  - Muon2J1FJ
+  #  - Ele2J1FJ
+  #  - Ele4J
+ #   - Muon4J
     
 run-mode: Local
 
@@ -25,9 +25,9 @@ processes:
 charged-masses:
     - 200
     - 300
-   # - 400 
-   # - 500
-   # - 600
+    - 400 
+    - 500
+    - 600
     
 data:
     Ele4J: 
@@ -48,143 +48,119 @@ data:
     Muon2FJ: 
         - SingleMu
     
-clean-jet:
-    Ele4J: e/m
-    Ele2J1FJ: e/m
-    Ele2FJ: e/m
-    Muon4J: mu/m
-    Muon2J1FJ: mu/m
-    Muon2FJ: mu/m
-    
-parameter: Count_1
+parameter: EventCount
     
 parameters:
-    all:
-        - f:n=Count,v=1/h:nxb=1,xl=1.,xh=2
+    all: []
     
 estimate-process:
     TT1L:
         all:
-            - f:n=DNNC,v={MHC}/c:n=equal,v=2
+            - f:n=dnnc,v={MHC}/c:n=equal,v=2
+            - f:n=dnn,v=TT1L,v={MHC}/c:n=bigger,v=0.6
 
         Ele4J:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon4J:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon2FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
 
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
 
         Muon2J1FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
             
     TT2L:
         all:
-            - f:n=DNNC,v={MHC}/c:n=equal,v=1
+            - f:n=dnnc,v={MHC}/c:n=equal,v=1
+            - f:n=dnn,v=TT2L,v={MHC}/c:n=bigger,v=0.8
 
         Ele4J:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon4J:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon2FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
 
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
 
         Muon2J1FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
    
     Misc:
         all:
-            - f:n=DNNC,v={MHC}/c:n=equal,v=0
+            - f:n=dnnc,v={MHC}/c:n=equal,v=0
+            - f:n=dnn,v=Misc,v={MHC}/c:n=bigger,v=0.8
 
         Ele4J:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon4J:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=3
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
 
         Muon2FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
 
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=0
-            - f:n=Pt/p:n=e,wp=m,i=1/c:n=bigger,v=32
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
 
         Muon2J1FJ:
-            - f:n=N/p:n=mu,wp=m/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=l/c:n=equal,v=0
-            - f:n=Pt/p:n=mu,wp=m,i=1/c:n=bigger,v=30
-            - f:n=N/p:n=j/c:n=bigger,v=1
-            - f:n=N/p:n=bj,wp=m/c:n=bigger,v=0
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=2
+            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
