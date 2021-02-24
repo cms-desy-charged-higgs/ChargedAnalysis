@@ -4,7 +4,7 @@ import time
 import subprocess
 
 class Task(dict, object):
-    def __init__(self, config = {}, argPrefix = ""):
+    def __init__(self, config = {}, argPrefix = "", beforeExe = [], afterExe = []):
         ##Set default values
         self["name"] = "Task_{}".format(id(self))
         self["dir"] = "Task_{}".format(id(self))
@@ -17,11 +17,16 @@ class Task(dict, object):
 
         ##Argument from constructor
         self.argPrefix = argPrefix
+        self.beforeExe = beforeExe
+        self.afterExe = afterExe
 
         ##Check if all necessary things are provided
         for arg in ["executable", "arguments"]:
             if arg not in self:
                 raise RuntimeError("Task is missing crucial information: {}".format(arg))
+
+    def __hash__(self):
+        return hash(self["name"])
 
     def prepare(self):
         ##Create directory of this task
@@ -35,6 +40,14 @@ class Task(dict, object):
         ##Create nice formatted shell script with exe and parser arguments
         with open("{}/run.sh".format(self["dir"]), "w") as exe:
             exe.write("#!/bin/bash\n\n")
+
+            for idx, line in enumerate(self.beforeExe):
+                exe.write(line)
+                exe.write("\n")
+
+                if len(self.beforeExe) == idx + 1:
+                    exe.write("\n")
+
             exe.write("{} \\".format(self["executable"]))
             exe.write("\n")
     
@@ -42,14 +55,23 @@ class Task(dict, object):
                 exe.write("{}{}{} \\".format(2*" ", self.argPrefix, arg))
                 exe.write("\n")
 
+
                 if type(values) == list:
-                    for v in values:
-                        exe.write("{}{} \\".format(6*" ", v))
+                    for idx2, v in enumerate(values):
+                        exe.write("{}{} {}".format(6*" ", v, "\\"))
                         exe.write("\n")
 
                 else:
-                    exe.write("{}{} \\".format(6*" ", values))
+                    exe.write("{}{} {}".format(6*" ", values, "\\"))
                     exe.write("\n")
+
+            for idx, line in enumerate(self.afterExe):
+                if idx == 0:
+                    exe.write(" ")
+                    exe.write("\n")
+
+                exe.write(line)
+                exe.write("\n")
 
         subprocess.run("chmod a+x {}/run.sh".format(self["dir"]), shell = True)
 
