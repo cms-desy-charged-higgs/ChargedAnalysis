@@ -1,0 +1,230 @@
+{
+    "Electron": {
+        "alias": "e",
+
+        "identification": {
+            "Electron_ID": {
+                "compare": ">=",
+                "WP": {
+                    "loose": 0,
+                    "medium": 1,    
+                    "tight": 2
+                }
+            },
+
+            "Electron_Isolation": {
+                "compare": "<=",
+                "WP": {
+                    "loose": 0.25,
+                    "medium": 0.2,    
+                    "tight": 0.15
+                }
+            }
+        },    
+
+        "scale-factors": [
+            "Electron_recoSF[SHIFT]",
+            "Electron_[WP]SF[SHIFT]"
+        ],
+
+        "axis-name": "e_{[I]}",
+
+        "hist-name": "Electron_[I]_[WP]"
+    },
+
+    "Muon": {
+        "alias": "mu",
+
+        "identification": {
+            "Muon_ID": {
+                "compare": ">=",
+                "WP": {
+                    "loose": 0,
+                    "medium": 1,    
+                    "tight": 2
+                }
+            },
+
+            "Muon_isoID": {
+                "compare": ">=",
+                "WP": {
+                    "loose": 2,
+                    "medium": 2,    
+                    "tight": 2
+                }
+            }
+        },
+
+       "requirements": {
+            "pt": {
+                "compare": ">=",
+                "cut": 30, 
+                "particles": {
+                    "THIS": ""
+                }
+            }
+        },
+
+        "scale-factors": [
+            "Muon_[WP]SF[SHIFT]",
+            "Muon_triggerSF[SHIFT]",
+            "Muon_tightIso[WP]SF[SHIFT]"
+        ],
+
+        "axis-name": "#mu_{[I]}",
+
+        "hist-name": "Muon_[I]_[WP]"
+    },
+
+    "Jet": {
+        "alias": "j",
+
+       "requirements": {
+            "dR": {
+                "compare": ">=",
+                "cut": 0.4, 
+                "particles": {
+                    "THIS": "",
+                    "P2": {
+                        "Muon": ["mu", 1, "medium"],
+                        "Ele": ["e", 1, "medium"]
+                    }
+                }
+            }
+        },
+
+        "axis-name": "j_{[I]}",
+
+        "hist-name": "Jet_[I]"
+    },
+
+    "BJet": {
+        "alias": "bj",
+
+        "branch-prefix": "Jet",
+
+        "identification": {
+            "Jet_CSVScore": {
+                "compare": ">=",
+                "WP": {
+                    "loose": {
+                        "2016": 0.2217,
+                        "2017": 0.1522,
+                        "2018": 0.1241
+                    },
+
+                    "medium": {
+                        "2016": 0.6321,
+                        "2017": 0.4941,
+                        "2018": 0.4184
+                    },
+
+                    "tight": {
+                        "2016": 0.8953,
+                        "2017": 0.8001,
+                        "2018": 0.7527
+                    }
+                }
+            }
+        },
+
+       "requirements": {
+            "dR": {
+                "compare": ">=",
+                "cut": 0.4, 
+                "particles": {
+                    "THIS": "",
+                    "P2": {
+                        "Muon": ["mu", 1, "medium"],
+                        "Ele": ["e", 1, "medium"]
+                    }
+                }
+            }
+        },
+
+        "scale-factors": [
+            "Jet_[WP]CSVbTagSF[SHIFT]"
+        ],
+
+        "axis-name": "bj_{[I]}",
+
+        "hist-name": "BJet_[I]_[WP]"
+    },
+
+    "FatJet": {
+        "alias": "fj",
+
+        "axis-name": "fj_{[I]}",
+
+        "hist-name": "FatJet_[I]"
+    },
+
+    "SubJet": {
+        "alias": "sj",
+
+        "axis-name": "sj_{[I]}",
+
+        "hist-name": "SubJet_[I]"
+    },
+
+    "MET": {
+        "alias": "met",
+
+        "axis-name": "#vec{p}_{T}^{miss}",
+
+        "non-vector": true,
+
+        "hist-name": "MET"
+    },
+
+    "IsoTrack": {
+        "alias": "trk",
+
+        "axis-name": "Iso. track [I]",
+
+        "hist-name": "IsoTrack_[I]",
+
+        "identification": {
+            "IsoTrack_PDG": {
+                "compare": "<=",
+                "absolute-values": true,
+                "WP": {
+                    "lep": 13  
+                }
+            },
+
+            "IsoTrack_Isolation": {
+                "compare": "<=",
+                "WP": {
+                    "lep": 0.2  
+                }
+            }
+        },
+
+        "requirements": {
+            "dR": {
+                "compare": ">=",
+                "cut": 0.2,
+                "particles": {
+                    "THIS": "",
+                    "P2": {
+                        "Muon": ["mu", 1, "medium"],
+                        "Ele": ["e", 1, "medium"]
+                    }
+                }
+            },
+
+            "dicharge": {
+                "compare": "==",
+                "cut": -1, 
+                "particles": {
+                    "THIS": "",
+                    "P2": {
+                        "Muon": ["mu", 1, "medium"],
+                        "Ele": ["e", 1, "medium"]
+                    }
+                }
+            }
+        }
+    }
+}
