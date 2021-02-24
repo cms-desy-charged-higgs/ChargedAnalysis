@@ -2,27 +2,25 @@
 
 Datacard::Datacard(){}
 
-Datacard::Datacard(const std::vector<std::string>& backgrounds, const std::string& signal, const std::string& data, const std::string& channel, const std::string& outDir, const bool& useAsimov, const std::vector<std::string>& systematics) :
-    backgrounds(backgrounds),
-    signal(signal),
-    data(data),
+Datacard::Datacard(const std::string& outDir, const std::string& channel, const std::vector<std::string>& bkgProcesses, const std::vector<std::string>& bkgFiles, const std::string& sigProcess, const std::vector<std::string>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string>& systematics) :
+    outDir(outDir),
     channel(channel),
-    outDir(outDir), 
-    useAsimov(useAsimov),
-    systematics(systematics)
+    bkgProcesses(bkgProcesses),
+    bkgFiles(bkgFiles),
+    sigProcess(sigProcess),
+    sigFiles(sigFiles),
+    data(data), 
+    dataFile(dataFile),
+    systematics(systematics){}
 
-   // normSysts = {{"Lumi"}}
-
-    {}
-
-void Datacard::GetHists(const std::string& histDir, const std::string& discriminant){
+void Datacard::GetHists(const std::string& discriminant){
     TH1::AddDirectory(kFALSE);
 
     //Open file which saves all process shapes
-    TFile* outFile = TFile::Open((outDir + "/shapes.root").c_str(), "RECREATE");
+    std::shared_ptr<TFile> outFile = std::make_shared<TFile>((outDir + "/shapes.root").c_str(), "RECREATE");
     TDirectory* dir = outFile->mkdir(channel.c_str());
 
-    TH1F* bkgSum = nullptr;
+    std::shared_ptr<TH1F> bkgSum;
 
     //Open file with shape and get histogram
     for(const std::string& syst : systematics){
@@ -31,59 +29,43 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
             if(syst == "" and shift == "Down") continue;
 
             std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
-            std::string fileName = StrUtil::Merge(histDir, "/", signal, "/merged/", systName, "/", signal, ".root");
 
-            //Open file with shape and get histogram
-            TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((fileName).c_str()));
-            TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
-            hist->SetName(syst == "" ? signal.c_str() : StrUtil::Join("_", signal, systName).c_str());
-            hist->SetTitle(syst == "" ? signal.c_str() : StrUtil::Join("_", signal, systName).c_str());
+            for(std::size_t i = 0; i < bkgFiles.size(); ++i){
+                std::shared_ptr<TFile> file = RUtil::Open(bkgFiles.at(i));
+                std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
 
-            //Save yield of histogram
-            if(syst == "") rates[signal] = (float)hist->Integral();
+                hist->SetName(syst == "" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
+                hist->SetTitle(syst == "" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
 
-            dir->cd();
-            hist->Write();
-
-            delete hist;
-            delete procFile;
-        }
-    }
-
-    for(const std::string& syst : systematics){
-        for(const std::string shift : {"Up", "Down"}){
-            for(std::string& process: backgrounds){
-                //Skip Down loop for nominal case
-                if(syst == "" and shift == "Down") continue;
-
-                std::cout << syst << shift << std::endl;
-
-                std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
-                std::string fileName = StrUtil::Merge(histDir, "/", process, "/merged/", systName, "/", process, ".root");
-
-                //Open file with shape and get histogram
-                TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((fileName).c_str()));
-                TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
-                hist->SetName(syst == "" ? process.c_str() : StrUtil::Join("_", process, systName).c_str());
-                hist->SetTitle(syst == "" ? process.c_str() : StrUtil::Join("_", process, systName).c_str());
-
+                //Save yield of histogram
                 if(syst == ""){
-                    //Save yield of histogram
-                    rates[process] = (float)hist->Integral();
-                    if(bkgSum == nullptr) bkgSum = (TH1F*)hist->Clone();
-                    else bkgSum->Add(hist);
+                    rates[bkgProcesses.at(i)] = hist->Integral();
+                    if(bkgSum == nullptr) bkgSum = RUtil::CloneSmart<TH1F>(hist.get());
+                    else bkgSum->Add(hist.get());
                 }
 
                 dir->cd();
                 hist->Write();
-
-                delete hist;
-                delete procFile;
             }
+
+            for(std::size_t i = 0; i < sigFiles.size(); ++i){
+                std::shared_ptr<TFile> file = RUtil::Open(sigFiles.at(i));
+                std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
+
+                hist->SetName(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+                hist->SetTitle(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+
+                //Save yield of histogram
+                if(syst == "") rates[sigProcess] = hist->Integral();
+
+                dir->cd();
+                hist->Write();
+            }
+            
         }
     }
 
-    if(useAsimov){
+    if(dataFile == ""){
         bkgSum->SetName("data_obs");
         bkgSum->SetTitle("data_obs");
 
@@ -95,22 +77,17 @@ void Datacard::GetHists(const std::string& histDir, const std::string& discrimin
 
     else{
         //Open file with shape and get histogram
-        TFile* procFile = Utils::CheckNull<TFile>(TFile::Open((histDir + "/" + data + "/" + data + ".root").c_str()));
-        TH1F* hist = Utils::CheckNull<TH1F>(procFile->Get<TH1F>(discriminant.c_str()));
+        std::shared_ptr<TFile> file = RUtil::Open(dataFile);
+        std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
         hist->SetName("data_obs");
         hist->SetTitle("data_obs");
 
         //Save yield of histogram
-        rates["data_obs"] = (float)hist->Integral();
+        rates["data_obs"] = hist->Integral();
 
         dir->cd();
         hist->Write();
-
-        delete hist;
-        delete procFile;
     }
-   
-    delete outFile;
 }
 
 void Datacard::Write(){
@@ -120,15 +97,15 @@ void Datacard::Write(){
     std::string border = "--------------------------------------------------------------------------------";
 
     datacard << "imax 1 number of channel\n";
-    datacard << "jmax " << backgrounds.size() << " number of backgrounds\n";
+    datacard << "jmax " << bkgProcesses.size() << " number of backgrounds\n";
     datacard << "kmax " << (systematics.size() - 1) << " number of nuisance parameters\n";
     datacard << border << std::endl;
 
-    for(std::string& process: backgrounds){
+    for(std::string& process: bkgProcesses){
         datacard << "shapes " << process << " " << channel  << " shapes.root $CHANNEL/$PROCESS $CHANNEL/$PROCESS_$SYSTEMATIC\n";
     }
 
-    datacard << "shapes " << signal << " " << channel  << " shapes.root $CHANNEL/$PROCESS $CHANNEL/$PROCESS_$SYSTEMATIC\n";
+    datacard << "shapes " << sigProcess << " " << channel  << " shapes.root $CHANNEL/$PROCESS $CHANNEL/$PROCESS_$SYSTEMATIC\n";
     datacard << "shapes " << "data_obs" << " " << channel  << " shapes.root $CHANNEL/$PROCESS $CHANNEL/$PROCESS_$SYSTEMATIC\n";
 
     datacard << border << std::endl;
@@ -145,21 +122,21 @@ void Datacard::Write(){
 
     binNames << std::left << std::setw(25) << channel;
     processNr << std::left << std::setw(25) << -1;
-    processName << std::left << std::setw(25) << signal;
-    rate << std::left << std::setw(25) << rates[signal];
+    processName << std::left << std::setw(25) << sigProcess;
+    rate << std::left << std::setw(25) << rates[sigProcess];
 
-    for(unsigned int i = 0; i < backgrounds.size(); i++){
-        binNames << std::left << std::setw(i!=backgrounds.size()-1 ? 25 : channel.size()) << channel;
-        if(i==backgrounds.size()-1) binNames << "\n";
+    for(unsigned int i = 0; i < bkgProcesses.size(); i++){
+        binNames << std::left << std::setw(i!=bkgProcesses.size()-1 ? 25 : channel.size()) << channel;
+        if(i==bkgProcesses.size()-1) binNames << "\n";
 
-        processNr << std::left << std::setw(i!=backgrounds.size()-1 ? 25 : std::ceil((i+1)/10.)) << i+1;
-        if(i==backgrounds.size()-1) processNr << "\n";
+        processNr << std::left << std::setw(i!=bkgProcesses.size()-1 ? 25 : std::ceil((i+1)/10.)) << i+1;
+        if(i==bkgProcesses.size()-1) processNr << "\n";
 
-        processName << std::left << std::setw(i!=backgrounds.size()-1 ? 25 : backgrounds[i].size()) << backgrounds[i];
-        if(i==backgrounds.size()-1) processName << "\n";
+        processName << std::left << std::setw(i!=bkgProcesses.size()-1 ? 25 : bkgProcesses[i].size()) << bkgProcesses[i];
+        if(i==bkgProcesses.size()-1) processName << "\n";
 
-        rate << std::left << std::setw(i!=backgrounds.size()-1 ? 25 : std::to_string(rates[backgrounds[i]]).size()) << rates[backgrounds[i]];
-        if(i==backgrounds.size()-1) rate << "\n";
+        rate << std::left << std::setw(i!=bkgProcesses.size()-1 ? 25 : std::to_string(rates[bkgProcesses[i]]).size()) << rates[bkgProcesses[i]];
+        if(i==bkgProcesses.size()-1) rate << "\n";
     }
 
     datacard << binNames.rdbuf(); 
@@ -175,9 +152,9 @@ void Datacard::Write(){
         std::stringstream systLine;
         systLine << std::left  << std::setw(20) << syst << std::setw(20) << "shape";
 
-        for(unsigned int i = 0; i < backgrounds.size() + 1; i++){
-            systLine << std::left << std::setw(i!=backgrounds.size() ? 25 : channel.size()) << "1";
-            if(i==backgrounds.size()) systLine << "\n";
+        for(unsigned int i = 0; i < bkgProcesses.size() + 1; i++){
+            systLine << std::left << std::setw(i!=bkgProcesses.size() ? 25 : channel.size()) << "1";
+            if(i==bkgProcesses.size()) systLine << "\n";
         }
 
         datacard << systLine.rdbuf();
