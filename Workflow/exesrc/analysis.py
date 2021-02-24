@@ -50,6 +50,7 @@ def plot(config):
                         mergeHists(tasks, config, channel, era, process, syst, shift)
 
             plotting(tasks, config, channel, era, processes)
+            eventCount(tasks, config, channel, era, processes)
 
     return tasks
 
@@ -93,9 +94,8 @@ def dnn(config):
 
     for channel in config["channels"]:
         for era in config["era"]:
-            for evType, operator in zip(["Even", "Odd"], ["divisible", "notdivisible"]):
+            for evType in ["Even", "Odd"]:
                 c = copy.deepcopy(config)
-                c["cuts"].setdefault("all", []).append("f:n=EvNr/c:n={},v=2".format(operator))
 
                 DNN(tasks, config, channel, era, evType)
 
@@ -134,8 +134,65 @@ def estimate(config):
                         mergeHists(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
 
                     plotting(tasks, c, channel, era, processes, postFix = "{}_{}".format(process, str(mass)))
+                    eventCount(tasks, c, channel, era, processes, postFix = "{}_{}".format(process, str(mass)))
                         
                 bkgEstimation(tasks, config, channel, era, str(mass))
+
+    return tasks
+
+def limit(config):
+    tasks = []
+
+    for era in config["era"]:
+        for channel in config["channels"]:
+            for mHPlus in config["charged-masses"]:
+                for mH in config["neutral-masses"]:
+                    conf = copy.deepcopy(config)
+                    conf["parameters"][channel] = [param.replace("{MHC}", str(mHPlus)) for param in config["parameters"][channel]]
+                    conf["signal"] = config["signal"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
+                    conf["discriminant"] = config["discriminant"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
+                    conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
+
+                    processes = conf["backgrounds"] + [conf["signal"]] + conf["data"][channel]
+
+                    for procc in processes:
+                        treeread(tasks, conf, channel, era, procc, "", "", postFix = "{}_{}".format(mHPlus, mH))
+                        mergeHists(tasks, conf, channel, era, procc, "", "", postFix = "{}_{}".format(mHPlus, mH))
+
+                    plotting(tasks, conf, channel, era, processes, postFix = "{}_{}".format(mHPlus, mH))
+
+                    datacard(tasks, conf, channel, era, processes, mHPlus, mH)
+                    limits(tasks, conf, channel, era, mHPlus, mH)
+
+            conf = copy.deepcopy(config)
+            conf["dir"] = config["dir"].replace("{MHC}", "").replace("{MH}", "")
+            plotlimit(tasks, conf, channel, era)
+
+    for mHPlus in config["charged-masses"]:
+        for mH in config["neutral-masses"]:
+            conf = copy.deepcopy(config)
+            conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
+
+            for era in config["era"]:
+                mergeDataCards(tasks, conf, {"Combined": config["channels"]}, era, mHPlus, mH)
+                limits(tasks, conf, "Combined", era, mHPlus, mH)
+
+            for channel in config["channels"]:
+                mergeDataCards(tasks, conf, channel, {"RunII": config["era"]}, mHPlus, mH)
+                limits(tasks, conf, channel, "RunII", mHPlus, mH)
+
+            mergeDataCards(tasks, conf, {"Combined": config["channels"]}, {"RunII": config["era"]}, mHPlus, mH)
+            limits(tasks, conf, "Combined", "RunII", mHPlus, mH)
+
+    config["dir"] = config["dir"].replace("{MHC}", "").replace("{MH}", "")
+
+    for era in config["era"]:
+        plotlimit(tasks, config, "Combined", era)
+
+    for channel in config["channels"]:
+        plotlimit(tasks, config, channel, "RunII")
+
+    plotlimit(tasks, config, "Combined", "RunII")
 
     return tasks
 

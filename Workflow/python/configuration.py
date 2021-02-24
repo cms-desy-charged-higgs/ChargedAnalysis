@@ -59,7 +59,7 @@ def treeread(tasks, config, channel, era, process, syst, shift, postFix = ""):
         ##Configuration for treeread Task
         task = {
             "name": "TreeRead_{}_{}_{}_{}_{}_{}".format(channel, era, process, systName, idx, postFix),
-            "executable": "treeread",
+            "executable": "hist",
             "dir": outDir,
             "run-mode": config["run-mode"],
             "arguments": {
@@ -119,6 +119,10 @@ def plotting(tasks, config, channel, era, processes, postFix = ""):
     processes.sort()
 
     outDir = config["dir"].format_map(dd(str, {"D": "PDF", "C": channel, "E": era}))
+    webDir = ""
+
+    if "Results/Plot" in outDir:
+        webDir = outDir.replace("Results/Plot", "CernWebpage/Plots").replace("PDF", "")
 
     for t in tasks:
         for process in processes:
@@ -152,7 +156,7 @@ def plotting(tasks, config, channel, era, processes, postFix = ""):
             "sig-files": sigFiles,
             "data": data,
             "data-file": dataFile,
-            "out-dirs": [outDir],
+            "out-dirs": [outDir, webDir] if webDir != "" else [outDir],
         }
     }
 
@@ -210,7 +214,7 @@ def bkgEstimation(tasks, config, channel, era, mass, postFix = ""):
     outDir = config["dir"].format_map(dd(str, {"D": "ScaleFactor", "C": channel, "E": era, "MHC": mass}))
     data = config["data"][channel][0]
 
-    depTasks = [t for t in tasks if "MergeHists_{}_{}".format(channel, era) in t["name"]]
+    depTasks = [t for t in tasks if "MergeHists_{}_{}".format(channel, era) in t["name"] and mass in t["name"]]
 
     task = {
         "name": "Estimate_{}_{}_{}".format(channel, era, mass, postFix),
@@ -450,12 +454,168 @@ def DNN(tasks, config, channel, era, evType, postFix = ""):
             "sig-files": signals,
             "masses": config["masses"],
             "opt-param": config.get("hyper-opt", "").format_map(dd(str, {"C": channel, "E": era, "T": evType})),
-            "clean-jets": config["clean-jets"].get(channel, ""),
+            "era": era,
             "bkg-classes": list(classes.keys()),
         }
     }
+
+    if evType == "Even":
+        task["arguments"]["is-even"] = ""
 
     for cls, files in classes.items():
         task["arguments"]["{}-files".format(cls)] = files
 
     tasks.append(Task(task, "--"))
+
+def eventCount(tasks, config, channel, era, processes, postFix = ""):
+    outDir = config["dir"].format_map(dd(str, {"D": "EventCount", "C": channel, "E": era}))
+    files, dependencies = [], []
+
+    for process in processes:
+       for t in tasks:
+            if "MergeHists_{}_{}_{}_".format(channel, era, process) in t["name"] and postFix in t["name"]:
+                dependencies.append(t["name"])
+                files.append(t["arguments"]["out-file"])
+                    
+    task = {
+        "name": "EventCount_{}_{}_{}".format(channel, era, postFix), 
+        "executable": "eventcount",
+        "dir": outDir,
+        "dependencies": dependencies,
+        "arguments": {
+            "processes": processes,
+            "files": files,
+            "out-dir": outDir,
+        }
+    }
+
+    tasks.append(Task(task, "--"))
+
+
+def datacard(tasks, config, channel, era, processes, mHPlus, mH, postFix = ""):
+    dependencies = []
+    bkgFiles, sigFiles = [], []
+    dataFile = ""
+
+    outDir = config["dir"].format_map(dd(str, {"D": "DataCard", "C": channel, "E": era}))
+
+    for t in tasks:
+        if "MergeHists_{}_{}".format(channel, era) in t["name"] and "{}_{}".format(mHPlus, mH) in t["name"]:
+            dependencies.append(t["name"])
+
+            for proc in config["backgrounds"]:
+                if proc in t["name"]:
+                    bkgFiles.append(t["arguments"]["out-file"])
+                    break
+
+            if config["signal"] in t["name"]:
+                sigFiles.append(t["arguments"]["out-file"])
+
+            if config["data"].get("channel", "") != "" and config["data"].get("channel", "") in t["name"]:
+                dataFile = t["arguments"]["out-file"]
+                   
+    task = {
+        "name": "DataCard_{}_{}_{}_{}_{}".format(channel, era, mHPlus, mH, postFix), 
+        "dir": outDir,
+        "executable": "writecard",
+        "dependencies": dependencies,
+        "arguments": {
+            "discriminant": config["discriminant"],
+            "bkg-processes": config["backgrounds"],
+            "sig-process": config["signal"],
+            "data": config["data"].get("channel", ""),
+            "bkg-files": bkgFiles,
+            "sig-files": sigFiles,
+            "data-file": dataFile,
+            "out-dir": outDir,
+            "channel": channel,
+            "systematics": ['""'] + config["shape-systs"].get("all", [])[1:] + config["shape-systs"].get(channel, []) + config["scale-systs"].get("all", [])[1:] + config["scale-systs"].get(channel, []),
+        }
+    }
+
+    tasks.append(Task(task, "--"))
+
+def limits(tasks, config, channel, era, mHPlus, mH, postFix = ""):
+    outDir = config["dir"].format_map(dd(str, {"D": "Limit", "C": channel, "E": era}))
+    cardDir = config["dir"].format_map(dd(str, {"D": "DataCard", "C": channel, "E": era}))
+
+    task = {
+        "name": "Limit_{}_{}_{}_{}_{}".format(channel, era, mHPlus, mH, postFix), 
+        "dir": outDir,
+        "executable": "combine",
+        "dependencies": [t["name"] for t in tasks if t["dir"] == cardDir],
+        "arguments": {
+            "datacard": "{}/datacard.txt".format(cardDir),   
+            "saveWorkspace": "",
+        }
+    }
+
+    tasks.append(Task(task, "--", ["source $CHDIR/ChargedAnalysis/setenv.sh CMSSW", "cd {}".format(outDir)], ["mv higgs*.root limit.root"]))
+
+def plotlimit(tasks, config, channel, era, postFix = ""):
+    outDir = config["dir"].format_map(dd(str, {"D": "LimitPDF", "C": channel, "E": era}))
+    webDir = ""
+
+    if "Results/Limit" in outDir:
+        webDir = outDir.replace("Results", "CernWebpage/Plots").replace("LimitPDF", "")
+
+    xSecs, limitFiles, dependencies = [], [], []
+
+    for mHPlus in config["charged-masses"]:
+        for mH in config["neutral-masses"]:
+            f = ROOT.TFile.Open("$CHDIR/Skim/Inclusive/2016/HPlusAndH_ToWHH_ToL4B_{MHC}_{MH}/merged/HPlusAndH_ToWHH_ToL4B_{MHC}_{MH}.root".format(MHC=mHPlus, MH=mH))
+            xSecs.append(f.Get("xSec").GetBinContent(1))
+
+    for t in tasks:
+        for mHPlus in config["charged-masses"]:
+            for mH in config["neutral-masses"]:
+                if "Limit_{}_{}_{}_{}".format(channel, era, mHPlus, mH) in t["name"]:
+                    dependencies.append(t["name"])
+                    limitFiles.append("{}/limit.root".format(t["dir"]))
+
+    task = {
+        "name": "PlotLimit_{}_{}_{}".format(channel, era, postFix), 
+        "dir": outDir,
+        "executable": "plotlimit",
+        "dependencies": dependencies,
+        "arguments": {
+            "limit-files": limitFiles,
+            "charged-masses": config["charged-masses"],
+            "neutral-masses": config["neutral-masses"],
+            "channel": channel,
+            "era": era,
+            "x-secs": xSecs,
+            "out-dirs": [outDir, webDir] if webDir != "" else [outDir],
+        }
+    }
+
+    tasks.append(Task(task, "--"))
+
+def mergeDataCards(tasks, config, channels, eras, mHPlus, mH, postFix = ""):
+    chanName, chanList = channels.popitem() if type(channels) == dict else (channels, [])
+    eraName, eraList = eras.popitem() if type(eras) == dict else (eras, [])
+
+    outDir = config["dir"].format_map(dd(str, {"D": "DataCard", "C": chanName, "E": eraName}))
+    dependencies = []
+    args = ""
+
+    for t in tasks:
+        for chan in chanList if len(chanList) != 0 else [chanName]:
+            for era in eraList if len(eraList) != 0 else [eraName]:
+                if "DataCard_{}_{}_{}_{}".format(chan, era, mHPlus, mH) in t["name"]:
+                    dependencies.append(t["name"])
+                    args += "{}={} ".format(chan + "_" + era, "{}/datacard.txt".format(t["dir"]))
+
+    task = {
+        "name": "MergeCards_{}_{}_{}_{}_{}".format(chanName, eraName, mHPlus, mH, postFix), 
+        "dir": outDir,
+        "executable": "combineCards.py",
+        "dependencies": dependencies,
+        "arguments": {
+            args + " > {}/datacard.txt".format(outDir) : "",
+        }
+    }
+
+    tasks.append(Task(task, "", ["source $CHDIR/ChargedAnalysis/setenv.sh CMSSW"]))
+
+
