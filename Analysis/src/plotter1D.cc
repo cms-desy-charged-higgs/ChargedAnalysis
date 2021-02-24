@@ -52,10 +52,11 @@ void Plotter1D::ConfigureHists(){
 
         for(std::string& param: parameters){
             std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
+            std::vector<std::string> s = StrUtil::Split(sigProcesses.at(i), "_");
 
             hist->SetLineWidth(1 + 3*signal[param].size());
             hist->SetLineColor(kBlack);
-            hist->SetName(sigProcesses.at(i).c_str());    
+            hist->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
             hist->SetDirectory(0);        
 
             signal[param].push_back(hist);
@@ -174,7 +175,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         }
 
         //Draw shape plots if signal is there
-        if(signal.count(param) and param != "cutflow"){
+        if(signal.count(param) and param != "cutflow" and param != "EventCount"){
             for(std::shared_ptr<TH1F>& hist: signal[param]){
                 std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("canvasSig",  "canvasSig", 1000, 1000);
 
