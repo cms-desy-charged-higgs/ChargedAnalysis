@@ -22,11 +22,17 @@ class TaskManager(object):
             self._tasks = {t["name"]: t for t in tasks}
 
             ##Check for unique name/directory
-            if len(tasks) != len(self._tasks.keys()):
-                raise RuntimeError("Each task has to have an unique name!")
+            names = list(self._tasks.keys())   
+            nonUnique = list(set([n for n in names if names.count(n) > 1]))
 
-            if len(tasks) != len(set([t["dir"] for t in tasks])):
-                raise RuntimeError("Each task has to have an unique directory!")
+            if nonUnique:
+                raise RuntimeError("Each task has to have an unique name! Non unique names: \n{}".format("\n".join(nonUnique)))
+
+            dirs = [t["dir"] for t in self._tasks.values()]  
+            nonUnique = list(set([d for d in dirs if dirs.count(d) > 1]))
+
+            if nonUnique:
+                raise RuntimeError("Each task has to have an unique directory! Non unique names: \n{}".format("\n".join(nonUnique)))
         
         elif existingFlow:
             with open(existingFlow, "r") as flow:
@@ -126,10 +132,9 @@ class TaskManager(object):
     def __getJobs(self):
         pool = mp.Pool(processes=20)
         condorSubmit = "condor_submit {} -batch-name TaskManager -queue DIR in ".format(self.condorSub)
-        
-        while(self._tasks):
-            toSubmit = []
+        toSubmit = []        
 
+        while(self._tasks):
             ##Remove finished jobs
             while(self.remove):
                 t = self._tasks.pop(self.remove.pop())
@@ -173,8 +178,9 @@ class TaskManager(object):
                     self.__changeStatus(task, "Submitted", "Condor")
                     toSubmit.append(task["dir"])
 
-            if toSubmit:
+            if len(toSubmit) != 0:
                 subprocess.run(condorSubmit + " ".join(toSubmit), shell = True, stdout=open(os.devnull, 'wb'))
+                toSubmit.clear()
 
     def run(self, dryRun = False):
         ##Create directories/executable etc.
@@ -219,12 +225,12 @@ class TaskManager(object):
                 if "Normal termination" in condorLog:
                     if "(return value 0)" in condorLog:
                         self.__changeStatus(task, "Finished", "Condor")
-                        continue
                         
                     else:
                         self.__changeStatus(task, "Failed", "Condor")
                
-                self.runningTasks["Condor"][name] = task
+                else:
+                    self.runningTasks["Condor"][name] = task
 
             ##Update monitor
             self.monitor.updateMonitor(time.time() - self.time, self.status)
