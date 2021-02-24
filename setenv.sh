@@ -34,9 +34,8 @@ case $1 in
         ;;
             
     "Analysis")
-        export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.8/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedAnalysis/Utility/python:$CHDIR/ChargedAnalysis/Network/python:$CHDIR/HiggsAnalysis/CombinedLimit/lib/python:$PYTHONPATH
-        export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/bin:$CHDIR/HiggsAnalysis/CombinedLimit/exe:$CHDIR/HiggsAnalysis/CombinedLimit/scripts:$PATH
-        export LD_LIBRARY_PATH=$CHDIR/HiggsAnalysis/CombinedLimit/lib:$LD_LIBRARY_PATH
+        export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.8/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedAnalysis/Utility/python:$CHDIR/ChargedAnalysis/Network/python:$PYTHONPATH
+        export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/bin:$PATH
 
         source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
 

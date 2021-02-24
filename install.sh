@@ -31,16 +31,6 @@ cd ChargedAnalysis
 make -j 20
 cd ..
 
-##Install Higgs combine fork
-git clone https://github.com/cms-desy-charged-higgs/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
-cd HiggsAnalysis/CombinedLimit
- 
-git remote add original https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git
-
-make -j 20
-
-cd $CHDIR
-
 ##Add webpage for cern
 git clone https://github.com/DaveBrun94/CernWebpage.git
 
@@ -57,11 +47,12 @@ eval `scramv1 runtime -sh`
 git cms-init
 
 git clone https://github.com/cms-egamma/EgammaPostRecoTools.git EgammaUser/EgammaPostRecoTools
+git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 
 ##Clone charged higgs repos
 git clone https://github.com/cms-desy-charged-higgs/ChargedSkimming.git
 git clone https://github.com/cms-desy-charged-higgs/ChargedProduction.git
-
 
 ##Compile everthing
 scram b -j 20
