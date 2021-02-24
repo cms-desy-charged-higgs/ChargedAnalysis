@@ -149,16 +149,7 @@ namespace RUtil{
     template<typename T>
     const T GetEntry(TLeaf* leaf, const int& entry){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-
-        T out;
-
-        if(!StrUtil::Find(leaf->GetTypeName(), "C").empty()){
-            out = T(*static_cast<char*>(leaf->GetValuePointer()));
-        }
-
-        else out = T(*static_cast<float*>(leaf->GetValuePointer()));
-
-        return out;
+        return leaf->GetValue();
     }
 
     /**
@@ -171,20 +162,13 @@ namespace RUtil{
     template<typename T>
     const std::vector<T> GetVecEntry(TLeaf* leaf, const int& entry){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-  
-        std::vector<T> out;
+        std::vector<T> v(leaf->GetLen());
 
-        if(!StrUtil::Find(leaf->GetTypeName(), "f").empty()){
-            std::vector<float>* v = static_cast<std::vector<float>*>(leaf->GetValuePointer());
-            out = std::vector<T>(v->begin(), v->end());
+        for(int i = 0; i < v.size(); ++i){
+            v[i] = leaf->GetValue(i);
         }
 
-        else{
-            std::vector<char>* v = static_cast<std::vector<char>*>(leaf->GetValuePointer());
-            out = std::vector<T>(v->begin(), v->end()); 
-        }
-        
-        return out;
+        return v;
     }
 };
 
