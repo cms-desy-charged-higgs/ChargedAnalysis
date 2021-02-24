@@ -11,13 +11,13 @@ int main(int argc, char* argv[]){
     std::vector<int> chargedMasses = parser.GetVector<int>("charged-masses");
     std::vector<int> neutralMasses = parser.GetVector<int>("neutral-masses");
     std::string era = parser.GetValue<std::string>("era");
-    std::vector<std::string> channels = parser.GetVector<std::string>("channels");
-    std::string limitDir = parser.GetValue<std::string>("limit-dir");
+    std::string channel = parser.GetValue<std::string>("channel");
+    std::vector<std::string> limitFiles = parser.GetVector<std::string>("limit-files");
     std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
     std::vector<float> xSecs = parser.GetVector<float>("x-secs");
   
     //Call and run Plotter1D class
-    PlotterLimit plotter(limitDir, chargedMasses, neutralMasses, channels, era, xSecs);
+    PlotterLimit plotter(limitFiles, chargedMasses, neutralMasses, channel, era, xSecs);
     plotter.ConfigureHists();
     plotter.Draw(outDirs);
 }

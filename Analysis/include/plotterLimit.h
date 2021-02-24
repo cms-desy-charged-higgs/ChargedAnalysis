@@ -25,21 +25,20 @@
 
 class PlotterLimit : public Plotter{
     private:
-        std::string limitDir;
+        std::vector<std::string> limitFiles;
         std::vector<int> chargedMasses, neutralMasses;
-        std::vector<std::string> channels;
-        std::string era;
+        std::string channel, era;
 
         std::vector<float> xSecs;
 
-        std::map<std::string, std::shared_ptr<TH2D>> expected;
+        std::shared_ptr<TH2D> expected;
         std::shared_ptr<TH2D> theory;
-        std::map<std::pair<std::string, int>, std::shared_ptr<TGraphAsymmErrors>> sigmaOne;
-        std::map<std::pair<std::string, int>, std::shared_ptr<TGraphAsymmErrors>> sigmaTwo;
+        std::shared_ptr<TGraphAsymmErrors> sigmaOne;
+        std::shared_ptr<TGraphAsymmErrors> sigmaTwo;
 
     public:
         PlotterLimit();
-        PlotterLimit(std::string &limitDir, const std::vector<int>& chargedMasses, const std::vector<int>& neutralMasses, const std::vector<std::string>& channels, const std::string& era, const std::vector<float>& xSecs);
+        PlotterLimit(const std::vector<std::string> limitFiles, const std::vector<int>& chargedMasses, const std::vector<int>& neutralMasses, const std::string& channel, const std::string& era, const std::vector<float>& xSecs);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
 };
