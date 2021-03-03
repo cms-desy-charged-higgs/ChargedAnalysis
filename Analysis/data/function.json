@@ -54,14 +54,14 @@
 
         "need": {
             "charge": [
-                "P1",
-                "P2"
-             ]
+                {"P1": 1},
+                {"P2": 2}
+            ]
         },
 
-        "axis-name": "Charge([P1]) * Charge([P2])",
+        "axis-name": "Charge([P]) * Charge([P])",
 
-        "hist-name": "DiCharge_[P1]_[P2]"
+        "hist-name": "DiCharge_[P]_[P]"
     },
 
     "HT": {
@@ -71,8 +71,10 @@
 
         "need": {
             "pt": [
-                "P"
+                {"P1": ""},
+                {"P2": ""}
             ]
+
         },
 
         "hist-name": "HT"
@@ -85,8 +87,9 @@
 
         "need": {
             "pt": [
-                "P"
+                {"P": ""}
             ]
+
         },
 
         "hist-name": "N_[P]"
@@ -95,36 +98,36 @@
     "dR": {
         "alias": "dR",
 
-        "axis-name": "#Delta R([P1], [P2]) [rad]",
+        "axis-name": "#Delta R([P], [P]) [rad]",
 
         "need": {
             "phi": [
-                "P1",
-                "P2"
+                {"P1": 1},
+                {"P2": 2}
             ],
 
             "eta": [
-                "P1",
-                "P2"
+                {"P1": 1},
+                {"P2": 2}
             ]
         },
 
-        "hist-name": "dR_[P1]_[P2]"
+        "hist-name": "dR_[P]_[P]"
     },
 
     "dPhi": {
         "alias": "dphi",
 
-        "axis-name": "#Delta #phi([P1], [P2]) [rad]",
+        "axis-name": "#Delta #phi([P], [P]) [rad]",
 
         "need": {
             "phi": [
-                "P1",
-                "P2"
+                {"P1": 1},
+                {"P2": 2}
             ]
         },
 
-        "hist-name": "dPhi_[P1]_[P2]"
+        "hist-name": "dPhi_[P]_[P]"
     },
 
     "Njettiness" : {
@@ -145,6 +148,24 @@
         "hist-name": "[P]_DeepAK8[V]",
 
         "axis-name": "DeepAK8 score [V]"
+    },
+
+    "DAK8C" : {
+        "alias": "dAK8C",
+
+        "need": {
+            "dAK8": [
+                {"P1": 1, "V1": 1},
+                {"P1": 1, "V2": 2},
+                {"P1": 1, "V3": 3},
+                {"P1": 1, "V4": 4},
+                {"P1": 1, "V5": 5}
+            ]
+        },
+
+        "hist-name": "[P]_DeepAK8C",
+
+        "axis-name": "DeepAK8 class"
     },
 
     "DNN" : {
