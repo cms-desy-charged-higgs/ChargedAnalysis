@@ -34,7 +34,9 @@ float NTupleReader::GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<Comp
     if(idx >= data.size()) return -999.;
 
     //Check if idx already calculated for this particle
-    if(idxCache.count(hash) and idxCache.at(hash).count(idx)) return data.at(idxCache.at(hash).at(idx));
+    if(hash != 0){
+        if(idxCache.count(hash) and idxCache.at(hash).count(idx)) return data.at(idxCache.at(hash).at(idx));
+    }
 
     int wpIdx = -1, counter = -1;
 
@@ -68,25 +70,35 @@ float NTupleReader::GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<Comp
 
 std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func, pt::ptree& part){
     std::shared_ptr<CompiledFunc> bindedFunc;
+    
+    //Replace 
+    if(part.get_optional<std::string>("name")){
+        func.put("branch", StrUtil::Replace(func.get<std::string>("branch"), "[P]", part.get<std::string>("name")));
+    }
 
-    //Labels names
-    if(func.get_optional<std::string>("axis-name") and part.get_optional<std::string>("axis-name")){
-        func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[P]", particles.at(0).get<std::string>("axis-name")));
-        func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[P]", particles.at(0).get<std::string>("hist-name")));
+    if(part.get_optional<std::string>("axis-name") and func.get_optional<std::string>("axis-name")){
+        func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[P]", part.get<std::string>("axis-name")));
+        func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[P]", part.get<std::string>("hist-name")));
+    }
+
+    if(func.get_child_optional("values")){
+        std::vector<std::string> values = NTupleReader::GetInfo(func.get_child("values"), false);
+
+        for(const std::string& value : values){
+            func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[V]", value));
+            func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[V]", value));
+            func.put("branch", StrUtil::Replace(func.get<std::string>("branch"), "[V]", value));
+        }
     }
 
     std::string branchName = func.get<std::string>("branch");
-
-    if(part.get_optional<std::string>("name")){
-        branchName = StrUtil::Replace(branchName, "[P]", part.get<std::string>("name"));
-    }
 
     //Compile vector branch with WP
     if(part.get_optional<int>("index") && (part.get_child_optional("identification") or part.get_child_optional("requirements"))){
         std::vector<std::shared_ptr<CompiledFunc>> cuts;
 
         //Make part without requirements so functions can be used as iterators
-        pt::ptree pNoWP = part;
+        pt::ptree pNoWP = part; 
         if(pNoWP.get_optional<int>("index")) pNoWP.put("index", -1);
         pNoWP.put("hash", 0);
         pNoWP.erase("requirements");
@@ -228,7 +240,22 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
 
 std::shared_ptr<CompiledFunc> NTupleReader::compileCustomFunction(pt::ptree& func, std::vector<pt::ptree>& parts){
     std::shared_ptr<CompiledFunc> bindedFunc;
-    Particles partValues;
+    std::map<std::string, std::shared_ptr<CompiledFunc>> subFuncs;
+
+    //Get function values
+    std::vector<std::string> values;
+    if(func.get_child_optional("values")) values = NTupleReader::GetInfo(func.get_child("values"), false);
+
+    //Label/axis name
+    for(const pt::ptree part: parts){
+        func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[P]", part.get<std::string>("axis-name")));
+        func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[P]", part.get<std::string>("hist-name")));
+    }
+
+    for(const std::string value: values){
+        func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[V]", value));
+        func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[V]", value));
+    }
 
     //Loop over all needed subfunctions/particles
     for(const std::string& fAlias: NTupleReader::GetInfo(func.get_child("need"))){
@@ -237,23 +264,45 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileCustomFunction(pt::ptree& fun
 
         if(fName == "") throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown function alias: '", fAlias, "'!"));
 
-        //Loop over all needed particles
-        std::vector<std::string> pAliases = NTupleReader::GetInfo(func.get_child("need." + fAlias), false);
+        //Loop over all info collections with particles/values needed
+        for(const std::pair<const std::string, pt::ptree> info : func.get_child("need." + fAlias)){
+            pt::ptree subFunc = funcInfo.get_child(fName);
+            std::string fKey = fAlias;
+            pt::ptree part;
 
-        if(pAliases.size() > parts.size()){
-            throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Function '", func.get<std::string>("alias"), "' needs '", pAliases.size(), "' particles, but '", parts.size(), "' are given!"));    
-        }   
+            std::vector<std::string> aliases = NTupleReader::GetInfo(info.second);
+            std::vector<std::string> indeces = NTupleReader::GetInfo(info.second, false);
 
-        for(int i = 0; i < pAliases.size(); ++i){
-            func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[" + pAliases.at(i) + "]", parts.at(i).get<std::string>("axis-name")));
-            func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[" + pAliases.at(i) + "]", parts.at(i).get<std::string>("hist-name")));
+            for(int i = 0; i < aliases.size(); ++i){
+                int idx = indeces.at(i) != "" ? std::atoi(indeces.at(i).c_str()) - 1 : 0;
 
-            partValues[{pAliases.at(i), fAlias}] = this->compileBranchReading(funcInfo.get_child(fName), parts.at(i));   
+                if(!StrUtil::Find(aliases.at(i), "P").empty()){
+                    if(idx >= parts.size()){
+                        throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Function '", func.get<std::string>("alias"), "' needs more than '", indeces.at(i), "' particles, but '", parts.size(), "' are given!"));    
+                    }
+
+                    fKey += "_" + aliases.at(i);
+
+                    part = parts.at(idx);
+                }
+
+                if(!StrUtil::Find(aliases.at(i), "V").empty()){
+                    if(idx >= values.size()){
+                        throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Function '", func.get<std::string>("alias"), "' needs more than '", indeces.at(i), "' values, but '", values.size(), "' are given!"));    
+                    }
+
+                    fKey += "_" + aliases.at(i);
+
+                    NTupleReader::PutVector(subFunc, "values", std::vector<std::string>{values.at(idx)});
+                }
+            }
+
+            subFuncs[fKey] = this->compileBranchReading(subFunc, part);
         }
     }
 
     //Bind all sub function to the wished function
-    bindedFunc = std::make_shared<CompiledCustomFunc>(Properties::properties.at(func.get<std::string>("alias")), partValues);
+    bindedFunc = std::make_shared<CompiledCustomFunc>(Properties::properties.at(func.get<std::string>("alias")), subFuncs);
 
     return bindedFunc;
 }
@@ -307,10 +356,8 @@ void NTupleReader::AddFunction(const std::string& fAlias, const std::vector<std:
     if(fName != ""){
         function.insert(function.end(), funcInfo.get_child(fName).begin(), funcInfo.get_child(fName).end());
 
-        for(const std::string& value : values){
-            function.put("axis-name", StrUtil::Replace(function.get<std::string>("axis-name"), "[V]", value));
-            function.put("hist-name", StrUtil::Replace(function.get<std::string>("hist-name"), "[V]", value));
-            function.put("branch", StrUtil::Replace(function.get<std::string>("branch"), "[V]", value));
+        if(!values.empty()){
+            NTupleReader::PutVector(function, "values", values);
         }
     }
 
@@ -408,45 +455,65 @@ void NTupleReader::Reset(){func->Reset();}
 
 ////// Custom functions of Properties namespace used by the NTupleReader
 
-float Properties::HT(Particles& parts){
+float Properties::HT(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
     float sum = 0.;
 
-    parts.at({"P", "pt"})->Reset();
+    for(std::shared_ptr<CompiledFunc>& func : VUtil::MapValues(funcs)){
+        func->Reset();
 
-    while(true){
-        const float& value = parts.at({"P", "pt"})->Get();
-        if(value == -999.) break;
+        while(true){
+            const float& value = func->Get();
+            if(value == -999.) break;
 
-        parts.at({"P", "pt"})->Next();
-        sum += value;
+            func->Next();
+            sum += value;
+        }
     }
 
     return sum;
 }
 
-float Properties::dR(Particles& parts){
-    return std::sqrt(std::pow(parts.at({"P1", "eta"})->Get() - parts.at({"P2", "eta"})->Get(), 2) + std::pow(parts.at({"P1", "phi"})->Get() - parts.at({"P2", "phi"})->Get(), 2));
+float Properties::dR(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return std::sqrt(std::pow(funcs.at("eta_P1")->Get() - funcs.at("eta_P2")->Get(), 2) + std::pow(funcs.at("phi_P1")->Get() - funcs.at("phi_P2")->Get(), 2));
 }
 
-float Properties::dPhi(Particles& parts){
-    return std::acos(std::cos(parts.at({"P1", "phi"})->Get())*std::cos(parts.at({"P2", "phi"})->Get()) + std::sin(parts.at({"P1", "phi"})->Get())*std::sin(parts.at({"P2", "phi"})->Get()));
+float Properties::dPhi(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return std::acos(std::cos(funcs.at("phi_P1")->Get())*std::cos(funcs.at("phi_P2")->Get()) + std::sin(funcs.at("phi_P1")->Get())*std::sin(funcs.at("phi_P2")->Get()));
 }
 
-float Properties::diCharge(Particles& parts){
-    return parts.at({"P1", "charge"})->Get() * parts.at({"P2", "charge"})->Get();
+float Properties::diCharge(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return funcs.at("charge_P1")->Get() * funcs.at("charge_P2")->Get();
 }
 
-float Properties::NParticles(Particles& parts){
+float Properties::NParticles(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
     int count = 0;
 
-    parts.at({"P", "pt"})->Reset();
+    funcs.at("pt_P")->Reset();
 
     while(true){
-        if(parts.at({"P", "pt"})->Get() != -999.) ++count;
+        if(funcs.at("pt_P")->Get() != -999.) ++count;
         else break;
 
-        parts.at({"P", "pt"})->Next();
+        funcs.at("pt_P")->Next();
     }
 
     return count;
+}
+
+float Properties::DAK8C(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    int argMax = -1, counter = 0;
+    float max = 0;
+
+    for(std::shared_ptr<CompiledFunc>& func : VUtil::MapValues(funcs)){
+        float score = func->Get();      
+
+        if(score > max){
+            max = score;
+            argMax = counter;
+        }
+
+        ++counter;
+    }
+
+    return argMax;
 }

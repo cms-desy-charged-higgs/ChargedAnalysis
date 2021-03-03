@@ -46,38 +46,38 @@ class CompiledFunc{
         virtual void Reset(){if(isIter) partIdx = 0;}
 };
 
-using Particles = std::map<std::pair<std::string, std::string>, std::shared_ptr<CompiledFunc>>;
-
 class CompiledCustomFunc : public CompiledFunc {
     private:
-        float(*func)(Particles& parts);
-        Particles parts;
+        float(*func)(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+        std::map<std::string, std::shared_ptr<CompiledFunc>> funcs;
         bool(*op)(const float&, const float&);
         float comp;
 
     public:
-        CompiledCustomFunc(float(*func)(Particles& parts), const Particles& parts) : func(func), parts(parts) {}
+        CompiledCustomFunc(float(*func)(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs), const std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs) : func(func), funcs(funcs) {}
         void AddCut(bool(*op)(const float&, const float&), const float& comp){this->op = op; this->comp = comp;};
-        float Get(){return (*func)(parts);}
+        float Get(){return (*func)(funcs);}
         bool GetPassed(){return op(Get(), comp);};
-        void Next(){for(auto& p : parts) p.second->Next();}
-        void Reset(){for(auto& p : parts) p.second->Reset();};
+        void Next(){for(std::shared_ptr<CompiledFunc>& f : VUtil::MapValues(funcs)) f->Next();}
+        void Reset(){for(std::shared_ptr<CompiledFunc>& f : VUtil::MapValues(funcs)) f->Reset();};
 };
 
 namespace Properties{
-    float HT(Particles& parts);
-    float dR(Particles& parts);
-    float dPhi(Particles& parts);
-    float diCharge(Particles& parts);
-    float NParticles(Particles& parts);
+    float HT(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float dR(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float dPhi(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float diCharge(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float NParticles(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float DAK8C(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
 
     //Register all functions here!
-    static std::map<std::string, float(*)(Particles&)> properties = {
+    static std::map<std::string, float(*)(std::map<std::string, std::shared_ptr<CompiledFunc>>&)> properties = {
         {"dR", &dR},
         {"dphi", &dPhi},
         {"N", &NParticles},
         {"HT", &HT},
         {"dicharge", &diCharge},
+        {"dAK8C", &DAK8C},
     };
 };
 
@@ -128,7 +128,7 @@ class NTupleReader{
         static void SetEntry(const int& entry){NTupleReader::entry = entry; idxCache.clear();}
 
         //Helper function to get keys of ptree
-        static std::vector<std::string> GetInfo(const pt::ptree& node, const bool GetInfo = true){
+        static std::vector<std::string> GetInfo(const pt::ptree& node, const bool& GetInfo = true){
             std::vector<std::string> keys;
 
             for(const std::pair<const std::string, pt::ptree>& p : node){
@@ -145,6 +145,19 @@ class NTupleReader{
            }
     
             return "";
+        }
+
+        template <typename T>
+        static void PutVector(pt::ptree& tree, const std::string& name, const std::vector<T>& vector){
+            pt::ptree children;
+            
+            for(const T& v : vector){
+                pt::ptree child;
+                child.put("", v);
+                children.push_back(std::make_pair("", child));
+            }
+
+            tree.add_child(name, children);
         }
 };
 
