@@ -226,5 +226,45 @@
                 }
             }
         }
+    },
+
+    "HPlus": {
+        "alias": "hc",
+
+        "axis-name": "H^{#pm}",
+
+        "hist-name": "HPlus",
+
+        "non-vector": true
+    },
+
+    "W": {
+        "alias": "W",
+
+        "axis-name": "W^{#pm}",
+
+        "hist-name": "W",
+
+        "non-vector": true
+    },
+
+    "H1": {
+        "alias": "h1",
+
+        "axis-name": "h_{1}",
+
+        "hist-name": "H1",
+
+        "non-vector": true
+    },
+
+    "H2": {
+        "alias": "h2",
+
+        "axis-name": "h_{2}",
+
+        "hist-name": "H2",
+
+        "non-vector": true
     }
 }
