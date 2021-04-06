@@ -186,8 +186,9 @@ void PUtil::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
     PUtil::DrawLegend(canvas, l, 2);
 }
 
-void PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir){
+float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir){
     int nClasses = classNames.size();
+    float accuracy = 0.;
 
     //Set canvas/hist
     std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("c", "c", 1000, 1000);
@@ -227,12 +228,19 @@ void PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<
             confusionNormed->SetBinContent(j + 1, i + 1, confusion->GetBinContent(j + 1, nClasses - i)/nTotal);
         }
     }
+
+    //Calculate accuracy
+    for(int i = 0; i < nClasses; ++i){
+        accuracy += confusionNormed->GetBinContent(i + 1, nClasses - i)/float(nClasses);
+    }
     
     //Draw and save
     confusionNormed->Draw("COL");
     confusionNormed->Draw("TEXT SAME");
     
     canvas->SaveAs((outDir + "/confusion.pdf").c_str());
+
+    return accuracy;
 }
 
 std::string PUtil::GetChannelTitle(const std::string& channel){
