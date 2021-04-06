@@ -14,11 +14,12 @@ from collections import defaultdict as dd
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate", "Stitch"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--era", nargs='+', default = [""])
     parser.add_argument('--dry-run', default=False, action='store_true')
     parser.add_argument("--run-again", type=str)
+    parser.add_argument("--long-condor", default=False, action='store_true')
 
     return parser.parse_args()
 
@@ -32,6 +33,7 @@ def taskReturner(taskName, config):
         "Slim": lambda : slim(config),
         "Merge": lambda: mergeskim(config),
         "Estimate": lambda : estimate(config),
+        "Stitch": lambda: stitch(config),
     }
 
     return tasks[taskName]
@@ -124,8 +126,7 @@ def estimate(config):
                 for process in config["estimate-process"]:
                     c = copy.deepcopy(config)
                     c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("{MHC}", str(mass))
-                    c.setdefault("cuts", {}).setdefault(channel, config["estimate-process"][process].get(channel, []) + config["estimate-process"][process].get("all", []))
-                    c["cuts"] = {key: [cut.format_map(dd(str, {"MHC": mass})) for cut in c["cuts"][key]] for key in c["cuts"]}
+                    c["cuts"].setdefault("all", []).extend([cut.format_map(dd(str, {"MHC": mass})) for cut in config["estimate-process"][process]])
                                         
                     processes = config["processes"] + config["data"][channel]
 
@@ -140,19 +141,31 @@ def estimate(config):
 
     return tasks
 
+def stitch(config):
+    tasks = []
+
+    for channel in config["channels"]:
+        for era in config["era"]:
+            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+                for shift in ["Up", "Down"]:
+                    stitching(tasks, config, channel, era, syst, shift)
+
+    return tasks
+
 def limit(config):
     tasks = []
 
-    for era in config["era"]:
-        for channel in config["channels"]:
-            for mHPlus in config["charged-masses"]:
-                for mH in config["neutral-masses"]:
-                    conf = copy.deepcopy(config)
-                    conf["parameters"][channel] = [param.replace("{MHC}", str(mHPlus)) for param in config["parameters"][channel]]
-                    conf["signal"] = config["signal"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
-                    conf["discriminant"] = config["discriminant"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
-                    conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
+    for mHPlus in config["charged-masses"]:
+        for mH in config["neutral-masses"]:
+            conf = copy.deepcopy(config)
+            conf["signal"] = config["signal"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
+            conf["discriminant"] = config["discriminant"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
+            conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
 
+            ##Produce limits for each era/channel individually
+            for era in config["era"]:
+                for channel in config["channels"]:
+                    conf["cuts"]["all"] = [c.replace("{MHC}", str(mHPlus)) for c in config["cuts"]["all"]]
                     processes = conf["backgrounds"] + [conf["signal"]] + conf["data"][channel]
 
                     for procc in processes:
@@ -163,28 +176,33 @@ def limit(config):
 
                     datacard(tasks, conf, channel, era, processes, mHPlus, mH)
                     limits(tasks, conf, channel, era, mHPlus, mH)
+                    plotpostfit(tasks, conf, channel, era, mHPlus, mH)
 
-            conf = copy.deepcopy(config)
-            conf["dir"] = config["dir"].replace("{MHC}", "").replace("{MH}", "")
-            plotlimit(tasks, conf, channel, era)
-
-    for mHPlus in config["charged-masses"]:
-        for mH in config["neutral-masses"]:
-            conf = copy.deepcopy(config)
-            conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
-
+            ##Produce limits for each era and all channel combined
             for era in config["era"]:
                 mergeDataCards(tasks, conf, {"Combined": config["channels"]}, era, mHPlus, mH)
                 limits(tasks, conf, "Combined", era, mHPlus, mH)
+                plotpostfit(tasks, conf, "Combined", era, mHPlus, mH)
 
+
+            ##Produce limits for RunII and each channel
             for channel in config["channels"]:
                 mergeDataCards(tasks, conf, channel, {"RunII": config["era"]}, mHPlus, mH)
                 limits(tasks, conf, channel, "RunII", mHPlus, mH)
+                plotpostfit(tasks, conf, channel, "RunII", mHPlus, mH)
 
+            ##Produce limits for RunII and all channel combined
             mergeDataCards(tasks, conf, {"Combined": config["channels"]}, {"RunII": config["era"]}, mHPlus, mH)
             limits(tasks, conf, "Combined", "RunII", mHPlus, mH)
+            plotpostfit(tasks, conf, "Combined", "RunII", mHPlus, mH)
 
-    config["dir"] = config["dir"].replace("{MHC}", "").replace("{MH}", "")
+    ##Plot limits for all combination of era/channel
+    conf = copy.deepcopy(config)
+    conf["dir"] = config["dir"].replace("{MHC}", "").replace("{MH}", "")
+
+    for era in config["era"]:
+        for channel in config["channels"]:
+            plotlimit(tasks, conf, channel, era)
 
     for era in config["era"]:
         plotlimit(tasks, config, "Combined", era)
@@ -225,7 +243,7 @@ def main():
         taskDir = "/".join(args.run_again.split("/")[:-1])
 
     ##Run the manager
-    manager = TaskManager(tasks = tasks, existingFlow = args.run_again, dir = taskDir)
+    manager = TaskManager(tasks = tasks, existingFlow = args.run_again, dir = taskDir, longCondor = args.long_condor)
     manager.run(args.dry_run)
 
 if __name__=="__main__":
