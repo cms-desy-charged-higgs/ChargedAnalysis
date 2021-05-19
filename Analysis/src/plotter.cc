@@ -11,7 +11,7 @@ Plotter::Plotter(const std::string& histdir):
         {"TT2L", kYellow +4}, 
         {"TTHad", kYellow +8}, 
         {"TTV", kOrange +2},            
-        {"T", kGreen  + 2},             
+        {"ST", kGreen  + 2},             
         {"WJ", kCyan + 2},             
         {"QCD", kBlue -3},             
         {"VV", kViolet -3},
