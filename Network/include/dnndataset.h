@@ -41,7 +41,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @param device Pytorch class for usage of CPU/GPU
         * @param isSignal Boolean to check if files are signal files
         */
-        DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const int& era, const bool& isEven, torch::Device& device, const int& classLabel);
+        DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cuts, const int& era, const int& isEven, torch::Device& device, const int& classLabel);
 
         /**
         * @brief Function to get number of events in the dataset
@@ -62,7 +62,7 @@ class DNNDataset : public torch::data::datasets::Dataset<DNNDataset, DNNTensor>{
         * @param tensors Vector with DNNTensors
         * @return Returns Merged DNNTensor
         */
-        static DNNTensor Merge(std::vector<DNNTensor>& tensors);
+        static DNNTensor Merge(const std::vector<DNNTensor>& tensors);
 };
 
 #endif

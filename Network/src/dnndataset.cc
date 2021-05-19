@@ -5,7 +5,7 @@
 
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 
-DNNDataset::DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const int& era, const bool& isEven, torch::Device& device, const int& classLabel) :
+DNNDataset::DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const int& era, const int& isEven, torch::Device& device, const int& classLabel) :
     device(device),
     classLabel(classLabel){
 
@@ -41,7 +41,9 @@ DNNDataset::DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::stri
     for(int i = 0; i < tree->GetEntries(); ++i){
         NTupleReader::SetEntry(i);
 
-        if(int(1/RUtil::GetEntry<float>(evNr, i)*10e10) % 2 == isEven) continue; 
+        if(isEven >= 0){
+            if(int(1./RUtil::GetEntry<int>(evNr, i)*10e10) % 2 == isEven) continue; 
+        }
  
         bool passed=true;
 
@@ -75,10 +77,10 @@ DNNTensor DNNDataset::get(size_t index){
     return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({classLabel}).to(device)};
 }
 
-DNNTensor DNNDataset::Merge(std::vector<DNNTensor>& tensors){
+DNNTensor DNNDataset::Merge(const std::vector<DNNTensor>& tensors){
     std::vector<torch::Tensor> input, label; 
 
-    for(DNNTensor& tensor: tensors){
+    for(const DNNTensor& tensor: tensors){
         input.push_back(tensor.input);
         label.push_back(tensor.label);
     }
