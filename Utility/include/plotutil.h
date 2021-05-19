@@ -15,6 +15,7 @@
 #include <TROOT.h>
 #include <TStyle.h>
 #include <TLatex.h>
+#include <TGraphAsymmErrors.h>
 
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>

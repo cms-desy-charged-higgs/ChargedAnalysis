@@ -112,8 +112,8 @@ void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
         
     float max = 0;
 
-    for(TObject* hist : *(pad->GetListOfPrimitives())){    
-        float maxHist = hist->InheritsFrom(TH1::Class()) ? static_cast<TH1*>(hist)->GetMaximum() : hist->InheritsFrom(TGraph::Class()) ? static_cast<TGraph*>(hist)->GetHistogram()->GetMaximum() : 0;
+    for(TObject* hist : *(pad->GetListOfPrimitives())){
+        float maxHist = hist->InheritsFrom(TH1::Class()) ? static_cast<TH1*>(hist)->GetMaximum() : hist->InheritsFrom(TGraph::Class()) or hist->InheritsFrom(TGraphAsymmErrors::Class()) ? static_cast<TGraph*>(hist)->GetHistogram()->GetMaximum() : 0;
 
         max = max < maxHist ? maxHist : max;
     }
@@ -123,17 +123,18 @@ void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
     float topMargin = pad->GetTopMargin();
 
     TObject* frame = pad->GetListOfPrimitives()->At(0);
+    int nRows = std::ceil(legend->GetListOfPrimitives()->GetSize()/float(nColumns));
 
     if(frame->InheritsFrom(TH1::Class())){
-        static_cast<TH1*>(frame)->SetMaximum(pad->GetLogy() ? max*std::pow(10, nColumns) : max*(1 + nColumns*0.1));
+        static_cast<TH1*>(frame)->SetMaximum(pad->GetLogy() ? max*std::pow(10, nRows) : max*(1 + nRows*0.2));
     }
 
     else if(frame->InheritsFrom(TGraph::Class())){
-        static_cast<TGraph*>(frame)->GetHistogram()->SetMaximum(pad->GetLogy() ? max*std::pow(10, nColumns) : max*(1 + nColumns*0.1));
+        static_cast<TGraph*>(frame)->GetHistogram()->SetMaximum(pad->GetLogy() ? max*std::pow(10, nRows) : max*(1 + nRows*0.2));
     }
 
     //Draw Legend and legend pad
-    TPad* legendPad = new TPad("legendPad", "legendPad", 1.05*leftMargin, 1-1.05*topMargin-nColumns*0.05, 1-1.05*rightMargin, 1-1.05*topMargin);
+    TPad* legendPad = new TPad("legendPad", "legendPad", 1.05*leftMargin, 1-1.05*topMargin-nRows*0.07, 1-1.05*rightMargin, 1-1.05*topMargin);
     legendPad->Draw();
     legendPad->cd();
 
@@ -142,7 +143,7 @@ void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
 
     float textSize = padHeight > padWidth ? 20./padWidth : 20./padHeight;
 
-    for(int i=0; i < legend->GetListOfPrimitives()->GetSize(); i++){
+    for(int i=0; i < legend->GetListOfPrimitives()->GetSize(); ++i){
         ((TLegendEntry*)legend->GetListOfPrimitives()->At(i))->SetTextSize(textSize);
     }
 
