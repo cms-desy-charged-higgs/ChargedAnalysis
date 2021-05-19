@@ -201,7 +201,7 @@ class TaskManager(object):
                     
                 ##Local job configuration
                 if task["run-mode"] == "Local":
-                    if len(self.runningTasks.get("Local", [])) >= 20:
+                    if len(self.runningTasks.get("Local", [])) >= mp.cpu_count():
                         self._taskNames[mode].insert(lookForward[mode], name)
                         self._tasks[name] = task
                         continue
