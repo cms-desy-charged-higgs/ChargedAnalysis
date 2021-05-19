@@ -257,7 +257,7 @@ namespace VUtil{
     std::vector<int> SortedIndices(const std::vector<T>& input, const Func sortFunc){    
         std::vector<int> idx = VUtil::Range(0, int(input.size()) - 1, int(input.size()));
 
-        std::function<bool(int, int)> sort = [&](int i1, int i2){return sortFunc(input[i1], input[i2]);};
+        std::function<bool(int&, int&)> sort = [&](int& i1, int& i2){return sortFunc(input[i1], input[i2]);};
         std::sort(idx.begin(), idx.end(), sort);
  
         return idx;
