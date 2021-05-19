@@ -41,12 +41,17 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 source /cvmfs/cms.cern.ch/crab3/crab.sh
 export SCRAM_ARCH=slc7_amd64_gcc700
 
-eval `scramv1 project CMSSW CMSSW_10_2_22`
-cd CMSSW_10_2_22/src/
+eval `scramv1 project CMSSW CMSSW_10_6_20`
+cd CMSSW_10_6_20/src/
 eval `scramv1 runtime -sh`
 git cms-init
 
-git clone https://github.com/cms-egamma/EgammaPostRecoTools.git EgammaUser/EgammaPostRecoTools
+##Needed for electron because people fucked up
+git cms-addpkg RecoEgamma/EgammaTools 
+mv EgammaPostRecoTools/python/EgammaPostRecoTools.py RecoEgamma/EgammaTools/python/
+git clone https://github.com/cms-data/EgammaAnalysis-ElectronTools.git EgammaAnalysis/ElectronTools/data/
+git cms-addpkg EgammaAnalysis/ElectronTools
+
 git clone https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 

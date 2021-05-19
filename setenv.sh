@@ -16,7 +16,8 @@ unset AA_GRID_ENV_SET
 source /cvmfs/grid.desy.de/etc/profile.d/grid-ui-env.sh
 
 ##Set actual CMSSW version https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVAnalysisSummaryTable
-export CMSSW_VERSION=CMSSW_10_2_22
+# https://twiki.cern.ch/twiki/bin/view/CMS/PdmVRun2LegacyAnalysis
+export CMSSW_VERSION=CMSSW_10_6_20
 
 case $1 in
     "CMSSW")
