@@ -376,6 +376,11 @@ void NTupleReader::AddCut(const float& value, const std::string& op, const std::
     function.put("cut-value", value);
 }
 
+void NTupleReader::AddWeighter(const std::shared_ptr<Weighter>& w, const std::experimental::source_location& location){
+    weight = w;
+}
+
+
 void NTupleReader::Compile(const std::experimental::source_location& location){
     isCompiled = true;
 
@@ -431,6 +436,11 @@ float NTupleReader::Get(){
 bool NTupleReader::GetPassed(){
     if(isCompiled) return func->GetPassed();
     else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Use the 'Compile' function before calling the 'GetPassed' function!"));
+}
+
+double NTupleReader::GetWeight(){
+    if(weight) return weight->GetPartWeight(entry);
+    else return 1.;
 }
 
 std::string NTupleReader::GetHistName(){

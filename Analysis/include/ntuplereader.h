@@ -17,6 +17,7 @@
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
+#include <ChargedAnalysis/Analysis/include/weighter.h>
 
 class CompiledFunc{
     private:
@@ -83,6 +84,8 @@ namespace Properties{
 
 namespace pt = boost::property_tree;
 
+class Weighter;
+
 class NTupleReader{
     private:
         pt::ptree partInfo;
@@ -95,6 +98,7 @@ class NTupleReader{
         int era;
 
         std::shared_ptr<CompiledFunc> func;
+        std::shared_ptr<Weighter> weight;
 
         bool isCompiled = false;
         inline static int entry = 0; 
@@ -114,11 +118,13 @@ class NTupleReader{
         void AddFunction(const std::string& fInfo, const std::vector<std::string>& values = {}, const std::experimental::source_location& location = std::experimental::source_location::current());
         void AddFunctionByBranchName(const std::string& branchName, const std::experimental::source_location& location = std::experimental::source_location::current());
         void AddCut(const float&, const std::string& op, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void AddWeighter(const std::shared_ptr<Weighter>& w, const std::experimental::source_location& location = std::experimental::source_location::current());
 
         void Compile(const std::experimental::source_location& location = std::experimental::source_location::current());
 
         float Get();
         bool GetPassed();
+        double GetWeight();
         std::string GetHistName();
         std::string GetAxisLabel();
         std::string GetCutName();
