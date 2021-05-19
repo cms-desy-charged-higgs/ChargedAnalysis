@@ -13,6 +13,7 @@
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 
 #include <TFile.h>
+#include <THStack.h>
 #include <TTree.h>
 #include <TBranch.h>
 #include <TLeaf.h>
@@ -137,6 +138,28 @@ namespace RUtil{
     template<typename T>
     std::shared_ptr<T> CloneSmart(T* obj, const std::experimental::source_location& location = std::experimental::source_location::current()){
         return std::shared_ptr<T>(RUtil::Clone<T>(obj, location));
+    }
+
+    /**
+    * @brief Wrapper of the RUtil::Clone function to return shared pointer
+    *
+    * @param obj Object to clone
+    * @param location Standard library object containing the file positions
+    * @return Return shared pointer of wished pointer
+    */
+    template<typename T>
+    T* StackAt(THStack* stack, const int& idx, const std::experimental::source_location& location = std::experimental::source_location::current()){
+        //Check if objects is not null pointer
+        if(stack == nullptr){
+            throw std::runtime_error(StrUtil::PrettyError(location, "Null pointer is given!"));
+        }
+
+        //Check if out of bounce
+        if(idx >= stack->GetNhists()){
+            throw std::runtime_error(StrUtil::PrettyError(location, "Given index '", idx, "' is bigger than number of histograms '", stack->GetNhists(), "' in the stack!"));
+        }
+    
+        return static_cast<T*>(stack->GetStack()->At(idx));
     }
     
     /**
