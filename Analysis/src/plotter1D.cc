@@ -2,7 +2,7 @@
 
 Plotter1D::Plotter1D() : Plotter(){}
 
-Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::vector<std::string>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::vector<std::string>& sigFiles, const std::string& data, const std::string& dataFile) :
+Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::map<std::string, std::vector<std::string>>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::map<std::string, std::vector<std::string>>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string> systematics) :
     Plotter(), 
     channel(channel), 
     era(era), 
@@ -11,11 +11,12 @@ Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const s
     sigProcesses(sigProcesses), 
     sigFiles(sigFiles), 
     dataProcess(data), 
-    dataFile(dataFile){}
+    dataFile(dataFile),
+    systematics(systematics){}
 
 void Plotter1D::ConfigureHists(){
     //Read out parameter
-    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles, bkgFiles).at(0));
+    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles[""], bkgFiles[""]).at(0));
 
     for(int i = 0; i < f->GetListOfKeys()->GetSize(); ++i){
         if(f->Get(f->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH1F::Class())){
@@ -23,43 +24,74 @@ void Plotter1D::ConfigureHists(){
         }
     }
 
-    for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
-        std::shared_ptr<TFile> file = RUtil::Open(bkgFiles.at(i));
+    for(const std::string& syst : systematics){
+        for(const std::string shift : {"Up", "Down"}){
+            //Skip Down loop for nominal case
+            if(syst == "" and shift == "Down") continue;
 
-        for(std::string& param: parameters){
-            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
+            std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
 
-            //Set Style
-            hist->SetFillStyle(1001);
-            hist->SetFillColor(colors.at(bkgProcesses.at(i)));
-            hist->SetLineColor(colors.at(bkgProcesses.at(i)));
-            hist->SetName(bkgProcesses.at(i).c_str());
-            hist->SetDirectory(0);
 
-            background[param].push_back(hist);
+            for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
+                std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[systName].at(i));
 
-            //Total bkg sum
-            if(bkgSum.count(param)) bkgSum[param]->Add(hist.get());
-            else{
-                bkgSum[param] = RUtil::CloneSmart(hist.get());
-                bkgSum[param]->SetDirectory(0);
+                for(std::string& param: parameters){
+                    if(param == "cutflow" and syst != "") continue;
+
+                    std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
+
+                    if(syst == ""){
+                        //Set Style
+                        hist->SetFillStyle(1001);
+                        hist->SetFillColor(colors.at(bkgProcesses.at(i)));
+                        hist->SetLineColor(colors.at(bkgProcesses.at(i)));
+                        hist->SetName(bkgProcesses.at(i).c_str());
+                        hist->SetDirectory(0);
+
+                        background[param].push_back(hist);                   
+
+                        //Total bkg sum
+                        if(bkgSum.count(param)) bkgSum[param]->Add(hist.get());
+                        else{
+                            bkgSum[param] = RUtil::CloneSmart(hist.get());
+                            bkgSum[param]->SetDirectory(0);
+                        }
+                    }
+
+                    else{
+                        std::map<std::string, std::shared_ptr<TH1F>>& systShift = shift == "Up" ? systUp : systDown;
+                        std::string key = syst + param;
+
+                        if(systShift.count(key)) systShift[key]->Add(hist.get());
+
+                        else{
+                            systShift[key] = RUtil::CloneSmart(hist.get());
+                            systShift[key]->SetDirectory(0);
+                        }
+                    }
+                }
             }
-        }
-    }
 
-    for(std::size_t i = 0; i < sigProcesses.size(); ++i){
-        std::shared_ptr<TFile> file = RUtil::Open(sigFiles.at(i));
+            for(std::size_t i = 0; i < sigProcesses.size(); ++i){
+                std::shared_ptr<TFile> file = RUtil::Open(sigFiles[systName].at(i));
 
-        for(std::string& param: parameters){
-            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
-            std::vector<std::string> s = StrUtil::Split(sigProcesses.at(i), "_");
+                for(std::string& param: parameters){
+                    if(param == "cutflow" and syst != "") continue;
 
-            hist->SetLineWidth(1 + 3*signal[param].size());
-            hist->SetLineColor(kBlack);
-            hist->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
-            hist->SetDirectory(0);        
+                    std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
-            signal[param].push_back(hist);
+                    if(syst == ""){
+                        std::vector<std::string> s = StrUtil::Split(sigProcesses.at(i), "_");
+
+                        hist->SetLineWidth(1 + 3*signal[param].size());
+                        hist->SetLineColor(kBlack);
+                        hist->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
+                        hist->SetDirectory(0);        
+
+                        signal[param].push_back(hist);
+                    }
+                }
+            }
         }
     }
 
@@ -124,6 +156,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
         //Frame hist
         std::shared_ptr<TH1F> frame = bkgSum.count(param) ? RUtil::CloneSmart(bkgSum[param].get()) : data.count(param) ? RUtil::CloneSmart(data[param].get()) : RUtil::CloneSmart(signal[param][0].get());
         frame->Reset();
+        frame->LabelsDeflate();
         PUtil::SetHist(mainPad.get(), frame.get(), "Events");
 
         //Draw ratio
@@ -131,7 +164,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
             PUtil::DrawRatio(canvas.get(), mainPad.get(), data[param].get(), bkgSum[param].get(), "Data/Pred");
         }
 
-        for(int isLog=0; isLog < 2; isLog++){
+        for(int isLog=0; isLog < 2; ++isLog){
             mainPad->cd();
             mainPad->Clear();
             mainPad->SetLogy(isLog);
@@ -140,9 +173,6 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
             frame->SetMinimum(isLog ? 1e-1 : 0);
             frame->Draw();
-
-            //Draw Title
-            PUtil::DrawHeader(mainPad.get(), PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
             //Draw data and MC
             if(background.count(param)){
@@ -161,6 +191,9 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
             //Draw Legend
             PUtil::DrawLegend(mainPad.get(), legend.get(), 5);
+
+            //Draw Title
+            PUtil::DrawHeader(mainPad.get(), PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
             //Save everything
             std::string extension = isLog ? "_log" : "";
@@ -190,6 +223,54 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
 
                     std::cout << "Saved plot: '" + outdir + "/" + param + "_" + mass + "_shape.pdf'" << std::endl;
                 }
+            }
+        }
+
+        //Draw systematics
+        if(systematics.size() > 1){
+            if(param == "cutflow") continue;
+
+            for(const std::string shift : {"Up", "Down"}){
+                std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("canvasSyst",  "canvasSyst", 1000, 1000);
+                std::shared_ptr<TLegend> l = std::make_shared<TLegend>(0., 0., 1, 1);
+
+                //Style stuff
+                PUtil::SetStyle();
+                PUtil::SetPad(c.get());
+
+                float min = 0., max = 0.;
+
+                for(const std::string& syst : systematics){
+                    if(syst == "") continue;
+                    std::string key = syst + param;
+
+                    TH1F* relErr = RUtil::Clone(shift == "Up" ? systUp.at(key).get() : systDown.at(key).get());
+                    relErr->Add(bkgSum[param].get(), -1);
+                    relErr->Divide(bkgSum[param].get());
+                    relErr->SetLineWidth(2);
+
+                    if(l->GetListOfPrimitives()->GetSize() == 0){
+                        PUtil::SetHist(c.get(), relErr, ("N^{" + shift + "}_{sys}- N_{nom})/N_{nom}").c_str());
+                        relErr->SetMinimum(-0.07);
+                        relErr->SetMaximum(0.07);
+                        relErr->Draw("HIST PLC");
+                    }
+
+                    else relErr->Draw("HIST SAME PLC");
+
+                    l->AddEntry(relErr, syst.c_str(), "L");
+                }
+
+                PUtil::DrawLegend(c.get(), l.get(), 5);
+                PUtil::DrawHeader(c.get(), PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
+
+                for(std::string outdir: outdirs){
+                    std::system(("mkdir -p " + outdir).c_str());
+                    c->SaveAs((outdir + "/" + param + "_systematics" + shift + ".pdf").c_str());
+                    c->SaveAs((outdir + "/" + param + "_systematics" + shift + ".png").c_str());
+
+                    std::cout << "Saved plot: '" + outdir + "/" + param + "_systematics" + shift + ".pdf'" << std::endl;
+                }   
             }
         }
     }
