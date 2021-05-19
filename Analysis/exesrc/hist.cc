@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
     std::string outFile = parser.GetValue<std::string>("out-file");
     std::string channel = parser.GetValue<std::string>("channel");
     std::vector<std::string> scaleDirs = parser.GetVector<std::string>("syst-dirs", {});
-    std::vector<std::string> scaleSysts = parser.GetVector<std::string>("scale-syst", {""});
+    std::vector<std::string> scaleSysts = parser.GetVector<std::string>("scale-systs", {""});
     std::string scaleFactors = parser.GetValue<std::string>("scale-factors", "");
     int era = parser.GetValue<int>("era", 2017);
 
