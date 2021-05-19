@@ -291,42 +291,44 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
     std::map<std::string, std::vector<float>> values;
     std::vector<std::string> branchNames = {"W_Mass", "W_Pt", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Mass", "HPlus_Phi"};
 
-    int nEntries = file->Get<TTree>(channel.c_str())->GetEntries();
+    std::shared_ptr<TTree> tree = RUtil::CloneSmart<TTree>(RUtil::Get<TTree>(file.get(), channel));
 
     for(const std::string& branchName: branchNames){
-        values[branchName] = std::vector<float>(nEntries, -999.);
+        values[branchName] = std::vector<float>(tree->GetEntries(), -999.);
     }
     
-    std::string lepName = Utils::Find<std::string>(channel, "Muon") != -1. ? "mu" : "e";
-    float lepMass = Utils::Find<std::string>(channel, "Muon") != - 1. ? 0.10565: 0.000510;
+    std::string lepName = !StrUtil::Find(channel, "Muon").empty() ? "mu" : "e";
+    float lepMass = !StrUtil::Find(channel, "Muon").empty() ? 0.10565: 0.000510;
 
-    TreeFunction LepPt(file, channel), LepEta(file, channel), LepPhi(file, channel);
-    LepPt.SetP1<Axis::X>(lepName, 1); LepEta.SetP1<Axis::X>(lepName, 1); LepPhi.SetP1<Axis::X>(lepName, 1);
-    LepPt.SetFunction<Axis::X>("Pt"); LepEta.SetFunction<Axis::X>("Eta"); LepPhi.SetFunction<Axis::X>("Phi");
+    NTupleReader LepPt(tree, era), LepEta(tree, era), LepPhi(tree, era);
+    LepPt.AddParticle(lepName, 1, "medium"); LepEta.AddParticle(lepName, 1, "medium"); LepPhi.AddParticle(lepName, 1, "medium");
+    LepPt.AddFunction("pt"); LepEta.AddFunction("eta"); LepPhi.AddFunction("phi");
+    LepPt.Compile(); LepEta.Compile(); LepPhi.Compile();
 
-    TreeFunction METPt(file, channel), METPhi(file, channel);
-    METPt.SetP1<Axis::X>("met"); METPhi.SetP1<Axis::X>("met");
-    METPt.SetFunction<Axis::X>("Pt"); METPhi.SetFunction<Axis::X>("Phi");
-    
-    TreeFunction nJet(file, channel), nFatJet(file, channel);
-    nJet.SetP1<Axis::X>("j"); nFatJet.SetP1<Axis::X>("fj");
-    nJet.SetFunction<Axis::X>("N"); nFatJet.SetFunction<Axis::X>("N");
+    NTupleReader METPt(tree, era), METPhi(tree, era);
+    METPt.AddParticle("met", 0, ""); METPhi.AddParticle("met", 0, "");
+    METPt.AddFunction("pt"); METPhi.AddFunction("phi");
+    METPt.Compile(); METPhi.Compile();
 
-    TreeFunction JetPt(file, channel), JetEta(file, channel), JetPhi(file, channel), JetMass(file, channel);
-    JetPt.SetP1<Axis::X>("j"); JetEta.SetP1<Axis::X>("j"); JetPhi.SetP1<Axis::X>("j"); JetMass.SetP1<Axis::X>("j");
-    JetPt.SetFunction<Axis::X>("Pt"); JetEta.SetFunction<Axis::X>("Eta"); JetPhi.SetFunction<Axis::X>("Phi"); JetMass.SetFunction<Axis::X>("Mass");
+    NTupleReader JetPt(tree, era), JetEta(tree, era), JetPhi(tree, era), JetMass(tree, era);
+    JetPt.AddParticle("j", 0, ""); JetEta.AddParticle("j", 0, ""); JetPhi.AddParticle("j", 0, ""); JetMass.AddParticle("j", 0, "");
+    JetPt.AddFunction("pt"); JetEta.AddFunction("eta"); JetPhi.AddFunction("phi"); JetMass.AddFunction("m");
+    JetPt.Compile(); JetEta.Compile(); JetPhi.Compile(); JetMass.Compile();
 
-    TreeFunction FatJetPt(file, channel), FatJetEta(file, channel), FatJetPhi(file, channel), FatJetMass(file, channel);
-    FatJetPt.SetP1<Axis::X>("fj"); FatJetEta.SetP1<Axis::X>("fj"); FatJetPhi.SetP1<Axis::X>("fj"); FatJetMass.SetP1<Axis::X>("fj");
-    FatJetPt.SetFunction<Axis::X>("Pt"); FatJetEta.SetFunction<Axis::X>("Eta"); FatJetPhi.SetFunction<Axis::X>("Phi"); FatJetMass.SetFunction<Axis::X>("Mass");
+    NTupleReader FatJetPt(tree, era), FatJetEta(tree, era), FatJetPhi(tree, era), FatJetMass(tree, era);
+    FatJetPt.AddParticle("fj", 0, ""); FatJetEta.AddParticle("fj", 0, ""); FatJetPhi.AddParticle("fj", 0, ""); FatJetMass.AddParticle("fj", 0, "");
+    FatJetPt.AddFunction("pt"); FatJetEta.AddFunction("eta"); FatJetPhi.AddFunction("phi"); FatJetMass.AddFunction("m");
+    FatJetPt.Compile(); FatJetEta.Compile(); FatJetPhi.Compile(); FatJetMass.Compile();
 
     float pXNu, pYNu, pXLep, pYLep, pZLep, mW;
 
-    for(int i = 0; i < nEntries; i++){
-        TreeFunction::SetEntry(i);
+    for(int i = 0; i < tree->GetEntries(); ++i){
+        NTupleReader::SetEntry(i);
 
-        PolarLV LepLV(LepPt.Get<Axis::X>(), LepEta.Get<Axis::X>(), LepPhi.Get<Axis::X>(), lepMass);
-        PolarLV W = LepLV + PolarLV(METPt.Get<Axis::X>(), 0, METPhi.Get<Axis::X>(), 0);
+        PolarLV LepLV(LepPt.Get(), LepEta.Get(), LepPhi.Get(), lepMass);
+        PolarLV W = LepLV + PolarLV(METPt.Get(), 0, METPhi.Get(), 0);
+
+        if(LepLV.Pt() == -999.) continue;
 
         values["W_Mass"][i] = W.M();
         values["W_Pt"][i] = W.Pt();
@@ -335,14 +337,29 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         std::vector<PolarLV> jets;
         std::vector<PolarLV> fatJets;
 
-        for(unsigned int k = 0; k < nJet.Get<Axis::X>(); k++){
-            JetPt.SetP1<Axis::X>("j", k+1); JetEta.SetP1<Axis::X>("j", k+1); JetPhi.SetP1<Axis::X>("j", k+1); JetMass.SetP1<Axis::X>("j", k+1);
-            jets.push_back(PolarLV(JetPt.Get<Axis::X>(), JetEta.Get<Axis::X>(), JetPhi.Get<Axis::X>(), JetMass.Get<Axis::X>()));
+        JetPt.Reset(); JetEta.Reset(); JetPhi.Reset(); JetMass.Reset();
+        FatJetPt.Reset(); FatJetEta.Reset(); FatJetPhi.Reset(); FatJetMass.Reset();
+
+        while(true){
+            PolarLV jet = PolarLV(JetPt.Get(), JetEta.Get(), JetPhi.Get(), JetMass.Get());
+
+            if(jet.Pt() != -999.){
+                jets.push_back(jet);
+                JetPt.Next(); JetEta.Next(); JetPhi.Next(); JetMass.Next();
+            }
+
+            else break;
         }
 
-        for(unsigned int k = 0; k < nFatJet.Get<Axis::X>(); k++){
-            FatJetPt.SetP1<Axis::X>("fj", k+1); FatJetEta.SetP1<Axis::X>("fj", k+1); FatJetPhi.SetP1<Axis::X>("fj", k+1); FatJetMass.SetP1<Axis::X>("fj", k+1);
-            fatJets.push_back(PolarLV(FatJetPt.Get<Axis::X>(), FatJetEta.Get<Axis::X>(), FatJetPhi.Get<Axis::X>(), FatJetMass.Get<Axis::X>()));
+        while(true){
+            PolarLV fatJet = PolarLV(FatJetPt.Get(), FatJetEta.Get(), FatJetPhi.Get(), FatJetMass.Get());
+
+            if(fatJet.Pt() != -999.){
+                fatJets.push_back(fatJet);
+                FatJetPt.Next(); FatJetEta.Next(); FatJetPhi.Next(); FatJetMass.Next();
+            }
+
+            else break;
         }
 
         //Intermediate step to save all possible combinations of two jets from jet collection
@@ -360,8 +377,8 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         //If 4 jets and no fat jets
         if(jets.size() >= 4){
             //Construct all pairs of possible jet pairs
-            for(unsigned int k = 0; k < combi.size(); k++){
-                for(unsigned int j = 0; j < k; j++){
+            for(unsigned int k = 0; k < combi.size(); ++k){
+                for(unsigned int j = 0; j < k; ++j){
                     //Check if not same jet in both pair
                     std::set<int> check = {combi[k].first, combi[k].second, combi[j].first, combi[j].second};
                    
@@ -389,7 +406,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
 
         //Sort candPairs for mass diff of jet pairs, where index 0 is the best pair
         std::function<bool(std::pair<PolarLV, PolarLV>, std::pair<PolarLV, PolarLV>)> sortFunc = [&](std::pair<PolarLV, PolarLV> cands1, std::pair<PolarLV, PolarLV> cands2){  
-            return ROOT::Math::VectorUtil::DeltaR(cands1.first, cands1.second) > ROOT::Math::VectorUtil::DeltaR(cands2.first, cands2.second);
+            return std::abs(cands1.first.M() - cands1.second.M()) < std::abs(cands2.first.M() - cands2.second.M());
         };
 
         std::sort(hCands.begin(), hCands.end(), sortFunc);
