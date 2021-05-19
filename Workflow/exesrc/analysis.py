@@ -45,14 +45,23 @@ def plot(config):
         for era in config["era"]:
             processes = sorted(config["processes"] + config.get("data", {}).get(channel, []))
 
+            shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+            allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
+
             for process in processes:
-                for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+                for syst in shapeSysts:
                     for shift in ["Up", "Down"]:
                         treeread(tasks, config, channel, era, process, syst, shift)
+
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:
                         mergeHists(tasks, config, channel, era, process, syst, shift)
 
             plotting(tasks, config, channel, era, processes)
-            eventCount(tasks, config, channel, era, processes)
+
+            for syst in allSysts:
+                for shift in ["Up", "Down"]:
+                    eventCount(tasks, config, channel, era, processes, syst, shift)
 
     return tasks
 
@@ -123,6 +132,9 @@ def estimate(config):
     for channel in config["channels"]:
         for era in config["era"]:
             for mass in config["charged-masses"]:
+                shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+                allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
+
                 for process in config["estimate-process"]:
                     c = copy.deepcopy(config)
                     c["dir"] = "{}/{}-Region".format(config["dir"], process).replace("{MHC}", str(mass))
@@ -131,13 +143,23 @@ def estimate(config):
                     processes = config["processes"] + config["data"][channel]
 
                     for procc in processes:
-                        treeread(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
-                        mergeHists(tasks, c, channel, era, procc, "", "", postFix = "{}_{}".format(process, str(mass)))
+                        for syst in shapeSysts:
+                            for shift in ["Up", "Down"]:
+                                treeread(tasks, c, channel, era, procc, syst, shift, postFix = "{}_{}".format(process, str(mass)))
+
+                        for syst in allSysts:
+                            for shift in ["Up", "Down"]:
+                                mergeHists(tasks, c, channel, era, procc, syst, shift, postFix = "{}_{}".format(process, str(mass)))
 
                     plotting(tasks, c, channel, era, processes, postFix = "{}_{}".format(process, str(mass)))
-                    eventCount(tasks, c, channel, era, processes, postFix = "{}_{}".format(process, str(mass)))
-                        
-                bkgEstimation(tasks, config, channel, era, str(mass))
+
+                    for syst in allSysts:
+                        for shift in ["Up", "Down"]:
+                            eventCount(tasks, c, channel, era, processes, syst, shift, postFix = "{}_{}".format(process, str(mass)))
+                    
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:    
+                        bkgEstimation(tasks, config, channel, era, str(mass), syst, shift)
 
     return tasks
 
@@ -163,38 +185,53 @@ def limit(config):
             conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
 
             ##Produce limits for each era/channel individually
-            for era in config["era"]:
-                for channel in config["channels"]:
+            for channel in config["channels"]:
+                for era in config["era"]:
                     conf["cuts"]["all"] = [c.replace("{MHC}", str(mHPlus)) for c in config["cuts"]["all"]]
-                    processes = conf["backgrounds"] + [conf["signal"]] + conf["data"][channel]
+                    processes = conf["backgrounds"] + [conf["signal"]] + conf.get("data", {}).get(channel, [])
+
+                    shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+                    allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
                     for procc in processes:
-                        treeread(tasks, conf, channel, era, procc, "", "", postFix = "{}_{}".format(mHPlus, mH))
-                        mergeHists(tasks, conf, channel, era, procc, "", "", postFix = "{}_{}".format(mHPlus, mH))
+                        for syst in shapeSysts:
+                            for shift in ["Up", "Down"]:
+                                treeread(tasks, conf, channel, era, procc, syst, shift, postFix = "{}_{}".format(mHPlus, mH))
+                        
+                        for syst in allSysts:
+                            for shift in ["Up", "Down"]:
+                                mergeHists(tasks, conf, channel, era, procc, syst, shift, postFix = "{}_{}".format(mHPlus, mH))
 
                     plotting(tasks, conf, channel, era, processes, postFix = "{}_{}".format(mHPlus, mH))
+
+                    for syst in allSysts:
+                        for shift in ["Up", "Down"]:
+                            eventCount(tasks, conf, channel, era, processes, syst, shift, postFix = "{}_{}".format(mHPlus, mH))
 
                     datacard(tasks, conf, channel, era, processes, mHPlus, mH)
                     limits(tasks, conf, channel, era, mHPlus, mH)
                     plotpostfit(tasks, conf, channel, era, mHPlus, mH)
+                    plotimpact(tasks, conf, channel, era, mHPlus, mH)
 
             ##Produce limits for each era and all channel combined
             for era in config["era"]:
                 mergeDataCards(tasks, conf, {"Combined": config["channels"]}, era, mHPlus, mH)
                 limits(tasks, conf, "Combined", era, mHPlus, mH)
-                plotpostfit(tasks, conf, "Combined", era, mHPlus, mH)
-
+                plotpostfit(tasks, conf, "Combined", era, mHPlus, mH)                    
+                plotimpact(tasks, conf, "Combined", era, mHPlus, mH)
 
             ##Produce limits for RunII and each channel
             for channel in config["channels"]:
                 mergeDataCards(tasks, conf, channel, {"RunII": config["era"]}, mHPlus, mH)
                 limits(tasks, conf, channel, "RunII", mHPlus, mH)
                 plotpostfit(tasks, conf, channel, "RunII", mHPlus, mH)
+                plotimpact(tasks, conf, channel, "RunII", mHPlus, mH)
 
             ##Produce limits for RunII and all channel combined
             mergeDataCards(tasks, conf, {"Combined": config["channels"]}, {"RunII": config["era"]}, mHPlus, mH)
             limits(tasks, conf, "Combined", "RunII", mHPlus, mH)
             plotpostfit(tasks, conf, "Combined", "RunII", mHPlus, mH)
+            plotimpact(tasks, conf, "Combined", "RunII", mHPlus, mH)
 
     ##Plot limits for all combination of era/channel
     conf = copy.deepcopy(config)
