@@ -6,8 +6,8 @@ TreeSlimmer::TreeSlimmer(const std::string& inputFile, const std::string& inputC
 
 void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChannel, const std::vector<std::string>& cuts, const int& start, const int& end){
     //Get input tree
-    std::shared_ptr<TFile> inFile(TFile::Open(inputFile.c_str(), "READ"));
-    std::shared_ptr<TTree> inTree(inFile->Get<TTree>(inputChannel.c_str()));
+    std::shared_ptr<TFile> inFile = RUtil::Open(inputFile);
+    std::shared_ptr<TTree> inTree = RUtil::GetSmart<TTree>(inFile.get(), inputChannel);
 
     std::cout << "Read file: '" << inputFile << "'" << std::endl;
     std::cout << "Read tree '" << inputChannel << "'" << std::endl;
@@ -18,7 +18,7 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
     outTree->SetName(outChannel.c_str()); 
     outTree->SetTitle(outChannel.c_str()); 
 
-    TH1F* cutflow(inFile->Get<TH1F>(("cutflow_" + inputChannel).c_str()));
+    std::shared_ptr<TH1F> cutflow = RUtil::GetSmart<TH1F>(inFile.get(), "cutflow_" + inputChannel);
     cutflow->SetDirectory(outFile.get());
     cutflow->SetName(("cutflow_" + outChannel).c_str()); 
     cutflow->SetTitle(("cutflow_" + outChannel).c_str()); 
@@ -37,17 +37,6 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
         cutFuncs.push_back(func);
     }
 
-    //Get lumi and xsec for weighting cut flow
-    float xSec = 1., lumi = 1.;
-
-    if(inFile->GetListOfKeys()->Contains("xSec")){
-        xSec = inFile->Get<TH1F>("xSec")->GetBinContent(1);
-    }
-
-    if(inFile->GetListOfKeys()->Contains("Lumi")){
-        lumi = inFile->Get<TH1F>("Lumi")->GetBinContent(1);
-    }
-
     //Loop
     bool passed = true;
 
@@ -63,7 +52,7 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
         for(TreeFunction& cut: cutFuncs){
             passed = cut.GetPassed();
 
-            if(passed) cutflow->Fill(cut.GetCutLabel().c_str(), xSec*lumi);
+            if(passed) cutflow->Fill(cut.GetCutLabel().c_str(), 1);
             else break;
         }
 
@@ -78,12 +67,8 @@ void TreeSlimmer::DoSlim(const std::string outputFile, const std::string outChan
 
     cutflow->Write();
 
-    TList* keys = static_cast<TList*>(inFile->GetListOfKeys());
-
-    for(int i=0; i < keys->GetSize(); i++){
-        bool skipKey = false;
-
-        TObject* obj(inFile->Get(keys->At(i)->GetName()));
+    for(TObject* key : *(inFile->GetListOfKeys())){
+        TObject* obj = inFile->Get(key->GetName());
 
         if(obj->InheritsFrom(TTree::Class())) continue;
         if(Utils::Find<std::string>(obj->GetName(), "cutflow") == -1) obj->Write();

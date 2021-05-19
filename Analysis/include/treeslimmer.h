@@ -8,6 +8,7 @@
 #include <TTree.h>
 #include <TEntryList.h>
 
+#include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Analysis/include/treefunction.h>
 #include <ChargedAnalysis/Analysis/include/treereader.h>
 #include <ChargedAnalysis/Utility/include/utils.h>
