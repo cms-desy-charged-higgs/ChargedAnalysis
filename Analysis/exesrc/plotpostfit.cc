@@ -8,13 +8,13 @@ int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
 
-    int mass = parser.GetValue<int>("mass");
-    std::string limitDir = parser.GetValue<std::string>("limit-dir");
-    std::vector<std::string> channels = parser.GetVector<std::string>("channels");
+    std::string inFile = parser.GetValue<std::string>("in-file");
+    std::string sigProcess = parser.GetValue<std::string>("sig-process");
+    std::vector<std::string> bkgProcesses = parser.GetVector<std::string>("bkg-processes");
     std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
   
     //Call and run Plotter1D class
-    PlotterPostfit plotter(limitDir, mass, channels);
+    PlotterPostfit plotter(inFile, bkgProcesses, sigProcess);
     plotter.ConfigureHists();
     plotter.Draw(outDirs);
 }

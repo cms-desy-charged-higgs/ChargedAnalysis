@@ -2,66 +2,83 @@
 
 PlotterPostfit::PlotterPostfit() : Plotter(){}
 
-PlotterPostfit::PlotterPostfit(std::string &limitDir, int &mass, std::vector<std::string> &channels) : 
+PlotterPostfit::PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string&  sigProcess) : 
     Plotter(),
-    limitDir(limitDir),
-    mass(mass),
-    channels(channels){
-
-    chanToDir = {{"mu4j", "Muon4J"}, {"mu2j1f", "Muon2J1F"}, {"mu2f", "Muon2F"}, {"e4j", "Ele4J"}, {"e2j1f", "Ele2J1F"}, {"e2f", "Ele2F"}};
-
-    for(std::string chan: channels){
-        backgrounds[chan] = std::vector<TH1F*>();
-    }
-
-}
+    inFile(inFile),
+    sigProcess(sigProcess),
+    bkgProcesses(bkgProcesses){}
 
 void PlotterPostfit::ConfigureHists(){
-    //Lambda function for sorting Histograms
-    std::function<bool(TH1F*,TH1F*)> sortFunc = [](TH1F* hist1, TH1F* hist2){return hist1->Integral() < hist2->Integral();};
+    std::shared_ptr<TFile> file = RUtil::Open(inFile);
+    int nBins = 0;
 
-    for(std::string chan: channels){
-        //Open file with Postfit shapes
-        TFile* file = TFile::Open((limitDir + "/" + std::to_string(mass) + "/fitshapes.root").c_str());
-        TDirectory* dir = (TDirectory*)file->Get((chan + "_postfit").c_str());
-        TList* keys = dir->GetListOfKeys();
+    for(TObject* dir : *RUtil::Get<TDirectory>(file.get(), "shapes_fit_s")->GetListOfKeys()){
+        ++nBins;
+        std::string dirName(dir->GetName());
 
-        //Configure all histograms
-        for(int i=0; i < keys->GetSize(); i++){
-            std::string processName = std::string(keys->At(i)->GetName());
+        //Bkg hists
+        for(const std::string& bkg : bkgProcesses){
+            std::shared_ptr<TH1F> hist;
 
-            TH1F* hist = (TH1F*)dir->Get(processName.c_str());
-
-            if(processName == "HPlus"){
-                hist->SetLineWidth(2);
-                hist->SetLineColor(kBlack);
-                hist->SetName(("H^{#pm}_{" + std::to_string(mass) + "}+h_{100}").c_str());
-
-                signals[chan] = hist;
+            try{
+                hist = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, bkg));
             }
-       
-            else if(processName == "TotalBkg"){
-                hist->SetFillStyle(3354);
-                hist->SetFillColorAlpha(kBlack, 0.8);
-                hist->SetMarkerColor(kBlack);
-                hist->SetName("Bkg. unc."); 
 
-                errorBand[chan] = hist;
-
-                max = max < hist->GetMaximum() ? hist->GetMaximum() : max;
+            catch(...){
+                std::cout << "Histogram for process '" << bkg << "' not existing, probably due to empty entry in the datacard!" << std::endl;
+                continue;
             }
-    
-            else if(processName != "data_obs" and processName != "TotalProcs" and processName != "TotalSig"){
-                hist->SetFillStyle(1001);
-                hist->SetFillColor(colors.at(processName));
-                hist->SetLineColor(colors.at(processName));
-                hist->SetName(processName.c_str());            
 
-                backgrounds[chan].push_back(hist);
-            }       
+            if(!backgrounds.count(bkg)){
+                backgrounds[bkg] = std::make_shared<TH1F>(bkg.c_str(), bkg.c_str(), 1, 1, 1);
+
+                //Set Style
+                backgrounds[bkg]->SetFillStyle(1001);
+                backgrounds[bkg]->SetFillColor(colors.at(bkg));
+                backgrounds[bkg]->SetLineColor(colors.at(bkg));
+                backgrounds[bkg]->SetDirectory(0);
+            }
+
+            backgrounds[bkg]->Fill(dirName.c_str(), hist->Integral());
         }
 
-        std::sort(backgrounds[chan].begin(), backgrounds[chan].end(), sortFunc);
+        //Signal hist
+        std::shared_ptr<TH1F> sig = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, sigProcess));
+
+        if(signal == nullptr){
+            std::vector<std::string> s = StrUtil::Split(sigProcess, "_");
+            signal = std::make_shared<TH1F>("sig", "sig", 1, 1, 1);
+
+            signal->SetLineWidth(3);
+            signal->SetLineColor(kBlack);
+            signal->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
+            signal->SetDirectory(0);
+        }
+
+        signal->Fill(dirName.c_str(), sig->Integral());
+
+        //Data Graph
+        std::shared_ptr<TGraphAsymmErrors> d = RUtil::GetSmart<TGraphAsymmErrors>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, "data"));
+
+        if(data == nullptr){
+            data = std::make_shared<TGraphAsymmErrors>();
+            data->SetMarkerStyle(20);    
+        }
+
+        data->SetPoint(data->GetN(), 0.5 + data->GetN(), d->GetPointY(0));
+
+        //Error band
+        std::shared_ptr<TH1F> allBkg = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, "total_background"));
+
+        if(errorBand == nullptr){
+            errorBand = std::make_shared<TH1F>("error", "error", 1, 1, 1);
+            errorBand->SetFillStyle(3354);
+            errorBand->SetFillColorAlpha(kBlack, 0.8);
+            errorBand->SetMarkerColor(kBlack);
+        }
+
+        errorBand->Fill(dirName.c_str(), allBkg->GetBinContent(1));
+        errorBand->SetBinError(nBins, allBkg->GetBinError(1));
     }
 }
 
@@ -70,144 +87,58 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     PUtil::SetStyle();
 
     //Define canvas and pads
-    TCanvas* canvas = new TCanvas("canvas",  "canvas", 1400, 800);
-    TPad* legendpad = new TPad("legendpad", "legendpad", 0.91, 0.25, 1., 0.9);
-    TLegend* legend = new TLegend(0.15, 0.2, 0.75, 0.8);
+    std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("canvas",  "canvas", 1000, 1000);
+    std::shared_ptr<TPad> mainPad = std::make_shared<TPad>("mainPad", "mainPad", 0., 0. , 1., 1.);
+    errorBand->LabelsDeflate();
 
-    for(unsigned int i=0; i < channels.size(); i++){    
-        canvas->cd();
+    //Pad style
+    PUtil::SetPad(mainPad.get());
+    mainPad->Draw();
+    mainPad->cd();
 
-        float padStart = i == 0 ? 0.05 - 0.3*(0.85/6.) + 0.85/6.*i: 0.05 + 0.85/6.*i;
-        float padEnd= 0.05 + 0.85/6.*(i+1);
-        
-        //Draw Tpad
-        TPad* pad = new TPad(("pad_" + channels[i]).c_str(), ("pad_" + channels[i]).c_str(), padStart, .2 , padEnd, 1.);
-        TPad* pullpad = new TPad("pullpad", "pullpad", padStart, 0.0 , padEnd, .2);
+    PUtil::SetHist(mainPad.get(), errorBand.get(), "Events");
 
+    //Create background stack
+    std::vector<std::shared_ptr<TH1F>> bkgs = VUtil::MapValues(backgrounds);
+    std::sort(bkgs.begin(), bkgs.end(), [](std::shared_ptr<TH1F> h1, std::shared_ptr<TH1F> h2){return h1->Integral() < h2->Integral();});
 
-        pullpad->SetTopMargin(0.05);
-        pullpad->SetBottomMargin(0.15);
+    std::shared_ptr<THStack> stack = std::make_shared<THStack>();
 
-        for(TPad* p: {pad, pullpad}){
-            p->SetLeftMargin(0.);
-            p->SetRightMargin(0.);
+    for(std::shared_ptr<TH1F>& h : bkgs) stack->Add(h.get());
 
-            if(i==0){
-                p->SetLeftMargin(0.3);
-            }
+    //Legend
+    std::shared_ptr<TLegend> legend = std::make_shared<TLegend>(0., 0., 1, 1);
+
+    std::sort(bkgs.begin(), bkgs.end(), [&](std::shared_ptr<TH1F> h1, std::shared_ptr<TH1F> h2){return h1->Integral() > h2->Integral();});
+    for(std::shared_ptr<TH1F>& hist: bkgs){legend->AddEntry(hist.get(), hist->GetName(), "F");}
+
+    legend->AddEntry(errorBand.get(), "Syst. unc.", "F");
+    legend->AddEntry(data.get(), "Data", "P");
+
+    for(int isLog=0; isLog < 2; ++isLog){
+        mainPad->cd();
+        mainPad->Clear();
+        mainPad->SetLogy(isLog);
+
+        errorBand->SetMinimum(isLog ? 1e-1 : 0);
+
+        errorBand->Draw("E2");
+        stack->Draw("HIST SAME");
+        data->Draw("EP SAME");
+        signal->Draw("HIST SAME");
+        errorBand->Draw("SAME E2");
+
+        PUtil::DrawLegend(mainPad.get(), legend.get(), 5);
+        PUtil::DrawHeader(mainPad.get(), "", "Work in progress", "");
+
+        gPad->RedrawAxis();
+
+        std::string extension = isLog ? "_log" : "";
+
+        for(std::string outdir: outdirs){
+            std::system(("mkdir -p " + outdir).c_str());
+            c->SaveAs((outdir + "/postfit" + extension + ".pdf").c_str());
+            c->SaveAs((outdir + "/postfit" + extension + ".png").c_str());
         }
-
-        pad->Draw();
-        pad->cd();
-        pad->SetLogy(1);
-
-        //Fill THStack;
-        THStack* stack = new THStack(("channel_" + channels[i]).c_str(), ("stack_" + channels[i]).c_str());
-
-        for(TH1F* hist: backgrounds[channels[i]]){      
-            if(i==0){      
-                legend->AddEntry(hist, hist->GetName(), "F");
-            }
-
-            //Fill sum of bkg hist and THStack
-            stack->Add(hist);
-        }
-
-        stack->Draw("HIST");
-        stack->SetMinimum(1e-1); 
-        stack->SetMaximum(max*2); 
-        stack->GetXaxis()->SetNdivisions(5);
-        stack->GetXaxis()->SetTickLength(0.01);
-
-        if(i==0){
-            stack->GetYaxis()->SetLabelSize(0.09);
-            stack->GetXaxis()->SetLabelSize(0.09);
-            stack->GetXaxis()->SetLabelOffset(-0.03);
-            stack->GetYaxis()->SetTitle("Events");
-            stack->GetYaxis()->SetTitleSize(0.1);
-        }
-
-        else if(i!=0){
-            stack->GetXaxis()->SetLabelSize(0.12);
-            stack->GetXaxis()->SetLabelOffset(-0.055);
-            stack->GetYaxis()->SetLabelSize(0);
-            stack->GetYaxis()->SetAxisColor(0,0);
-        }
-
-        if(i+1==channels.size()){
-            stack->GetXaxis()->SetTitleSize(0.12);
-            stack->GetXaxis()->SetTitle(signals[channels[i]]->GetXaxis()->GetTitle());
-            stack->GetXaxis()->SetTitleOffset(0.35);
-        }
-
-        errorBand[channels[i]]->Draw("SAME E2"); 
-        signals[channels[i]]->Draw("HIST SAME");
-
-        if(i==0){      
-            legend->AddEntry(signals[channels[i]], signals[channels[i]]->GetName(), "L");
-            legend->AddEntry(errorBand[channels[i]], errorBand[channels[i]]->GetName(), "F");
-        }
-
-        TLatex* chanHeader = new TLatex();
-        chanHeader->SetTextSize(i==0? 0.089 : 0.11);
-        chanHeader->DrawLatexNDC(i ==0? 0.33 : 0.05, 0.87, PUtil::GetChannelTitle(channels[i]).c_str());
-
-        canvas->cd();
-        pullpad->Draw();
-        pullpad->cd();
-
-        TH1F* pullErrorband = (TH1F*)errorBand[channels[i]]->Clone();
-        pullErrorband->Divide(errorBand[channels[i]]);
-
-        pullErrorband->GetXaxis()->SetNdivisions(5);
-        pullErrorband->GetYaxis()->SetNdivisions(5);
-        pullErrorband->GetYaxis()->SetLabelSize(0.15);
-        pullErrorband->GetXaxis()->SetLabelSize(0.15);
-        pullErrorband->GetXaxis()->SetTitle("Pull");
-        pullErrorband->SetMinimum(0.5);
-        pullErrorband->SetMaximum(1.5);
-        pullErrorband->SetTitleSize(0., "X");
-
-        if(i==0){
-            pullErrorband->GetYaxis()->SetTitle("Pull");
-            pullErrorband->GetYaxis()->SetTitleSize(0.17);
-            pullErrorband->GetYaxis()->SetTitleOffset(0.8);
-        }
-
-        else if(i!=0){
-            pullErrorband->GetYaxis()->SetLabelSize(0);
-            pullErrorband->GetYaxis()->SetAxisColor(0,0);
-        }
-
-        pullErrorband->Draw("E2");
     }
-
-    canvas->cd();
-
-    TLatex* cms = new TLatex();
-    cms->SetTextFont(62);
-    cms->SetTextSize(0.04);
-    cms->DrawLatexNDC(0.2, 0.925, "CMS");
-
-    TLatex* work = new TLatex();
-    work->SetTextFont(52);
-    work->SetTextSize(0.035);
-    work->DrawLatexNDC(0.25, 0.925, "Work in Progress");
-
-    TLatex* lumi = new TLatex();
-    lumi->SetTextFont(42);
-    lumi->SetTextSize(0.035);
-    lumi->DrawLatexNDC(0.72, 0.925, "41.4 fb^{-1} (2017, 13 TeV)");
-
-    legendpad->Draw();
-    legendpad->cd();
-    legend->SetTextSize(0.15);
-    legend->Draw();
-    
-    for(std::string outdir: outdirs){
-        canvas->SaveAs((outdir + "/postfit_" + std::to_string(mass) + ".pdf").c_str());
-        canvas->SaveAs((outdir + "/postfit_" + std::to_string(mass) + ".png").c_str());
-    }
-
-    std::cout << "Plotfit plot created for: " << mass << std::endl;
 }
