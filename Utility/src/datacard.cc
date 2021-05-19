@@ -2,7 +2,7 @@
 
 Datacard::Datacard(){}
 
-Datacard::Datacard(const std::string& outDir, const std::string& channel, const std::vector<std::string>& bkgProcesses, const std::vector<std::string>& bkgFiles, const std::string& sigProcess, const std::vector<std::string>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string>& systematics) :
+Datacard::Datacard(const std::string& outDir, const std::string& channel, const std::vector<std::string>& bkgProcesses, const std::map<std::string, std::vector<std::string>>& bkgFiles, const std::string& sigProcess, const std::map<std::string, std::string>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string>& systematics) :
     outDir(outDir),
     channel(channel),
     bkgProcesses(bkgProcesses),
@@ -30,8 +30,8 @@ void Datacard::GetHists(const std::string& discriminant){
 
             std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
 
-            for(std::size_t i = 0; i < bkgFiles.size(); ++i){
-                std::shared_ptr<TFile> file = RUtil::Open(bkgFiles.at(i));
+            for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
+                std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[systName].at(i));
                 std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
 
                 hist->SetName(syst == "" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
@@ -48,31 +48,30 @@ void Datacard::GetHists(const std::string& discriminant){
                 hist->Write();
             }
 
-            for(std::size_t i = 0; i < sigFiles.size(); ++i){
-                std::shared_ptr<TFile> file = RUtil::Open(sigFiles.at(i));
-                std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
+            std::shared_ptr<TFile> file = RUtil::Open(sigFiles[systName]);
+            std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
 
-                hist->SetName(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
-                hist->SetTitle(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+            hist->SetName(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+            hist->SetTitle(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
 
-                //Save yield of histogram
-                if(syst == "") rates[sigProcess] = hist->Integral();
+            //Save yield of histogram
+            if(syst == "") rates[sigProcess] = hist->Integral();
 
-                dir->cd();
-                hist->Write();
-            }
-            
+            dir->cd();
+            hist->Write();           
         }
     }
 
     if(dataFile == ""){
-        bkgSum->SetName("data_obs");
-        bkgSum->SetTitle("data_obs");
+        std::shared_ptr<TH1F> data = RUtil::CloneSmart(bkgSum.get());
+        data->Reset();
+        data->SetName("data_obs");
+        data->SetTitle("data_obs");
 
-        rates["data_obs"] = bkgSum->Integral();
+        rates["data_obs"] = 0;
 
         dir->cd();
-        bkgSum->Write();
+        data->Write();
     }
 
     else{
@@ -96,9 +95,9 @@ void Datacard::Write(){
 
     std::string border = "--------------------------------------------------------------------------------";
 
-    datacard << "imax 1 number of channel\n";
+    datacard << "imax 1 number of bins\n";
     datacard << "jmax " << bkgProcesses.size() << " number of backgrounds\n";
-    datacard << "kmax " << (systematics.size() - 1) << " number of nuisance parameters\n";
+    datacard << "kmax * number of nuisance parameters\n";
     datacard << border << std::endl;
 
     for(std::string& process: bkgProcesses){
