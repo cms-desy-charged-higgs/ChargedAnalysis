@@ -14,7 +14,8 @@ int main(int argc, char* argv[]){
     int era = parser.GetValue<int>("era");
     std::vector<std::string> functions = parser.GetVector<std::string>("functions");
 
-    std::string tmpFile = "tmp_" + std::to_string(getpid()) + ".root";
+    std::string dir = fileName.substr(0, StrUtil::Find(fileName, "/").back());
+    std::string tmpFile = dir + "/tmp.root";
 
     TreeAppender appender(fileName, treeName, era, functions);
     appender.Append(tmpFile);
