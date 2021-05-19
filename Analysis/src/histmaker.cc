@@ -11,29 +11,47 @@ HistMaker::HistMaker(const std::vector<std::string> &parameters, const std::vect
     scaleFactors(scaleFactors),
     era(era){}
 
-void HistMaker::PrepareHists(const std::experimental::source_location& location){
+void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, const std::experimental::source_location& location){
     Decoder parser;
-
-    if(VUtil::Find(scaleSysts, std::string("")).empty()) scaleSysts.insert(scaleSysts.begin(), "");
     
-    for(const std::string& scaleSyst : scaleSysts){
+    for(const std::string& scaleSyst : VUtil::Merge(std::vector<std::string>{""}, scaleSysts)){
         for(const std::string shift : {"Up", "Down"}){
             //Skip Down loop for nominal case
             if(scaleSyst == "" and shift == "Down") continue;
 
-            std::string systName = StrUtil::Merge(scaleSyst, shift);
+            std::string systName = scaleSyst != "" ? StrUtil::Merge(scaleSyst, shift) : "";
             std::string outName;
 
             //Change outdir for systematic
-            if(scaleSyst.empty()) outName = StrUtil::Join("/", outDir, outFile);
+            if(scaleSyst == "") outName = StrUtil::Join("/", outDir, outFile);
             else{
                 for(const std::string dir : systDirs){
+                    std::system(StrUtil::Merge("mkdir -p ", dir).c_str());
                     if(!StrUtil::Find(dir, systName).empty()) outName = StrUtil::Join("/", dir, outFile);
                 }
             }
 
             outFiles.push_back(std::make_shared<TFile>(outName.c_str(), "RECREATE"));
 
+            //Histograms for event count
+            if(scaleSyst == ""){
+                eventCount = std::make_shared<TH1F>("EventCount", "EventCount", 1, 0, 1);
+                eventCount->SetDirectory(outFiles.back().get());
+            }
+
+            else{
+                if(shift == "Up"){
+                    eventCountSystUp[scaleSyst] = std::make_shared<TH1F>("EventCount", "EventCount", 1, 0, 1);
+                    eventCountSystUp[scaleSyst]->SetDirectory(outFiles.back().get());
+                }
+
+                if(shift == "Down"){
+                    eventCountSystDown[scaleSyst] = std::make_shared<TH1F>("EventCount", "EventCount", 1, 0, 1);
+                    eventCountSystDown[scaleSyst]->SetDirectory(outFiles.back().get());
+                }
+            }
+
+            //Histograms for other parameters
             for(const std::string& parameter: parameters){
                 if(StrUtil::Find(parameter, "h:").empty()) throw std::runtime_error(StrUtil::PrettyError(location, "Missing key 'h:' in parameter '", parameter, "'!"));                       
 
@@ -41,11 +59,16 @@ void HistMaker::PrepareHists(const std::experimental::source_location& location)
                 NTupleReader paramX(inputTree, era), paramY(inputTree, era);
         
                 //Read in everything, orders matter
-                parser.GetParticle(parameter, paramX);
+                if(!StrUtil::Find(parameter, "n=N").empty()){
+                    std::shared_ptr<Weighter> w = std::make_shared<Weighter>(inFile, inTree, era);
+                    parser.GetParticle(parameter, paramX, w.get());
+                    paramX.AddWeighter(w);
+                }
+
+                else parser.GetParticle(parameter, paramX);
                 parser.GetFunction(parameter, paramX);
 
                 paramX.Compile();
-
 
                 if(!parser.hasYInfo(parameter)){
                     std::shared_ptr<TH1F> hist1D = std::make_shared<TH1F>();
@@ -57,7 +80,10 @@ void HistMaker::PrepareHists(const std::experimental::source_location& location)
                     hist1D->GetXaxis()->SetTitle(paramX.GetAxisLabel().c_str());
 
                     if(scaleSyst == "") hists1D.push_back(std::move(hist1D));
-                    else hists1DSyst.push_back(std::move(hist1D));
+                    else{
+                        if(shift == "Up") hists1DSystUp[scaleSyst].push_back(std::move(hist1D));
+                        if(shift == "Down") hists1DSystDown[scaleSyst].push_back(std::move(hist1D));
+                    }
 
                     if(scaleSyst == "") hist1DFunctions.push_back(std::move(paramX));
                 }
@@ -79,7 +105,10 @@ void HistMaker::PrepareHists(const std::experimental::source_location& location)
                     hist2D->GetYaxis()->SetTitle(paramY.GetAxisLabel().c_str());
 
                     if(scaleSyst == "") hists2D.push_back(std::move(hist2D));
-                    else hists2DSyst.push_back(std::move(hist2D));
+                    else{
+                        if(shift == "Up") hists2DSystUp[scaleSyst].push_back(std::move(hist2D));
+                        if(shift == "Down") hists2DSystDown[scaleSyst].push_back(std::move(hist2D));
+                    }
 
                     if(scaleSyst == "") hist2DFunctions.push_back({paramX, paramY});    
                 }
@@ -117,7 +146,7 @@ void HistMaker::Produce(const std::string& fileName){
     TH1::SetDefaultSumw2();
 
     //Open output file and set up all histograms/tree and their function to call
-    PrepareHists();
+    PrepareHists(inputFile, inputTree);
 
     //Set all branch addresses needed for the event
     bool passed = true, isData = true;
@@ -134,13 +163,11 @@ void HistMaker::Produce(const std::string& fileName){
     }
     
     //Cutflow/Event count histogram
-    std::shared_ptr<TH1F> cutflow = RUtil::GetSmart<TH1F>(inputFile.get(), "cutflow_" + channel);
+    std::shared_ptr<TH1F> cutflow = RUtil::CloneSmart(RUtil::Get<TH1F>(inputFile.get(), "cutflow_" + channel));
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
-  //  cutflow->Scale(1./nGen);
+    cutflow->Scale(1./weight.GetNGen());
 
-    std::shared_ptr<TH1F> eventCount = std::make_shared<TH1F>("EventCount", "EventCount", 1, 0, 1);
-
-    double wght = 1.;
+    double wght = 1., systWeight = 1.;
 
     StopWatch timer; 
     timer.Start();
@@ -171,37 +198,76 @@ void HistMaker::Produce(const std::string& fileName){
         if(!passed) continue;
 
         wght *= weight.GetPartWeight(i);
-        
-        //Fill nominal histogram
-        for(int j=0; j < hist1DFunctions.size(); j++){
-            hists1D[j]->Fill(hist1DFunctions[j].Get(), wght);
-        }
-
-        for(int j=0; j < hist2DFunctions.size(); j++){
-            hists2D[j]->Fill(hist2DFunctions[j].first.Get(), hist2DFunctions[j].second.Get(), wght);
-        }
-
         eventCount->Fill(0., wght);
+        
+        //Fill histograms
+        for(const std::string& syst : VUtil::Merge(std::vector<std::string>{""}, scaleSysts)){
+            for(const std::string& shift : {"Up", "Down"}){
+                if(syst == "" and shift == "Down") continue;
+
+                if(syst != ""){
+                    systWeight = sf * weight.GetTotalWeight(i, syst, shift);
+
+                    if(shift == "Up") eventCountSystUp[syst]->Fill(0., systWeight);
+                    else eventCountSystDown[syst]->Fill(0., systWeight);
+                }
+
+                for(int j=0; j < hist1DFunctions.size(); j++){
+                    float value = hist1DFunctions[j].Get();
+
+                    if(syst == "") hists1D[j]->Fill(value, wght * hist1DFunctions[j].GetWeight());
+
+                    else{
+                        if(shift == "Up") hists1DSystUp.at(syst)[j]->Fill(value, systWeight);
+                        else hists1DSystDown.at(syst)[j]->Fill(value, systWeight);
+                    }
+                }
+
+                for(int j=0; j < hist2DFunctions.size(); j++){
+                    float value1 = hist2DFunctions[j].first.Get();
+                    float value2 = hist2DFunctions[j].second.Get();
+
+                    if(syst == "")  hists2D[j]->Fill(value1, value2, wght);
+            
+                    else{
+                        if(shift == "Up") hists2DSystUp.at(syst)[j]->Fill(value1, value2, systWeight);
+                        else hists2DSystDown.at(syst)[j]->Fill(value1, value2, systWeight);
+                    }
+                }
+            }
+        }
     }
 
-    //Write all histograms and delete everything
-    for(std::shared_ptr<TH1F>& hist: VUtil::Merge(hists1D, hists1DSyst)){
+    //Write all histograms
+    for(std::shared_ptr<TH1F>& hist: hists1D){
         hist->GetDirectory()->cd();
         hist->Write();
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
     }
 
-    for(std::shared_ptr<TH2F>& hist: VUtil::Merge(hists2D, hists2DSyst)){
-        hist->GetDirectory()->cd();
-        hist->Write();
-        std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
-    }
-
-    //Write cutflow/eventcount
-    VUtil::At(outFiles, 0)->cd();
-
-    cutflow->Write();
+    eventCount->GetDirectory()->cd();
     eventCount->Write();
+    cutflow->Write();
+
+    for(const std::string syst : scaleSysts){
+        eventCountSystUp[syst]->GetDirectory()->cd();
+        eventCountSystUp[syst]->Write();
+
+        eventCountSystDown[syst]->GetDirectory()->cd();
+        eventCountSystDown[syst]->Write();
+
+        for(std::shared_ptr<TH1F>& hist: VUtil::Merge(hists1DSystUp[syst], hists1DSystDown[syst])){
+            hist->GetDirectory()->cd();
+            hist->Write();
+            std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
+        }
+
+        for(std::shared_ptr<TH2F>& hist: VUtil::Merge(hists2DSystUp[syst], hists2DSystUp[syst])){
+            hist->GetDirectory()->cd();
+            hist->Write();
+            std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
+        }
+    }
 
     std::cout << "Closed output file: '" << outFile << "'" << std::endl;
     std::cout << "Time passed for complete processing: " << timer.GetTime() << " s" << std::endl;

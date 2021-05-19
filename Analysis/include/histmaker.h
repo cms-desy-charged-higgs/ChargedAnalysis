@@ -32,8 +32,13 @@ class HistMaker {
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
 
-        std::vector<std::shared_ptr<TH1F>> hists1D, hists1DSyst;
+        std::vector<std::shared_ptr<TH1F>> hists1D;
+        std::map<std::string, std::vector<std::shared_ptr<TH1F>>> hists1DSystUp, hists1DSystDown;
         std::vector<std::shared_ptr<TH2F>> hists2D, hists2DSyst;
+        std::map<std::string, std::vector<std::shared_ptr<TH2F>>> hists2DSystUp, hists2DSystDown;
+
+        std::shared_ptr<TH1F> eventCount;
+        std::map<std::string, std::shared_ptr<TH1F>> eventCountSystUp, eventCountSystDown;
 
         std::vector<std::shared_ptr<TFile>> outFiles;
 
@@ -41,7 +46,7 @@ class HistMaker {
         std::vector<std::pair<NTupleReader, NTupleReader>> hist2DFunctions;
         Weighter weight;
 
-        void PrepareHists(const std::experimental::source_location& location = std::experimental::source_location::current());
+        void PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, const std::experimental::source_location& location = std::experimental::source_location::current());
 
     public:
         HistMaker();
