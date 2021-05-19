@@ -19,7 +19,7 @@ def parser():
     parser.add_argument("--type", type=str, action="store", required = True, choices = ["DNN", "HTag"], help="Which DNN to optimize")
     return parser.parse_args()
 
-def prepareJobs(oldExeFile, hyperParam):
+def prepareJobs(oldExeFile, hyperParam, type):
     jobDirs, params = [], []
     N = 200
 
@@ -37,12 +37,19 @@ def prepareJobs(oldExeFile, hyperParam):
         for line in condorSub:
             condFile.write(line + "\n")
     
-    for i in range(N):
+    while(len(jobDirs) < N):
+        param = {key: value[0](*value[1]) for key, value in hyperParam.items()}
+
+        if type == "DNN":
+            nWeights = 20*param["n-nodes"] + 20 + param["n-layers"]*(param["n-nodes"]*param["n-nodes"] + param["n-nodes"]) + 4*param["n-nodes"]
+
+            if nWeights > 200000 or nWeights < 10000:
+                continue
+
         tmpDir = "Tmp/tmpDir{}".format(time.time_ns())
         os.makedirs(tmpDir, exist_ok = True)
+
         jobDirs.append(tmpDir)
-        
-        param = {key: value[0](*value[1]) for key, value in hyperParam.items()}
         params.append(param)
 
         with open(tmpDir + "/run.sh", "w") as exe:
@@ -77,7 +84,7 @@ def optimize(outDir, jobDirs, params):
     os.makedirs(outDir, exist_ok = True)
 
     bestLoss = 1e7
-    N = len(jobDirs)
+    loss = 1e7
 
     while(jobDirs):
         for idx, jobDir in enumerate(jobDirs):
@@ -86,13 +93,11 @@ def optimize(outDir, jobDirs, params):
             with open("{}/log.txt".format(jobDir), "r") as log:
                 if "(return value" in log.read():
                     with open("{}/out.txt".format(jobDir), "r") as out:
-                        try:
-                            loss = float(out.read().split("\n")[-2])
-                        
-                        except:
-                            loss = 1e7
+                        for line in out.readlines():
+                            if "Best loss:" in line:
+                                loss = float(line.split(":")[-1])
        
-                        if loss < abs(bestLoss):
+                        if abs(loss) < bestLoss:
                             bestLoss = loss
                             p = params[idx]
                             p["lr"] = 10**(p["lr"])
@@ -100,6 +105,11 @@ def optimize(outDir, jobDirs, params):
                             frame = pd.DataFrame.from_dict({k: [v] for (k, v) in p.items()})    
                             frame.to_csv("{}/hyperparameter.csv".format(outDir), index=False, sep="\t")
                             
+                    jobDirs.pop(idx)
+                    params.pop(idx)
+
+            with open("{}/log.txt".format(jobDir), "r") as log:
+                if "SYSTEM_PERIODIC_REMOVE" in log.read():
                     jobDirs.pop(idx)
                     params.pop(idx)
 
@@ -126,11 +136,10 @@ def main():
                 outDir = "{}/{}/{}".format(args.out_dir, channel, era)
                 oldExe = "{}/{}/{}/Even/run.sh".format(args.dir, channel, era)
                 
-                jobDirs, params = prepareJobs(oldExe, hyperParam)
+                jobDirs, params = prepareJobs(oldExe, hyperParam, args.type)
                 jobs.append(pool.apply_async(optimize, args = (outDir, jobDirs, params)))
-                
-        [job.get() for job in jobs]
         
+        [job.get() for job in jobs]
         subprocess.run("command rm -rf Tmp", shell = True)
         
     elif args.type == "HTag":
@@ -151,5 +160,3 @@ def main():
     
 if __name__ == "__main__":
     main()
-    print()
-
