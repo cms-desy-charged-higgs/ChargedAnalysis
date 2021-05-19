@@ -17,7 +17,65 @@
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/frame.h>
 
-float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, std::vector<DNNDataset>& bkgSets,  std::vector<int>& masses, torch::Device& device, const int& batchSize, const float& lr, const bool& optimize, const std::string& outPath, const std::vector<std::string>&  bkgClasses){
+float Validate(std::shared_ptr<DNNModel>& model, torch::nn::CrossEntropyLoss& loss, DNNTensor& test, std::vector<int>& testMass, const std::vector<std::string>& bkgClasses, const std::string& outPath){
+    //Go to eval mode and get loss
+    torch::NoGradGuard no_grad;
+    model->eval();
+    torch::Tensor predictionTest = model->forward(test.input, torch::from_blob(testMass.data(), {testMass.size(), 1}, torch::kInt).clone());
+    torch::Tensor lossTest = loss->forward(predictionTest, test.label);
+
+    //Get test pred as score and pred labels
+    torch::Tensor pred = torch::nn::functional::softmax(predictionTest, torch::nn::functional::SoftmaxFuncOptions(1));
+    torch::Tensor predLab = std::get<1>(torch::max(pred, 1));
+    std::vector<long> predLabel(predLab.data_ptr<long>(), predLab.data_ptr<long>() + predLab.numel());
+                
+    //True label
+    test.label = test.label.contiguous();
+    std::vector<long> trueLabel(test.label.data_ptr<long>(), test.label.data_ptr<long>() + test.label.numel());
+              
+    //Draw confusion  
+    std::vector<std::string> allClasses = VUtil::Append(bkgClasses, "HPlus");
+    float accuracy = PUtil::DrawConfusion(trueLabel, predLabel, allClasses, outPath);         
+
+    //Draw all score of all classes
+    for(int l = 0; l < allClasses.size(); ++l){
+        std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("c", "c", 1000, 1000);
+        std::shared_ptr<TLegend> leg = std::make_shared<TLegend>(0., 0., 1, 1);
+        PUtil::SetStyle();
+        PUtil::SetPad(c.get());
+
+        std::vector<std::shared_ptr<TH1F>> hists;   
+
+        for(const std::string& cls : allClasses){
+            hists.push_back(std::make_shared<TH1F>(cls.c_str(), cls.c_str(), 20, 0, 1));
+            hists.back()->SetLineColor(20 + 5*hists.size());
+            hists.back()->SetLineWidth(4);
+            hists.back()->GetXaxis()->SetTitle(("Probabilities for " + allClasses[l]).c_str());
+            leg->AddEntry(hists.back().get(), cls.c_str(), "L");
+        }
+
+        PUtil::SetHist(c.get(), hists.back().get());
+    
+        for(int n = 0; n < trueLabel.size(); ++n){
+            if(trueLabel[n] != l) continue;
+
+            for(int o = 0; o < allClasses.size(); ++o){
+                hists[o]->Fill(pred[n][o].item<float>());
+            }
+        }
+
+        for(const std::shared_ptr<TH1F>& h : hists) h->Draw("SAME HIST");
+        PUtil::DrawLegend(c.get(), leg.get(), allClasses.size());
+                    
+        c->SaveAs((outPath + "/score_" + allClasses[l] + ".pdf").c_str());
+    }
+
+    std::cout << StrUtil::Merge("Test accuracy: ", accuracy, "% | Test loss : ", lossTest.item<float>()) << std::endl;
+
+    return lossTest.item<float>();
+}
+
+float Train(std::shared_ptr<DNNModel>& model, std::vector<DNNDataset>& sigSets, std::vector<DNNDataset>& bkgSets,  std::vector<int>& masses, torch::Device& device, const int& batchSize, const float& lr, const bool& optimize, const std::string& outPath, const std::vector<std::string>&  bkgClasses){
     //Calculate weights to equalize pure number of events for signal and background
     std::vector<int> nBkg(bkgClasses.size(), 0);
     int nSig = 0, nBkgTotal = 0;
@@ -89,10 +147,14 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, s
 
     //Initial best loss for later early stopping
     float bestLoss = 1e7;
-    int patience = optimize ? 2 : 10;
+    int patience = optimize ? 2 : 40;
     int notBetter = 0;
 
+    int forVali = 10./100 * nBatches;
+
     for(int i=0; i < 10000; ++i){
+        std::vector<float> trainLoss;
+
         //Measure time
         Utils::RunTime timer;
 
@@ -102,33 +164,35 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, s
         DNNTensor train, test;
         std::vector<int> trainMass, testMass;
         
-        if(optimize and timer.Time() > 60*5) break;
-
-        std::vector<int> rndBatchIdx = VUtil::Range(0, nBatches - 1, nBatches);
+        std::vector<int> rndBatchIdx = VUtil::Range(0, nBatches - 1 - forVali, nBatches - forVali);
         int seed = int(std::time(0));
         std::srand(seed);
         std::random_shuffle(rndBatchIdx.begin(), rndBatchIdx.end());
 
+        if(optimize and timer.Time() > 60*15) break;
+
         for(std::size_t j = 0; j < nBatches; ++j){
             //Do fewer n of batches for hyperopt
-            if(optimize and j == 50) break;
+            if(optimize and j == 20) j = nBatches - forVali;
 
             //Set gradients to zero
-            optimizer.zero_grad();
+            model->zero_grad();
 
             //Put signal + background in batch vector
             std::vector<DNNTensor> batch;
             std::vector<int> batchMass;
             
+            int idx = j < nBatches - forVali ? rndBatchIdx.at(j) : j;
+
             for(int k = 0; k < sigSets.size(); ++k){
-                for(int l = signal.at(k).at(rndBatchIdx.at(j)).first; l < signal.at(k).at(rndBatchIdx.at(j)).second; ++l){
+                for(int l = signal.at(k).at(idx).first; l < signal.at(k).at(idx).second; ++l){
                     batchMass.push_back(masses.at(k));
                     batch.push_back(sigSets.at(k).get(l));
                 }
             }
 
             for(int k = 0; k < bkgSets.size(); ++k){
-                for(int l = bkg.at(k).at(rndBatchIdx.at(j)).first; l < bkg.at(k).at(rndBatchIdx.at(j)).second; ++l){
+                for(int l = bkg.at(k).at(idx).first; l < bkg.at(k).at(idx).second; ++l){
                     int index = std::experimental::randint(0, (int)masses.size() -1);
                     batchMass.push_back(masses.at(index));
 
@@ -137,11 +201,16 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, s
             }
 
             //Set batch for testing and go to next iteration
-            if(j == 0){
-                test = DNNDataset::Merge(batch);
-                testMass = batchMass;
+            if(j >= nBatches - forVali){
+                if(j == nBatches - forVali){
+                    test = DNNDataset::Merge(batch);
+                    testMass = batchMass;
+                }
 
-                continue;
+                else{
+                    test = DNNDataset::Merge({test, DNNDataset::Merge(batch)});
+                    testMass = VUtil::Merge(testMass, batchMass);
+                }
             }
 
             //Set batch for training
@@ -152,80 +221,39 @@ float Train(std::shared_ptr<DNNModel> model, std::vector<DNNDataset>& sigSets, s
             model->train();
             torch::Tensor predictionTrain = model->forward(train.input, torch::from_blob(trainMass.data(), {trainMass.size(), 1}, torch::kInt).clone().to(device));
 
-            model->eval();
-            torch::Tensor predictionTest = model->forward(test.input, torch::from_blob(testMass.data(), {testMass.size(), 1}, torch::kInt).clone().to(device));
-
-            //Calculate loss and mean of loss of the batch
+            //Loss
             torch::Tensor lossTrain = loss->forward(predictionTrain, train.label);
-            torch::Tensor lossTest = loss->forward(predictionTest, test.label);
-
-            meanTrainLoss = (meanTrainLoss*j + lossTrain.item<float>())/(j+1);
-            meanTestLoss = (meanTestLoss*j + lossTest.item<float>())/(j+1);
-
-            //Draw signal/background score during training of monitoring
-            if(j % 3 == 0){
-                torch::Tensor pred = torch::nn::functional::softmax(predictionTest, torch::nn::functional::SoftmaxFuncOptions(1));
-                torch::Tensor predLab = std::get<1>(torch::max(pred, 1));
-                std::vector<long> predLabel(predLab.data_ptr<long>(), predLab.data_ptr<long>() + predLab.numel());
-                
-                test.label = test.label.contiguous();
-                std::vector<long> trueLabel(test.label.data_ptr<long>(), test.label.data_ptr<long>() + test.label.numel());
-                
-                std::vector<std::string> allClasses = VUtil::Append(bkgClasses, "HPlus");
-                PUtil::DrawConfusion(trueLabel, predLabel, allClasses, outPath);         
-
-                for(int l = 0; l < allClasses.size(); ++l){
-                    std::shared_ptr<TCanvas> c = std::make_shared<TCanvas>("c", "c", 1000, 1000);
-                    std::shared_ptr<TLegend> leg = std::make_shared<TLegend>(0., 0., 1, 1);
-                    PUtil::SetStyle();
-                    PUtil::SetPad(c.get());
-
-                    std::vector<std::shared_ptr<TH1F>> hists;   
-
-                    for(const std::string& cls : allClasses){
-                        hists.push_back(std::make_shared<TH1F>(cls.c_str(), cls.c_str(), 20, 0, 1));
-                        hists.back()->SetLineColor(20 + 5*hists.size());
-                        hists.back()->SetLineWidth(4);
-                        hists.back()->GetXaxis()->SetTitle(("Probabilities for " + allClasses[l]).c_str());
-                        leg->AddEntry(hists.back().get(), cls.c_str(), "L");
-                    }
-
-                    PUtil::SetHist(c.get(), hists.back().get());
-    
-                    for(int n = 0; n < trueLabel.size(); ++n){
-                        if(trueLabel[n] != l) continue;
-
-                        for(int o = 0; o < allClasses.size(); ++o){
-                            hists[o]->Fill(pred[n][o].item<float>());
-                        }
-                    }
-
-                    for(const std::shared_ptr<TH1F>& h : hists) h->Draw("SAME HIST");
-                    PUtil::DrawLegend(c.get(), leg.get(), allClasses.size());
-                    
-                    c->SaveAs((outPath + "/score_" + allClasses[l] + ".pdf").c_str());
-                }
-            }
+        
+            trainLoss.push_back(lossTrain.item<float>());
+            meanTrainLoss = std::accumulate(trainLoss.begin(), trainLoss.end(), 0.)/trainLoss.size();
 
             //Back propagation
             lossTrain.backward();
             optimizer.step();
 
             //Progess bar
-            std::string barString = StrUtil::Merge<3>("Epoch: ", i+1,
-                                                   " | Batch: ", j, "/", nBatches - 1, 
-                                                   " | Mean Loss: ", meanTrainLoss, "/", meanTestLoss,
+            std::string barString = StrUtil::Merge<5>("Epoch: ", i+1,
+                                                   " | Batch: ", j, "/", nBatches - 1 - forVali, 
+                                                   " | Loss: ", meanTrainLoss,
                                                    " | Overtrain: ", notBetter, "/", patience, 
                                                    " | Time: ", timer.Time(), " s"
                                     );
 
-            Utils::ProgressBar(float(j+1)/nBatches*100, barString);
+            if(j < nBatches - forVali){
+                Utils::ProgressBar(float(j+1)/(nBatches - forVali)*100, barString);
+            }
 
-            if(optimize and timer.Time() > 60*5) break;
+            if(j == nBatches - 1){
+                meanTestLoss = Validate(model,loss, test, testMass, bkgClasses, outPath);
+            }
         }
 
-        //Early stopping        
-        if(meanTestLoss > bestLoss) notBetter++;
+        //Early stopping      
+        if (meanTestLoss > bestLoss){
+            notBetter++;
+            if(notBetter % 10 == 0 and !optimize) torch::load(model, outPath + "/model.pt");
+        }
+
         else{
             bestLoss = meanTestLoss;
             notBetter = 0;
@@ -289,21 +317,16 @@ int main(int argc, char** argv){
     //Create model
     std::shared_ptr<DNNModel> model = std::make_shared<DNNModel>(parameters.size(), nNodes, nLayers, dropOut, masses.size() == 1 ? false : true, bkgClasses.size() + 1, device);
     
-    if(std::filesystem::exists(outPath + "/model.pt")) torch::load(model, outPath + "/model.pt");
+    if(std::filesystem::exists(outPath + "/model.pt") and !optimize) torch::load(model, outPath + "/model.pt");
 
     model->Print();
-
-    if(optimize and model->GetNWeights() > 300000){
-        std::cout << -1 << std::endl;
-        return 0;
-    }
 
     //Collect input data
     for(std::string fileName: sigFiles){
         files.push_back(RUtil::Open(fileName)); 
         trees.push_back(RUtil::GetSmart<TTree>(files.back().get(), channel));
 
-        DNNDataset sigSet(trees.back(), parameters, cuts, era, isEven, device, bkgClasses.size());
+        DNNDataset sigSet(trees.back(), parameters, cuts, era, optimize ? -1 :isEven, device, bkgClasses.size());
         sigSets.push_back(std::move(sigSet));
     }
 
@@ -314,12 +337,12 @@ int main(int argc, char** argv){
             files.push_back(RUtil::Open(fileName)); 
             trees.push_back(RUtil::GetSmart<TTree>(files.back().get(), channel));
 
-            DNNDataset bkgSet(trees.back(), parameters, cuts, era, isEven, device, i);
+            DNNDataset bkgSet(trees.back(), parameters, cuts, era, optimize ? -1 :isEven, device, i);
             bkgSets.push_back(std::move(bkgSet));
         }
     }
 
     //Do training
     float bestLoss = Train(model, sigSets, bkgSets, masses, device, batchSize, lr, optimize, outPath, bkgClasses);
-    if(optimize) std::cout << "\n" << bestLoss << std::endl;
+    if(optimize) std::cout << "\n" << "Best loss: " << bestLoss << std::endl;
 }
