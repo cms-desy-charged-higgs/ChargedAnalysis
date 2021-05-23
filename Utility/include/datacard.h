@@ -22,6 +22,7 @@ class Datacard {
         std::map<std::string, std::vector<std::string>> bkgFiles;
 
         std::map<std::string, float> rates;  //Key : process
+        std::map<std::tuple<std::string, std::string, std::string>, float> relSys;
 
     public:
         Datacard();

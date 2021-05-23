@@ -44,6 +44,11 @@ void Datacard::GetHists(const std::string& discriminant){
                     else bkgSum->Add(hist.get());
                 }
 
+                else{
+                    float value = rates[bkgProcesses.at(i)] != 0 ? 1. + (hist->Integral() - rates[bkgProcesses.at(i)])/rates[bkgProcesses.at(i)] : 1;
+                    relSys[{bkgProcesses.at(i), syst, shift}] = value;
+                }
+
                 dir->cd();
                 hist->Write();
             }
@@ -56,6 +61,10 @@ void Datacard::GetHists(const std::string& discriminant){
 
             //Save yield of histogram
             if(syst == "") rates[sigProcess] = hist->Integral();
+
+            else{
+                relSys[{sigProcess, syst, shift}] = 1. + (hist->Integral() - rates[sigProcess])/rates[sigProcess];
+            }
 
             dir->cd();
             hist->Write();           
@@ -149,11 +158,12 @@ void Datacard::Write(){
         if(syst == "") continue;
 
         std::stringstream systLine;
-        systLine << std::left  << std::setw(20) << syst << std::setw(20) << "shape";
+        systLine << std::left << std::setw(20) << syst << std::setw(20) << "lnN";
+        systLine << std::left << std::setw(25) << StrUtil::Merge(relSys[{sigProcess, syst, "Up"}], "/", relSys[{sigProcess, syst, "Down"}]);
 
-        for(unsigned int i = 0; i < bkgProcesses.size() + 1; i++){
-            systLine << std::left << std::setw(i!=bkgProcesses.size() ? 25 : channel.size()) << "1";
-            if(i==bkgProcesses.size()) systLine << "\n";
+        for(unsigned int i = 0; i < bkgProcesses.size(); i++){
+            systLine << std::left << std::setw(i!=bkgProcesses.size() ? 25 : channel.size()) << StrUtil::Merge(relSys[{bkgProcesses[i], syst, "Up"}], "/", relSys[{bkgProcesses[i], syst, "Down"}]);
+            if(i==bkgProcesses.size()-1) systLine << "\n";
         }
 
         datacard << systLine.rdbuf();
