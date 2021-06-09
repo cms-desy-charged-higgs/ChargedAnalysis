@@ -28,8 +28,8 @@ int main(int argc, char *argv[]){
 
             std::string systName = syst != "" ? StrUtil::Merge(syst, shift) : "";
 
-            bkgFiles[systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "bkg-files", systName) : "bkg-files");
-            sigFiles[systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "sig-files", systName) : "sig-files");
+            if(!bkgProcesses.empty()) bkgFiles[systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "bkg-files", systName) : "bkg-files");
+            if(!sigProcesses.empty()) sigFiles[systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "sig-files", systName) : "sig-files");
         }
     }
 
