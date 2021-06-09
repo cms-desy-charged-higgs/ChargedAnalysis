@@ -41,10 +41,10 @@ class CSV{
                 throw std::runtime_error(StrUtil::PrettyError(location, "Column number '", column, " too large with '", colNames.size() ,"'number of columns in file!"));
             }
 
-            T out; 
+            T out;
 
             //Check if current row is read out, return column direcly
-            if(rowIdx == row){
+            if(rowIdx == row and currentRow.size() != 0){
                 std::stringstream s;
                 s << currentRow.at(column);
                 s >> out;
