@@ -16,12 +16,9 @@ float StopWatch::GetTime(){
 float StopWatch::SetTimeMark(){
     timeMarker.push_back(std::chrono::steady_clock::now());
 
-    return std::chrono::duration_cast<std::chrono::seconds>(timeMarker.back() - start).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(timeMarker.back() - start).count()/1e3;
 }
 
 float StopWatch::GetTimeMark(const int& i){
-    return std::chrono::duration_cast<std::chrono::seconds>(timeMarker.at(i) - start).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(timeMarker.at(i) - start).count()/1e3;
 }
-
-
-
