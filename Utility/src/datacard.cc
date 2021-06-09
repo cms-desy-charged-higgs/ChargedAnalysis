@@ -45,8 +45,8 @@ void Datacard::GetHists(const std::string& discriminant){
                 }
 
                 else{
-                    float value = rates[bkgProcesses.at(i)] != 0 ? 1. + (hist->Integral() - rates[bkgProcesses.at(i)])/rates[bkgProcesses.at(i)] : 1;
-                    relSys[{bkgProcesses.at(i), syst, shift}] = value;
+                    float value = 1. + (hist->Integral() - rates[bkgProcesses.at(i)])/rates[bkgProcesses.at(i)];
+                    relSys[{bkgProcesses.at(i), syst, shift}] = value !=0 and !std::isnan(value) ? value : 1;
                 }
 
                 dir->cd();
@@ -63,9 +63,9 @@ void Datacard::GetHists(const std::string& discriminant){
             if(syst == "") rates[sigProcess] = hist->Integral();
 
             else{
-                relSys[{sigProcess, syst, shift}] = 1. + (hist->Integral() - rates[sigProcess])/rates[sigProcess];
+                float value = 1. + (hist->Integral() - rates[sigProcess])/rates[sigProcess];
+                relSys[{sigProcess, syst, shift}] = value !=0 and !std::isnan(value) ? value : 1;
             }
-
             dir->cd();
             hist->Write();           
         }
