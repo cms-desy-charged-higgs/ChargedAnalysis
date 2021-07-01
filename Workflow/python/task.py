@@ -14,11 +14,17 @@ class Task(dict, object):
 
         ##Update config
         self.update(config)
+        self.retries = 0
 
         ##Argument from constructor
-        self.argPrefix = argPrefix
-        self.beforeExe = beforeExe
-        self.afterExe = afterExe
+        if not "argPrefix" in self:
+            self["argPrefix"] = argPrefix
+
+        if not "beforeExe" in self:
+            self["beforeExe"] = beforeExe
+
+        if not "afterExe" in self:
+            self["afterExe"] = afterExe
 
         ##Check if all necessary things are provided
         for arg in ["executable", "arguments"]:
@@ -41,18 +47,18 @@ class Task(dict, object):
         with open("{}/run.sh".format(self["dir"]), "w") as exe:
             exe.write("#!/bin/bash\n\n")
 
-            for idx, line in enumerate(self.beforeExe):
+            for idx, line in enumerate(self["beforeExe"]):
                 exe.write(line)
                 exe.write("\n")
 
-                if len(self.beforeExe) == idx + 1:
+                if len(self["beforeExe"]) == idx + 1:
                     exe.write("\n")
 
             exe.write("{} \\".format(self["executable"]))
             exe.write("\n")
     
             for arg, values in self["arguments"].items():
-                exe.write("{}{}{} \\".format(2*" ", self.argPrefix, arg))
+                exe.write("{}{}{} \\".format(2*" ", self["argPrefix"], arg))
                 exe.write("\n")
 
 
@@ -65,7 +71,7 @@ class Task(dict, object):
                     exe.write("{}{} {}".format(6*" ", values, "\\"))
                     exe.write("\n")
 
-            for idx, line in enumerate(self.afterExe):
+            for idx, line in enumerate(self["afterExe"]):
                 if idx == 0:
                     exe.write(" ")
                     exe.write("\n")
