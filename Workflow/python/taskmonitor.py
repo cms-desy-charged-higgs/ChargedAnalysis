@@ -46,8 +46,6 @@ class TaskMonitor(object):
         return statusLine
 
     def updateMonitor(self, time, status):
-        sleep(0.1)
-    
         nFinished = sum(t.get("Finished", 0) for t in status.values())
     
         statLine = {
