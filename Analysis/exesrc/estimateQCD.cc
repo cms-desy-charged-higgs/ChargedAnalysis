@@ -2,10 +2,14 @@
 #include <vector>
 
 #include <ChargedAnalysis/Utility/include/parser.h>
+#include <ChargedAnalysis/Utility/include/backtracer.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Analysis/include/QCDestimator.h>
 
 int main(int argc, char *argv[]){
+    //Class for backtrace
+    Backtracer trace;
+
     //Parser arguments
     Parser parser(argc, argv);
 

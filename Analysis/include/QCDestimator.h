@@ -7,7 +7,12 @@
 
 #include <TFile.h>
 #include <TH1F.h>
-#include <TList.h>
+#include <TH1D.h>
+#include <TH2.h>
+#include <TH2F.h>
+#include <TF1.h>
+#include <TFitResult.h>
+#include <TFitResultPtr.h>
 
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
