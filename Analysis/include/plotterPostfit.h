@@ -16,6 +16,7 @@
 #include <TGraphAsymmErrors.h>
 
 #include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 
@@ -24,6 +25,7 @@ class PlotterPostfit : public Plotter{
         std::string inFile, sigProcess;
         std::vector<std::string> bkgProcesses;
         int max = 0;
+        bool isPostfit;
 
         std::map<std::string, std::shared_ptr<TH1F>> backgrounds;
         std::shared_ptr<TH1F> errorBand;
@@ -33,7 +35,7 @@ class PlotterPostfit : public Plotter{
 
     public:
         PlotterPostfit();
-        PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string&  sigProcess);
+        PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string& sigProcess, const bool& isPostfit = true);
         void ConfigureHists();
         void Draw(std::vector<std::string> &outdirs);
 };

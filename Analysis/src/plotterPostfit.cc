@@ -2,17 +2,19 @@
 
 PlotterPostfit::PlotterPostfit() : Plotter(){}
 
-PlotterPostfit::PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string&  sigProcess) : 
+PlotterPostfit::PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string& sigProcess, const bool& isPostfit) : 
     Plotter(),
     inFile(inFile),
     sigProcess(sigProcess),
-    bkgProcesses(bkgProcesses){}
+    bkgProcesses(bkgProcesses),
+    isPostfit(isPostfit){}
 
 void PlotterPostfit::ConfigureHists(){
     std::shared_ptr<TFile> file = RUtil::Open(inFile);
     int nBins = 0;
+    std::string type = isPostfit ? "shapes_fit_s" : "shapes_prefit";
 
-    for(TObject* dir : *RUtil::Get<TDirectory>(file.get(), "shapes_fit_s")->GetListOfKeys()){
+    for(TObject* dir : *RUtil::Get<TDirectory>(file.get(), type)->GetListOfKeys()){
         ++nBins;
         std::string dirName(dir->GetName());
 
@@ -21,12 +23,11 @@ void PlotterPostfit::ConfigureHists(){
             std::shared_ptr<TH1F> hist;
 
             try{
-                hist = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, bkg));
+                hist = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", type, dirName, bkg));
             }
 
             catch(...){
                 std::cout << "Histogram for process '" << bkg << "' not existing, probably due to empty entry in the datacard!" << std::endl;
-                continue;
             }
 
             if(!backgrounds.count(bkg)){
@@ -39,11 +40,11 @@ void PlotterPostfit::ConfigureHists(){
                 backgrounds[bkg]->SetDirectory(0);
             }
 
-            backgrounds[bkg]->Fill(dirName.c_str(), hist->Integral());
+            backgrounds[bkg]->Fill(dirName.c_str(), hist != nullptr ? hist->Integral() : 0.);
         }
 
         //Signal hist
-        std::shared_ptr<TH1F> sig = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, sigProcess));
+        std::shared_ptr<TH1F> sig = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", type, dirName, sigProcess));
 
         if(signal == nullptr){
             std::vector<std::string> s = StrUtil::Split(sigProcess, "_");
@@ -55,10 +56,10 @@ void PlotterPostfit::ConfigureHists(){
             signal->SetDirectory(0);
         }
 
-        signal->Fill(dirName.c_str(), sig->Integral());
+        signal->Fill(dirName.c_str(), sig != nullptr ? sig->Integral() : 0);
 
         //Data Graph
-        std::shared_ptr<TGraphAsymmErrors> d = RUtil::GetSmart<TGraphAsymmErrors>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, "data"));
+        std::shared_ptr<TGraphAsymmErrors> d = RUtil::GetSmart<TGraphAsymmErrors>(file.get(), StrUtil::Join("/", type, dirName, "data"));
 
         if(data == nullptr){
             data = std::make_shared<TGraphAsymmErrors>();
@@ -68,7 +69,7 @@ void PlotterPostfit::ConfigureHists(){
         data->SetPoint(data->GetN(), 0.5 + data->GetN(), d->GetPointY(0));
 
         //Error band
-        std::shared_ptr<TH1F> allBkg = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", "shapes_fit_s", dirName, "total_background"));
+        std::shared_ptr<TH1F> allBkg = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", type, dirName, "total_background"));
 
         if(errorBand == nullptr){
             errorBand = std::make_shared<TH1F>("error", "error", 1, 1, 1);
@@ -97,7 +98,7 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     mainPad->cd();
 
     PUtil::SetHist(mainPad.get(), errorBand.get(), "Events");
-
+    
     //Create background stack
     std::vector<std::shared_ptr<TH1F>> bkgs = VUtil::MapValues(backgrounds);
     std::sort(bkgs.begin(), bkgs.end(), [](std::shared_ptr<TH1F> h1, std::shared_ptr<TH1F> h2){return h1->Integral() < h2->Integral();});
@@ -115,12 +116,43 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
     legend->AddEntry(errorBand.get(), "Syst. unc.", "F");
     legend->AddEntry(data.get(), "Data", "P");
 
+    //Draw ratio
+    std::shared_ptr<TH1F> dataHist = RUtil::CloneSmart<TH1F>(errorBand.get());
+    dataHist->SetMarkerStyle(20);
+    for(int i = 0; i < data->GetN(); ++i) dataHist->SetBinContent(i+1, data->GetPointY(i));
+
+    TPad* ratioPad = PUtil::DrawRatio(c.get(), mainPad.get(), dataHist.get(), errorBand.get(), "Data/Pred");
+
+    //Legend for bin labels
+    int nColumns = std::ceil(errorBand->GetXaxis()->GetNbins()/2.);
+
+    c->SetCanvasSize(c->GetWindowWidth() + 150, c->GetWindowHeight());
+    mainPad->SetPad(0., 0.2 , 0.85, 1.);
+    ratioPad->SetPad(0., 0. , 0.85, 0.2);
+    c->cd();
+
+    TText* header = new TText(0.84, 0.9, "Bin labels");
+    header->SetTextSize(0.03);
+    header->Draw();
+
+    for(int i = 0; i < errorBand->GetXaxis()->GetNbins(); ++i){
+        std::string label = StrUtil::Merge(i+1,  ": " , errorBand->GetXaxis()->GetBinLabel(i+1));
+
+        while(!StrUtil::Find(label, "_").empty()) label = StrUtil::Replace(label, "_", " ");
+
+        TText* labelName = new TText(0.82, 0.88 - (i+1)*0.025, label.c_str());
+        labelName->SetTextSize(0.017);
+        labelName->Draw();
+
+        errorBand->GetXaxis()->SetBinLabel(i+1, std::to_string(i+1).c_str());
+    }
+
     for(int isLog=0; isLog < 2; ++isLog){
         mainPad->cd();
         mainPad->Clear();
         mainPad->SetLogy(isLog);
 
-        errorBand->SetMinimum(isLog ? 1e-1 : 0);
+        errorBand->SetMinimum(isLog ? 1e-2 : 0);
 
         errorBand->Draw("E2");
         stack->Draw("HIST SAME");
@@ -137,8 +169,8 @@ void PlotterPostfit::Draw(std::vector<std::string> &outdirs){
 
         for(std::string outdir: outdirs){
             std::system(("mkdir -p " + outdir).c_str());
-            c->SaveAs((outdir + "/postfit" + extension + ".pdf").c_str());
-            c->SaveAs((outdir + "/postfit" + extension + ".png").c_str());
+            c->SaveAs((outdir + (isPostfit ? "/postfit" : "/prefit") + extension + ".pdf").c_str());
+            c->SaveAs((outdir + (isPostfit ? "/postfit" : "/prefit") + extension + ".png").c_str());
         }
     }
 }

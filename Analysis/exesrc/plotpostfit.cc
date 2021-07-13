@@ -14,7 +14,11 @@ int main(int argc, char* argv[]){
     std::vector<std::string> outDirs = parser.GetVector<std::string>("out-dirs");
   
     //Call and run Plotter1D class
-    PlotterPostfit plotter(inFile, bkgProcesses, sigProcess);
-    plotter.ConfigureHists();
-    plotter.Draw(outDirs);
+    PlotterPostfit plotterPre(inFile, bkgProcesses, sigProcess, false);
+    plotterPre.ConfigureHists();
+    plotterPre.Draw(outDirs);
+
+    PlotterPostfit plotterPost(inFile, bkgProcesses, sigProcess, true);
+    plotterPost.ConfigureHists();
+    plotterPost.Draw(outDirs);
 }
