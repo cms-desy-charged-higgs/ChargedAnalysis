@@ -22,17 +22,19 @@ int main(int argc, char *argv[]){
     std::vector<std::string> processes = parser.GetVector<std::string>("processes");
     std::vector<std::string> files = parser.GetVector<std::string>("files");
 
-    CSV eventCounts(outDir + "/eventYields.csv", "w+", {"Process", "EventYield"}, "\t");
+    CSV eventCounts(outDir + "/eventYields.csv", "w+", {"Process", "EventYield", "EventCount"}, "\t");
     std::vector<float> eventYields(processes.size(), 1.);
+    std::vector<float> eventCount(processes.size(), 1.);
 
     for(int i = 0; i < processes.size(); ++i){
         std::shared_ptr<TFile> f = RUtil::Open(files.at(i));
         eventYields[i] = RUtil::Get<TH1F>(f.get(), "EventCount")->Integral();
+        eventCount[i] = RUtil::Get<TH1F>(f.get(), "EventCount")->GetEntries(); 
     }
 
     std::vector<int> sortedIdx = VUtil::SortedIndices(eventYields, &sortDecreasing);
 
     for(int i = 0; i < processes.size(); ++i){
-        eventCounts.WriteRow(processes[sortedIdx[i]], eventYields[sortedIdx[i]]);
+        eventCounts.WriteRow(processes[sortedIdx[i]], eventYields[sortedIdx[i]], eventCount[sortedIdx[i]]);
     }
 }
