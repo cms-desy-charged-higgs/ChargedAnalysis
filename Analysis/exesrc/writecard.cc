@@ -14,29 +14,35 @@ int main(int argc, char* argv[]){
     std::string sigProcess = parser.GetValue("sig-process"); 
     std::string data = parser.GetValue("data");
 
-    std::string dataFile = parser.GetValue("data-file");
-
     std::string discriminant = parser.GetValue("discriminant");
     std::string outDir = parser.GetValue("out-dir"); 
-    std::string channel = parser.GetValue("channel"); 
+    std::string channel = parser.GetValue("channel");
+    std::string era = parser.GetValue("era");
+
+    std::vector<std::string> regions = parser.GetVector("region-names", {"SR"});
     std::vector<std::string> systematics = parser.GetVector("systematics", {""});
 
-    std::map<std::string, std::vector<std::string>> bkgFiles;
-    std::map<std::string, std::string> sigFiles;
+    std::map<std::string, std::map<std::string, std::vector<std::string>>> bkgFiles;
+    std::map<std::string, std::map<std::string, std::string>> sigFiles;
+    std::map<std::string, std::string> dataFiles;
 
     for(const std::string& syst : systematics){
         for(const std::string& shift : {"Up", "Down"}){
-            if(syst == "" and shift == "Down") continue;
+            for(const std::string& region : regions){
+                if(syst == "" and shift == "Down") continue;
 
-            std::string systName = syst != "" ? StrUtil::Merge(syst, shift) : "";
+                std::string systName = syst != "" ? StrUtil::Merge(syst, shift) : "";
 
-            bkgFiles[systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "bkg-files", systName) : "bkg-files");
-            sigFiles[systName] = parser.GetValue(syst != "" ? StrUtil::Join("-", "sig-files", systName) : "sig-files");
+                if(syst == "") dataFiles[region] = parser.GetValue("data-file-" + region);
+
+                bkgFiles[region][systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "bkg-files", region, systName) : "bkg-files-" + region);
+                sigFiles[region][systName] = parser.GetValue(syst != "" ? StrUtil::Join("-", "sig-files", region, systName) : "sig-files-" + region);
+            }
         }
     }
 
     //Create datcard
-    Datacard datacard(outDir, channel, bkgProcesses, bkgFiles, sigProcess, sigFiles, data, dataFile, systematics);
+    Datacard datacard(outDir, channel, era, bkgProcesses, bkgFiles, sigProcess, sigFiles, data, dataFiles, systematics, regions);
     datacard.GetHists(discriminant);
     datacard.Write();
 }
