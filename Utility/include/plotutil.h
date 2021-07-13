@@ -26,8 +26,8 @@ namespace PUtil{
     void SetHist(TPad* pad, TH1* frameHist, const std::string& yLabel="", const bool& isRatio=false);
 
     void DrawHeader(TPad* pad, const std::string& titleText, const std::string& cmsText, const std::string& lumiText = "");
-    void DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
-    void DrawLegend(TPad* pad, TLegend* legend, const int& nColumns);
+    TPad* DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel="");
+    TPad* DrawLegend(TPad* pad, TLegend* legend, const int& nColumns);
     void DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig);
     
     float DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir);
