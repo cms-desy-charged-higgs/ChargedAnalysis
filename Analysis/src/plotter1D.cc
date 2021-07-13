@@ -36,7 +36,7 @@ void Plotter1D::ConfigureHists(){
                 std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[systName].at(i));
 
                 for(std::string& param: parameters){
-                    if(param == "cutflow" and syst != "") continue;
+                    if(param == "cutflow") continue;
 
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
@@ -76,7 +76,7 @@ void Plotter1D::ConfigureHists(){
                 std::shared_ptr<TFile> file = RUtil::Open(sigFiles[systName].at(i));
 
                 for(std::string& param: parameters){
-                    if(param == "cutflow" and syst != "") continue;
+                    if(param == "cutflow") continue;
 
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
@@ -99,6 +99,8 @@ void Plotter1D::ConfigureHists(){
         std::shared_ptr<TFile> file = RUtil::Open(dataFile);
 
         for(std::string& param: parameters){
+            if(param == "cutflow") continue;
+
             std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
             hist->SetMarkerStyle(20);
@@ -115,6 +117,8 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
     PUtil::SetStyle();
 
     for(std::string& param: parameters){
+        if(param == "cutflow") continue;
+
         //All canvases/pads
         std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("canvas",  "canvas", 1000, 1000);
         std::shared_ptr<TPad> mainPad = std::make_shared<TPad>("mainPad", "mainPad", 0., 0. , 1., 1.);
