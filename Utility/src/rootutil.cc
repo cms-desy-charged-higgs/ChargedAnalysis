@@ -16,7 +16,24 @@ std::shared_ptr<TFile> RUtil::Open(const std::string& fileName, const std::exper
     return file;
 }
 
-bool RUtil::BranchExists(TTree* tree, const std::string& branchName){
+bool RUtil::BranchExists(TTree* tree, const std::string& branchName, const std::experimental::source_location& location){
     if(tree->GetListOfBranches()->FindObject(branchName.c_str())) return true;
     return false;
+}
+
+std::vector<std::string> RUtil::ListOfContent(TDirectory* f, const std::experimental::source_location& location){
+    std::vector<std::string> content;
+
+    for(TObject* key : *(f->GetListOfKeys())){
+        std::string objName = key->GetName();
+
+        if(f->Get(objName.c_str())->InheritsFrom(TDirectory::Class())){
+            std::vector<std::string> subContent = ListOfContent(RUtil::Get<TDirectory>(f, objName));
+            content = VUtil::Merge(content, subContent);
+        }
+
+        content.push_back(objName);
+    }
+
+    return content;
 }

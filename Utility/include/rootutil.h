@@ -11,8 +11,10 @@
 #include <experimental/source_location>
 
 #include <ChargedAnalysis/Utility/include/stringutil.h>
+#include <ChargedAnalysis/Utility/include/vectorutil.h>
 
 #include <TFile.h>
+#include <TDirectory.h>
 #include <THStack.h>
 #include <TTree.h>
 #include <TBranch.h>
@@ -38,8 +40,10 @@ namespace RUtil{
 
     std::shared_ptr<TFile> Open(const std::string& fileName, const std::experimental::source_location& location = std::experimental::source_location::current());
 
-    bool BranchExists(TTree* tree, const std::string& branchName);
+    bool BranchExists(TTree* tree, const std::string& branchName, const std::experimental::source_location& location = std::experimental::source_location::current());
     
+    std::vector<std::string> ListOfContent(TDirectory* f, const std::experimental::source_location& location = std::experimental::source_location::current());
+
     /**
     * @brief Get object from TFile with exception handling
     *
@@ -54,7 +58,7 @@ namespace RUtil{
     * @return Pointer of the object
     */
     template<typename T>
-    T* Get(TFile* obj, const std::string& getName, const std::experimental::source_location& location = std::experimental::source_location::current()){
+    T* Get(TDirectory* obj, const std::string& getName, const std::experimental::source_location& location = std::experimental::source_location::current()){
         //Check if objects is not null pointer
         if(obj == nullptr) throw std::runtime_error(StrUtil::PrettyError(location, "TFile is a null pointer!"));
 
