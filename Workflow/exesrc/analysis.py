@@ -49,19 +49,64 @@ def plot(config):
             allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
             for process in processes:
+                if config.get("estimate-QCD", False) and process == "QCD":
+                    continue
+
                 for syst in shapeSysts:
                     for shift in ["Up", "Down"]:
-                        treeread(tasks, config, channel, era, process, syst, shift)
+                        if config.get("estimate-QCD", False):
+                            for region in config["cuts"][channel]:
+                                c = copy.deepcopy(config)
+                                c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
+                                c["cuts"]["all"] = config["cuts"].get("all", []) +  config["cuts"][channel][region]
+                                c["cuts"].pop(channel)
+
+                                if region != "original":
+                                    treeread(tasks, c, channel, era, process, syst, shift, postFix = region)
+
+                                else:
+                                    treeread(tasks, c, channel, era, process, syst, shift, postFix = "Baseline")
+
+                        else:
+                            treeread(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
 
                 for syst in allSysts:
                     for shift in ["Up", "Down"]:
-                        mergeHists(tasks, config, channel, era, process, syst, shift)
+                        if config.get("estimate-QCD", False):
+                            for region in config["cuts"][channel]:
+                                c = copy.deepcopy(config)
+                                c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
 
-            plotting(tasks, config, channel, era, processes)
+                                if region != "original":
+                                    mergeHists(tasks, c, channel, era, process, syst, shift, postFix = region)
 
-            for syst in allSysts:
-                for shift in ["Up", "Down"]:
-                    eventCount(tasks, config, channel, era, processes, syst, shift)
+                                else:
+                                    mergeHists(tasks, c, channel, era, process, syst, shift, postFix = "Baseline")
+
+                        else:
+                            mergeHists(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
+
+            if config.get("estimate-QCD", False):
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:
+                        QCDEstimation(tasks, config, channel, era, syst, shift, "Baseline")
+
+                for region in config["cuts"][channel]:
+                    c = copy.deepcopy(config)
+                    c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
+       
+                    if region != "original":
+                        plotting(tasks, c, channel, era, processes, postFix = region)
+
+                    else:
+                        plotting(tasks, config, channel, era, processes, postFix = "Baseline")
+
+            else:
+                plotting(tasks, config, channel, era, processes, postFix = "Baseline")
+
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:
+                        eventCount(tasks, config, channel, era, processes, syst, shift, postFix = "Baseline")
 
     return tasks
 
@@ -170,31 +215,34 @@ def limit(config):
             conf = copy.deepcopy(config)
             conf["signal"] = config["signal"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
             conf["discriminant"] = config["discriminant"].format_map(dd(str, {"MHC": mHPlus, "MH": mH}))
-            conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
 
             ##Produce limits for each era/channel individually
             for channel in config["channels"]:
                 for era in config["era"]:
-                    conf["cuts"]["all"] = [c.replace("{MHC}", str(mHPlus)) for c in config["cuts"]["all"]]
-                    processes = conf["backgrounds"] + [conf["signal"]] + conf.get("data", {}).get(channel, [])
+                    for region in ["SR", "VR"] + config.get("control-regions", []):
+                        conf["dir"] = "{}/{}-Region".format(config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH)), region)
+                        conf["cuts"]["all"] = [c.replace("{MHC}", str(mHPlus)) for c in config["cuts"]["all"] + config["cuts"][region]]
+                        processes = conf["backgrounds"] + [conf["signal"]] + conf.get("data", {}).get(channel, [])
 
-                    shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
-                    allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
+                        shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+                        allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
-                    for procc in processes:
-                        for syst in shapeSysts:
-                            for shift in ["Up", "Down"]:
-                                treeread(tasks, conf, channel, era, procc, syst, shift, mHPlus, postFix = "{}_{}".format(mHPlus, mH))
-                        
+                        for procc in processes:
+                            for syst in shapeSysts:
+                                for shift in ["Up", "Down"]:
+                                    treeread(tasks, conf, channel, era, procc, syst, shift, mHPlus, postFix = "{}_{}_{}Region".format(mHPlus, mH, region))
+                            
+                            for syst in allSysts:
+                                for shift in ["Up", "Down"]:
+                                    mergeHists(tasks, conf, channel, era, procc, syst, shift, postFix = "{}_{}_{}Region".format(mHPlus, mH, region))
+
+                        plotting(tasks, conf, channel, era, processes, postFix = "{}_{}_{}Region".format(mHPlus, mH, region))
+
                         for syst in allSysts:
                             for shift in ["Up", "Down"]:
-                                mergeHists(tasks, conf, channel, era, procc, syst, shift, postFix = "{}_{}".format(mHPlus, mH))
+                                eventCount(tasks, conf, channel, era, processes, syst, shift, postFix = "{}_{}_{}Region".format(mHPlus, mH, region))
 
-                    plotting(tasks, conf, channel, era, processes, postFix = "{}_{}".format(mHPlus, mH))
-
-                    for syst in allSysts:
-                        for shift in ["Up", "Down"]:
-                            eventCount(tasks, conf, channel, era, processes, syst, shift, postFix = "{}_{}".format(mHPlus, mH))
+                    conf["dir"] = config["dir"].replace("{MHC}", str(mHPlus)).replace("{MH}", str(mH))
 
                     datacard(tasks, conf, channel, era, processes, mHPlus, mH)
                     limits(tasks, conf, channel, era, mHPlus, mH)

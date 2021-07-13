@@ -59,6 +59,11 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
             if d.startswith(processName) and not "_ext" in d:
                 fileNames.append("{skim}/{file}/merged/{syst}/{file}.root".format(skim=skimDir, file = d, syst = systName))
 
+    ##List of parameters
+    parameters = config["parameters"].get("all", []) + config["parameters"].get(channel, [])
+    if config.get("estimate-QCD", False):
+        parameters = parameters +  [p + "/" +  config.get("estimate-QCD", False) for p in parameters]
+
     nJobs = 0
 
     for fileName in fileNames:
@@ -83,7 +88,7 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                 "run-mode": config["run-mode"],
                 "arguments": {
                     "filename": fileName,
-                    "parameters": config["parameters"].get("all", []) + config["parameters"].get(channel, []),
+                    "parameters": parameters,
                     "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
                     "out-dir": outDir,
                     "out-file": "{}.root".format(process),
@@ -156,13 +161,16 @@ def plotting(tasks, config, channel, era, processes, postFix = ""):
     webDir = ""
 
     if "Results/Plot" in outDir:
-        webDir = outDir.replace("Results/Plot", "CernWebpage/Plots").replace("PDF", "")
+        webDir = outDir.replace("Results/Plot", "WebPlotting/Plots").replace("PDF", "")
 
     systematics = config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []) + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
     for t in tasks:
         for process in processes:
             if "MergeHists_{}_{}_{}_".format(channel, era, process) in t["name"] and postFix in t["name"]:
+                dependencies.append(t["name"])
+
+            elif process == "QCD" and "QCDEstimate_{}_{}".format(channel, era) in t["name"] and postFix in t["name"]:
                 dependencies.append(t["name"])
 
             else:
@@ -286,6 +294,53 @@ def stitching(tasks, config, channel, era, syst, shift, postFix = ""):
         }
 
         tasks.append(Task(task, "--"))
+
+def QCDEstimation(tasks, config, channel, era, syst, shift, postFix = ""):
+    ##Skip Down for nominal case
+    if syst == "" and shift == "Down":
+        return
+
+    systName = "{}{}".format(syst, shift) if syst != "" else ""
+    outDir = config["dir"].format_map(dd(str, {"D": "QCDEstimation", "C": channel, "E": era})) + "/" + systName
+    data = config["data"][channel][0]
+
+    depTasks = []
+    depFiles = {}
+    regions = ["A", "B", "C", "E", "F", "G", "H"]
+
+    for t in tasks:
+        for region in regions:
+            if "MergeHists_{}_{}_".format(channel, era) in t["name"] and "QCD-{}".format(region) in t["name"]:
+                if systName in t["name"] and systName != "":
+                    depTasks.append(t)
+                    depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+                elif data in t["name"]:
+                    depTasks.append(t)
+                    depFiles.setdefault(region, {}).setdefault("data", t["arguments"]["out-file"])
+
+                elif syst == "" and not "Up" in t["name"] and not "Down" in t["name"]:
+                    depTasks.append(t)
+                    depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+                break
+
+    task = {
+        "name": "QCDEstimate_{}_{}_{}_{}".format(channel, era, systName, postFix),
+        "dir": outDir,
+        "executable": "estimateQCD",
+        "dependencies": [t["name"] for t in depTasks],
+        "arguments": {
+            "out-file": "{}/QCD.root".format(outDir),
+            "processes": [proc for proc in config["processes"] if proc != "QCD"] + ["data"],
+        }
+    }
+          
+    for process in task["arguments"]["processes"]:
+        for region in regions:
+            task["arguments"]["{}-{}-file".format(region, process)] = depFiles[region][process]
+    
+    tasks.append(Task(task, "--"))
 
 def bkgEstimation(tasks, config, channel, era, mass, syst, shift, postFix = ""):
     ##Skip Down for nominal case
@@ -619,6 +674,10 @@ def eventCount(tasks, config, channel, era, processes, syst, shift, postFix = ""
                 elif "Single" in t["name"]:
                     dependencies.append(t["name"])
                     files.append(t["arguments"]["out-file"])
+
+            elif process == "QCD" and "QCDEstimate_{}_{}".format(channel, era) in t["name"] and postFix in t["name"]:
+                dependencies.append(t["name"])
+                files.append(t["arguments"]["out-file"])
                     
     task = {
         "name": "EventCount_{}_{}_{}_{}".format(channel, era, systName, postFix), 
@@ -637,37 +696,38 @@ def eventCount(tasks, config, channel, era, processes, syst, shift, postFix = ""
 
 def datacard(tasks, config, channel, era, processes, mHPlus, mH, postFix = ""):
     dependencies = []
-    bkgFiles, sigFiles = {}, {}
-    dataFile = ""
+    bkgFiles, sigFiles, dataFile = {}, {}, {}
 
     outDir = config["dir"].format_map(dd(str, {"D": "DataCard", "C": channel, "E": era}))
     systematics = config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []) + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
+    regions = ["SR", "VR"] + config.get("control-regions", [])
 
     for t in tasks:
-        if "MergeHists_{}_{}".format(channel, era) in t["name"] and "{}_{}".format(mHPlus, mH) in t["name"]:
-            dependencies.append(t["name"])
+        for region in regions:
+            if "MergeHists_{}_{}".format(channel, era) in t["name"] and "{}_{}".format(mHPlus, mH) in t["name"] and "_{}Region".format(region) in t["name"]:
+                dependencies.append(t["name"])
 
-        else:
-            continue
+            else:
+                continue
 
-        for syst in systematics:
-            for shift in ["Up", "Down"]:
-                if syst == "" and shift == "Down":
-                    continue
+            for syst in systematics:
+                for shift in ["Up", "Down"]:
+                    if syst == "" and shift == "Down":
+                        continue
 
-                systName = "{}{}".format(syst, shift) if syst != "" else ""
-                systCheck = systName in t["name"] if syst != "" else not "Up" in t["name"] and not "Down" in t["name"]
+                    systName = "{}{}".format(syst, shift) if syst != "" else ""
+                    systCheck = systName in t["name"] if syst != "" else not "Up" in t["name"] and not "Down" in t["name"]
 
-                for proc in config["backgrounds"]:
-                    if "_{}_".format(proc) in t["name"] and systCheck:
-                        bkgFiles.setdefault(systName, []).append(t["arguments"]["out-file"])
-                        break
+                    for proc in config["backgrounds"]:
+                        if "_{}_".format(proc) in t["name"] and systCheck:
+                            bkgFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
+                            break
 
-                if config["signal"] in t["name"] and systCheck:
-                    sigFiles.setdefault(systName, []).append(t["arguments"]["out-file"])
+                    if config["signal"] in t["name"] and systCheck:
+                        sigFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
 
-        if config.get("data", {}).get(channel, []) and config["data"].get(channel, [])[0] in t["name"]:
-            dataFile = t["arguments"]["out-file"]
+            if config.get("data", {}).get(channel, []) and config["data"].get(channel, [])[0] in t["name"]:
+                dataFile[region] = t["arguments"]["out-file"]
                    
     task = {
         "name": "DataCard_{}_{}_{}_{}_{}".format(channel, era, mHPlus, mH, postFix), 
@@ -679,21 +739,26 @@ def datacard(tasks, config, channel, era, processes, mHPlus, mH, postFix = ""):
             "bkg-processes": config["backgrounds"],
             "sig-process": config["signal"],
             "data": config["data"].get(channel, [""])[0],
-            "bkg-files": bkgFiles[""],
-            "sig-files": sigFiles[""],
-            "data-file": dataFile,
             "out-dir": outDir,
             "channel": channel,
+            "era": era,
             "systematics": ['""'] + systematics[1:],
+            "region-names": regions,
         }
     }
 
-    for syst in systematics[1:]:
-        for shift in ["Up", "Down"]:
-            systName = "{}{}".format(syst, shift)
+    for region in regions:
+        task["arguments"]["data-file-{}".format(region)] = dataFile[region]
 
-            task["arguments"]["bkg-files-{}{}".format(syst, shift)] = bkgFiles[systName]
-            task["arguments"]["sig-files-{}{}".format(syst, shift)] = sigFiles[systName]
+        for syst in systematics:
+            for shift in ["Up", "Down"]:
+                if syst == "" and shift == "Down":
+                    continue
+
+                systName = "{}{}".format(syst, shift) if syst != "" else ""
+
+                task["arguments"]["bkg-files-{}".format(region) + ("-{}".format(systName) if systName != "" else "")] = bkgFiles[region][systName]
+                task["arguments"]["sig-files-{}".format(region) + ("-{}".format(systName) if systName != "" else "")] = sigFiles[region][systName]
 
     tasks.append(Task(task, "--"))
 
@@ -710,7 +775,7 @@ def limits(tasks, config, channel, era, mHPlus, mH, postFix = ""):
 
     postExeCommands = [
         "mv higgs*.root limit.root",
-        "combine -M FitDiagnostics -d workspace.root --saveShapes --saveWithUncertainties --rMin -200 --rMax 200 {}".format("" if data else " -t -1 --expectSignal 1"),
+        "combine -M FitDiagnostics -d workspace.root --saveShapes --saveWithUncertainties --rMin -200 --rMax 200",
         "rm higgs*.root"
     ]
 
@@ -722,12 +787,9 @@ def limits(tasks, config, channel, era, mHPlus, mH, postFix = ""):
         "arguments": {
             "method": "AsymptoticLimits",
             "datacard": "workspace.root",
-            "saveWorkspace": "",
+            "saveWorkspace": ""
         }
     }
-
-    if not config.get("data", {}).get(channel, []):
-        task["arguments"]["run"] = "blind"
 
     tasks.append(Task(task, "--", preExeCommands, postExeCommands))
 
@@ -736,7 +798,7 @@ def plotlimit(tasks, config, channel, era, postFix = ""):
     webDir = ""
 
     if "Results/Limit" in outDir:
-        webDir = outDir.replace("Results", "CernWebpage/Plots").replace("LimitPDF", "")
+        webDir = outDir.replace("Results", "WebPlotting/Plots").replace("LimitPDF", "")
 
     xSecs, limitFiles, dependencies = [], [], []
 
@@ -775,7 +837,7 @@ def plotimpact(tasks, config, channel, era, mHPlus, mH, postFix = ""):
     data = config.get("data", {}).get(channel, [])
 
     if "Results/Limit" in outDir:
-        webDir = outDir.replace("Results", "CernWebpage/Plots").replace("ImpactsPDF", "")
+        webDir = outDir.replace("Results", "WebPlotting/Plots").replace("ImpactsPDF", "")
 
     dependencies = []
 
@@ -788,9 +850,9 @@ def plotimpact(tasks, config, channel, era, mHPlus, mH, postFix = ""):
     preExeCommands = [
         "source $CHDIR/ChargedAnalysis/setenv.sh CMSSW",
         "cd {}".format(outDir),
-        "combineTool.py -M Impacts -d {} -m 100 --doInitialFit --robustFit 1 --rMin -200 --rMax 200 {}".format(inputFile, "" if data else " -t -1 --expectSignal 1"),
-        "combineTool.py -M Impacts -d {} -m 100 --robustFit 1 --doFits --rMin -200 --rMax 200 {}".format(inputFile, "" if data else " -t -1 --expectSignal 1"),
-        "combineTool.py -M Impacts -d {} -m 100 -o impacts.json --rMin -200 --rMax 200 {}".format(inputFile, "" if data else " -t -1 --expectSignal 1"),
+        "combineTool.py -M Impacts -d {} -m 100 --doInitialFit --robustFit 1 --rMin -200 --rMax 200".format(inputFile),
+        "combineTool.py -M Impacts -d {} -m 100 --robustFit 1 --doFits --rMin -200 --rMax 200".format(inputFile),
+        "combineTool.py -M Impacts -d {} -m 100 -o impacts.json --rMin -200 --rMax 200".format(inputFile),
     ]
 
     task = {
@@ -811,7 +873,7 @@ def plotpostfit(tasks, config, channel, era, mHPlus, mH, postFix = ""):
     webDir = ""
 
     if "Results/Limit" in outDir:
-        webDir = outDir.replace("Results", "CernWebpage/Plots").replace("PostfitPDF", "")
+        webDir = outDir.replace("Results", "WebPlotting/Plots").replace("PostfitPDF", "")
 
     inputFile, dependencies = "", []
 
@@ -848,7 +910,7 @@ def mergeDataCards(tasks, config, channels, eras, mHPlus, mH, postFix = ""):
             for era in eraList if len(eraList) != 0 else [eraName]:
                 if "DataCard_{}_{}_{}_{}".format(chan, era, mHPlus, mH) in t["name"]:
                     dependencies.append(t["name"])
-                    args += "{}={} ".format(chan + "_" + era, "{}/datacard.txt".format(t["dir"]))
+                    args += "{}/datacard.txt ".format(t["dir"])
 
     task = {
         "name": "MergeCards_{}_{}_{}_{}_{}".format(chanName, eraName, mHPlus, mH, postFix), 
@@ -856,7 +918,7 @@ def mergeDataCards(tasks, config, channels, eras, mHPlus, mH, postFix = ""):
         "executable": "combineCards.py",
         "dependencies": dependencies,
         "arguments": {
-            args + " > {}/datacard.txt".format(outDir) : "",
+            args + "> {}/datacard.txt".format(outDir) : "",
         }
     }
 
