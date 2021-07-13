@@ -26,7 +26,6 @@ class HistMaker {
         std::vector<std::string> parameters, cutStrings;
         std::string outDir, outFile, channel;
         std::vector<std::string> systDirs, scaleSysts;
-        std::string scaleFactors;
         int era;
 
         std::shared_ptr<TFile> inputFile;
@@ -50,9 +49,9 @@ class HistMaker {
 
     public:
         HistMaker();
-        HistMaker(const std::vector<std::string>& parameters, const std::vector<std::string>& cutStrings, const std::string& outDir, const std::string& outFile, const std::string& channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const std::string& scaleFactors, const int& era = 2017);
+        HistMaker(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const int& era = 2017);
 
-        void Produce(const std::string& fileName);
+        void Produce(const std::string& fileName, const int& eventStart, const int& eventEnd, const std::string& bkgYieldFac = "", const std::string& bkgType = "", const std::vector<std::string>& bkgYieldFacSyst = {});
 };
 
 #endif

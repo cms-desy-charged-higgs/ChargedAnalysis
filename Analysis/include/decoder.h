@@ -15,10 +15,10 @@ class Decoder{
 
         bool hasYInfo(const std::string& parameter);
 
-        void GetFunction(const std::string& parameter, NTupleReader& reader, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void GetFunction(const std::string& parameter, NTupleReader& reader, const bool& readY = false, const std::experimental::source_location& location = std::experimental::source_location::current());
         void GetParticle(const std::string& parameter, NTupleReader& reader, Weighter*
- weighte = nullptr,  const std::experimental::source_location& location = std::experimental::source_location::current());
-        void GetBinning(const std::string& parameter, TH1* hist, const std::experimental::source_location& location = std::experimental::source_location::current());
+ weighte = nullptr, const bool& readY = false, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void GetBinning(const std::string& parameter, TH1* hist, const bool& isY = false, const std::experimental::source_location& location = std::experimental::source_location::current());
         void GetCut(const std::string& parameter, NTupleReader& reader, const std::experimental::source_location& location = std::experimental::source_location::current());
 
 };

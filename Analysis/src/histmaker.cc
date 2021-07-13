@@ -1,6 +1,6 @@
 #include <ChargedAnalysis/Analysis/include/histmaker.h>
 
-HistMaker::HistMaker(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const std::string& scaleFactors, const int& era):
+HistMaker::HistMaker(const std::vector<std::string> &parameters, const std::vector<std::string> &cutStrings, const std::string& outDir, const std::string &outFile, const std::string &channel, const std::vector<std::string>& systDirs, const std::vector<std::string>& scaleSysts, const int& era):
     parameters(parameters),
     cutStrings(cutStrings),
     outDir(outDir),
@@ -8,7 +8,6 @@ HistMaker::HistMaker(const std::vector<std::string> &parameters, const std::vect
     channel(channel),
     systDirs(systDirs),
     scaleSysts(scaleSysts),
-    scaleFactors(scaleFactors),
     era(era){}
 
 void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, const std::experimental::source_location& location){
@@ -85,17 +84,17 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
                         if(shift == "Down") hists1DSystDown[scaleSyst].push_back(std::move(hist1D));
                     }
 
-                    if(scaleSyst == "") hist1DFunctions.push_back(std::move(paramX));
+                    if(scaleSyst == "") hist1DFunctions.push_back(paramX);
                 }
 
                 else{
-                    parser.GetParticle(parameter, paramY);
-                    parser.GetFunction(parameter, paramY);
+                    parser.GetParticle(parameter, paramY, nullptr, true);
+                    parser.GetFunction(parameter, paramY, true);
 
                     paramY.Compile();
 
                     std::shared_ptr<TH2F> hist2D = std::make_shared<TH2F>();
-                    parser.GetBinning(parameter, hist2D.get());
+                    parser.GetBinning(parameter, hist2D.get(), true);
 
                     hist2D->SetDirectory(outFiles.back().get());
                     hist2D->SetName((paramX.GetHistName() + "_VS_" + paramY.GetHistName()).c_str());       
@@ -110,7 +109,7 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
                         if(shift == "Down") hists2DSystDown[scaleSyst].push_back(std::move(hist2D));
                     }
 
-                    if(scaleSyst == "") hist2DFunctions.push_back({paramX, paramY});    
+                    if(scaleSyst == "") hist2DFunctions.push_back({paramX, paramY});
                 }
             }
         }
@@ -132,7 +131,7 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
     }
 }
 
-void HistMaker::Produce(const std::string& fileName){
+void HistMaker::Produce(const std::string& fileName, const int& eventStart, const int& eventEnd, const std::string& bkgYieldFac, const std::string& bkgType, const std::vector<std::string>& bkgYieldFacSyst){
     //Get input tree
     inputFile = RUtil::Open(fileName);
     inputTree = RUtil::GetSmart<TTree>(inputFile.get(), channel);
@@ -152,14 +151,36 @@ void HistMaker::Produce(const std::string& fileName){
     bool passed = true, isData = true;
 
     //Data driven scale factors
-    float sf = 1.;
-    if(!scaleFactors.empty()){  
-        std::string fileName = StrUtil::Split(scaleFactors, "+")[0];
-        std::string process = StrUtil::Split(scaleFactors, "+")[1];
-      
-        CSV scaleFactors(fileName, "r", "\t");
-        std::vector<std::string> processes = scaleFactors.GetColumn("Process");
-        sf = scaleFactors.Get<float>(VUtil::Find(processes, process).at(0), "Factor");
+    float bkgY = 1.;
+    std::map<std::string, float> bkgYUp, bkgYDown;
+
+    if(!bkgYieldFac.empty()){
+        for(const std::string& scaleSyst : VUtil::Merge(std::vector<std::string>{""}, scaleSysts)){
+            for(const std::string& shift : {"Up", "Down"}){
+                std::string fName = bkgYieldFac;
+                std::string systName = scaleSyst != "" ? StrUtil::Merge(scaleSyst, shift) : "";
+
+                for(const std::string file : bkgYieldFacSyst){
+                    if(!StrUtil::Find(file, systName).empty()){
+                        fName = file;
+                        break;
+                    }
+                }
+
+                CSV bkgYieldFile(fName, "r", "\t");
+
+                std::vector<std::string> processes = bkgYieldFile.GetColumn("Process");
+
+                if(scaleSyst == ""){
+                    bkgY = bkgYieldFile.Get<float>(VUtil::Find(processes, bkgType).at(0), "Factor");
+                }
+
+                else{
+                    if(shift == "Up") bkgYUp[scaleSyst] = bkgYieldFile.Get<float>(VUtil::Find(processes, bkgType).at(0), "Factor");
+                    else bkgYDown[scaleSyst] = bkgYieldFile.Get<float>(VUtil::Find(processes, bkgType).at(0), "Factor");
+                }
+            }
+        }
     }
     
     //Cutflow/Event count histogram
@@ -172,10 +193,12 @@ void HistMaker::Produce(const std::string& fileName){
     StopWatch timer; 
     timer.Start();
     timer.SetTimeMark();
+    int nTimeMarks = 0;
 
-    for (int i = 0; i < inputTree->GetEntries(); ++i){
-        if(i % 100000 == 0 and i != 0){
-            std::cout << "Processed events: " << i << " (" << 100000./(timer.SetTimeMark() - timer.GetTimeMark(i/100000 -1)) << " eve/s)" << std::endl;
+    for (int i = eventStart; i < eventEnd; ++i){
+        if(i % 10000 == 0 and i != eventStart){
+            std::cout << "Processed events: " << i-eventStart << " (" << 10000./(timer.SetTimeMark() - timer.GetTimeMark(nTimeMarks)) << " eve/s)" << std::endl;
+            ++nTimeMarks;
         }
 
         //Set Entry
@@ -183,7 +206,7 @@ void HistMaker::Produce(const std::string& fileName){
 
         //Check if event passed all cuts
         passed = true;
-        wght = weight.GetBaseWeight(i) * sf;
+        wght = weight.GetBaseWeight(i) * bkgY;
 
         for(int j=0; j < cutFunctions.size(); j++){
             passed *= cutFunctions[j].GetPassed();
@@ -206,13 +229,14 @@ void HistMaker::Produce(const std::string& fileName){
                 if(syst == "" and shift == "Down") continue;
 
                 if(syst != ""){
-                    systWeight = sf * weight.GetTotalWeight(i, syst, shift);
+                    if(!bkgYieldFac.empty()) systWeight = (shift == "Up" ? bkgYUp[syst] : bkgYDown[syst]) * weight.GetTotalWeight(i, syst, shift);
+                    else systWeight = weight.GetTotalWeight(i, syst, shift);
 
                     if(shift == "Up") eventCountSystUp[syst]->Fill(0., systWeight);
                     else eventCountSystDown[syst]->Fill(0., systWeight);
                 }
 
-                for(int j=0; j < hist1DFunctions.size(); j++){
+                for(int j=0; j < hist1DFunctions.size(); ++j){
                     float value = hist1DFunctions[j].Get();
 
                     if(syst == "") hists1D[j]->Fill(value, wght * hist1DFunctions[j].GetWeight());
@@ -223,11 +247,11 @@ void HistMaker::Produce(const std::string& fileName){
                     }
                 }
 
-                for(int j=0; j < hist2DFunctions.size(); j++){
+                for(int j=0; j < hist2DFunctions.size(); ++j){
                     float value1 = hist2DFunctions[j].first.Get();
                     float value2 = hist2DFunctions[j].second.Get();
 
-                    if(syst == "")  hists2D[j]->Fill(value1, value2, wght);
+                    if(syst == "")  hists2D.at(j)->Fill(value1, value2, wght * hist2DFunctions[j].first.GetWeight());
             
                     else{
                         if(shift == "Up") hists2DSystUp.at(syst)[j]->Fill(value1, value2, systWeight);
@@ -240,6 +264,13 @@ void HistMaker::Produce(const std::string& fileName){
 
     //Write all histograms
     for(std::shared_ptr<TH1F>& hist: hists1D){
+        hist->GetDirectory()->cd();
+        hist->Write();
+        std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
+    }
+
+    //Write all histograms
+    for(std::shared_ptr<TH2F>& hist: hists2D){
         hist->GetDirectory()->cd();
         hist->Write();
         std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
@@ -269,6 +300,5 @@ void HistMaker::Produce(const std::string& fileName){
         }
     }
 
-    std::cout << "Closed output file: '" << outFile << "'" << std::endl;
     std::cout << "Time passed for complete processing: " << timer.GetTime() << " s" << std::endl;
 }
