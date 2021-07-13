@@ -77,7 +77,7 @@ void PUtil::DrawHeader(TPad* pad, const std::string& titleText, const std::strin
     lumiLine->DrawLatexNDC(0.64, 0.91, lumiText.c_str());
 }
 
-void PUtil::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel){
+TPad* PUtil::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, const std::string& yLabel){
     //Resize Canvas
     canvas->cd();
     canvas->SetCanvasSize(canvas->GetWindowWidth(), 1.2*canvas->GetWindowHeight());
@@ -105,9 +105,11 @@ void PUtil::DrawRatio(TCanvas* canvas, TPad* mainPad, TH1F* num, TH1F* dem, cons
     uncertainty->SetFillColorAlpha(kBlack, 0.8);
     uncertainty->SetMarkerColor(kBlack);
     uncertainty->Draw("SAME E2");
+
+    return ratioPad;
 }
 
-void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
+TPad* PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
     pad->cd();
         
     float max = 0;
@@ -149,6 +151,8 @@ void PUtil::DrawLegend(TPad* pad, TLegend* legend, const int& nColumns){
 
     legend->SetNColumns(nColumns);
     legend->Draw();
+
+    return legendPad;
 }
 
 void PUtil::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
