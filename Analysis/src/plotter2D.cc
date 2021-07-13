@@ -9,36 +9,24 @@ Plotter2D::Plotter2D(std::string &histdir, std::string &channel, std::vector<std
     era(era){}
 
 void Plotter2D::ConfigureHists(){
-    for(std::string process: processes){
-        std::string fileName = histdir + "/" + process + "/merged/" + process + ".root";
-        TFile* file = TFile::Open(fileName.c_str());
+    /*
+    //Read out parameter
+    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles[""], bkgFiles[""]).at(0));
 
-        std::cout << "Read histograms from file: '" + fileName + "'" << std::endl;
-
-        if(parameters.empty()){
-            for(int i = 0; i < file->GetListOfKeys()->GetSize(); i++){
-                if(file->Get(file->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH2F::Class())){
-                    parameters.push_back(file->GetListOfKeys()->At(i)->GetName());  
-                }
-            }
-        }
-
-        for(std::string& param: parameters){
-            TH2F* hist = file->Get<TH2F>(param.c_str());  
-
-            if(Utils::Find<std::string>(process, "HPlus") != -1.){
-                std::vector<std::string> massStrings = Utils::SplitString<std::string>(process, "_");
-                hist->SetName(("H^{#pm}_{" + massStrings[0].substr(5,7) + "}+h_{" + massStrings[1].substr(1,3) + "}").c_str());
-
-                signal[param].push_back(hist);
-            }
-
-            else{       
-                hist->SetName(process.c_str());            
-                background[param].push_back(hist);
-            }   
+    for(int i = 0; i < f->GetListOfKeys()->GetSize(); ++i){
+        if(f->Get(f->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH2F::Class())){
+            parameters.push_back(f->GetListOfKeys()->At(i)->GetName());  
         }
     }
+
+    for(std::size_t i = 0; i < processes.size(); ++i){
+        std::shared_ptr<TFile> file = RUtil::Open(bkgFiles.at(i));
+
+        for(std::string& param: parameters){
+            std::shared_ptr<TH2F> hist = RUtil::GetSmart<TH2F>(file.get(), param);
+        }
+    }
+    */
 }
 
 void Plotter2D::Draw(std::vector<std::string> &outdirs){
