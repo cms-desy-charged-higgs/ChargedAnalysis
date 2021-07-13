@@ -72,13 +72,13 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
     std::shared_ptr<CompiledFunc> bindedFunc;
     
     //Replace 
-    if(part.get_optional<std::string>("name")){
-        func.put("branch", StrUtil::Replace(func.get<std::string>("branch"), "[P]", part.get<std::string>("name")));
-    }
-
     if(part.get_optional<std::string>("axis-name") and func.get_optional<std::string>("axis-name")){
         func.put("axis-name", StrUtil::Replace(func.get<std::string>("axis-name"), "[P]", part.get<std::string>("axis-name")));
         func.put("hist-name", StrUtil::Replace(func.get<std::string>("hist-name"), "[P]", part.get<std::string>("hist-name")));
+    }
+
+    if(part.get_optional<std::string>("name")){
+        func.put("branch", StrUtil::Replace(func.get<std::string>("branch"), "[P]", part.get<std::string>("name")));
     }
 
     if(func.get_child_optional("values")){
@@ -115,19 +115,19 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
                 bool checkAbs = part.get_optional<bool>("identification." + idName + ".absolute-values") ? true : false;
 
                 //Check which operation to do
-                if(part.get<std::string>("identification." + idName + ".compare") == "=="){
-                    cutFunc->AddCut(checkAbs? &EqualAbs : &Equal, part.get<float>("identification." + idName + ".wp"));
+                if(part.get<std::string>("identification." + idName + ".wp.compare") == "=="){
+                    cutFunc->AddCut(checkAbs? &EqualAbs : &Equal, part.get<float>("identification." + idName + ".wp.value"));
                 }
 
-                else if(part.get<std::string>("identification." + idName + ".compare") == ">="){
-                    cutFunc->AddCut(checkAbs? &BiggerAbs : &Bigger, part.get<float>("identification." + idName + ".wp"));
+                else if(part.get<std::string>("identification." + idName + ".wp.compare") == ">="){
+                    cutFunc->AddCut(checkAbs? &BiggerAbs : &Bigger, part.get<float>("identification." + idName + ".wp.value"));
                 }
 
-                else if(part.get<std::string>("identification." + idName + ".compare") == "<="){
-                    cutFunc->AddCut(checkAbs? &SmallerAbs : &Smaller, part.get<float>("identification." + idName + ".wp"));
+                else if(part.get<std::string>("identification." + idName + ".wp.compare") == "<="){
+                    cutFunc->AddCut(checkAbs? &SmallerAbs : &Smaller, part.get<float>("identification." + idName + ".wp.value"));
                 }
 
-                else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown cut operator: '", part.get<std::string>("identification." + idName + ".compare"), "'!"));
+                else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown cut operator: '", part.get<std::string>("identification." + idName + ".wp.compare"), "'!"));
 
                 cuts.push_back(cutFunc);
             }
@@ -180,10 +180,16 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
                         //Set proper cuts for WP of particles if needed
                         if(parts.back().get_child_optional("identification") and pInfo.at(2) != ""){
                             for(const std::string& idName : NTupleReader::GetInfo(parts.back().get_child("identification"))){
-                                std::string wpPath = StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2));
-                                std::string wpPathWithEra = StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), era);
+                                if(parts.back().get_optional<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value", era))){
+                                    parts.back().put(StrUtil::Merge("identification.", idName, ".wp.value"), parts.back().get<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value", era)));
+                                }
 
-                                parts.back().put(StrUtil::Merge("identification.", idName, ".wp"), parts.back().get_optional<float>(wpPathWithEra) ? parts.back().get<float>(wpPathWithEra) : parts.back().get<float>(wpPath));
+                                else{
+                                    parts.back().put(StrUtil::Merge("identification.", idName, ".wp.value"), parts.back().get<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value")));
+                                }
+
+                                parts.back().put(StrUtil::Merge("identification.", idName, ".wp.compare"), parts.back().get<std::string>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "compare")));
+                                
                             }
                         }
 
@@ -334,15 +340,21 @@ void NTupleReader::AddParticle(const std::string& pAlias, const int& idx, const 
         //Set proper cuts for WP of particles if needed
         if(particle.get_child_optional("identification") and wp != ""){
             for(const std::string& idName : NTupleReader::GetInfo(particle.get_child("identification"))){
-                std::string wpPath = StrUtil::Join(".", "identification", idName, "WP", wp);
-                std::string wpPathWithEra = StrUtil::Join(".", "identification", idName, "WP", wp, era);
+                if(particle.get_optional<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value", era))){
+                    particle.put(StrUtil::Merge("identification.", idName, ".wp.value"), particle.get<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value", era)));
+                }
 
-                particle.put(StrUtil::Merge("identification.", idName, ".wp"), particle.get_optional<float>(wpPathWithEra) ? particle.get<float>(wpPathWithEra) : particle.get<float>(wpPath));
+                else{
+                    particle.put(StrUtil::Merge("identification.", idName, ".wp.value"), particle.get<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value")));
+                }
+
+                particle.put(StrUtil::Merge("identification.", idName, ".wp.compare"), particle.get<std::string>(StrUtil::Join(".", "identification", idName, "WP", wp, "compare")));
+
             }
         }
 
         else particle.erase("identification");
-           
+  
         particles.push_back(particle);
     }
 
@@ -526,4 +538,16 @@ float Properties::DAK8C(std::map<std::string, std::shared_ptr<CompiledFunc>>& fu
     }
 
     return argMax;
+}
+
+float Properties::LP(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    ROOT::Math::PtEtaPhiMVector l(funcs.at("pt_P1")->Get(), 0, funcs.at("phi_P1")->Get(), 0);
+    ROOT::Math::PtEtaPhiMVector MET(funcs.at("pt_P2")->Get(), 0, funcs.at("phi_P2")->Get(), 0);
+    ROOT::Math::PtEtaPhiMVector W = l + MET;
+
+	float dPhi = l.phi() - W.phi();
+	while (dPhi >= TMath::Pi()) dPhi -= TMath::TwoPi();
+	while (dPhi < -TMath::Pi()) dPhi += TMath::TwoPi();
+    
+    return l.pt()/W.pt()*std::cos(abs(dPhi));
 }

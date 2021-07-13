@@ -13,6 +13,8 @@
 
 #include <TTree.h>
 #include <TLeaf.h>
+#include <TMath.h>
+#include <Math/Vector4D.h>
 
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
@@ -70,6 +72,7 @@ namespace Properties{
     float diCharge(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
     float NParticles(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
     float DAK8C(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
+    float LP(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs);
 
     //Register all functions here!
     static std::map<std::string, float(*)(std::map<std::string, std::shared_ptr<CompiledFunc>>&)> properties = {
@@ -79,6 +82,7 @@ namespace Properties{
         {"HT", &HT},
         {"dicharge", &diCharge},
         {"dAK8C", &DAK8C},
+        {"lp", &LP},
     };
 };
 

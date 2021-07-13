@@ -4,28 +4,58 @@
 
         "identification": {
             "Electron_ID": {
-                "compare": ">=",
                 "WP": {
-                    "loose": 0,
-                    "medium": 1,    
-                    "tight": 2
+                    "loose": {
+                        "value": 1,
+                        "compare": ">="
+                    },
+
+                    "medium": {
+                        "value": 2,
+                        "compare": ">="
+                    },
+
+                    "tight": {
+                        "value": 3,
+                        "compare": ">="
+                    },
+
+                    "veto": {
+                        "value": 0,
+                        "compare": ">="
+                    }
                 }
             },
 
             "Electron_Isolation": {
-                "compare": "<=",
                 "WP": {
-                    "loose": 0.25,
-                    "medium": 0.2,    
-                    "tight": 0.15
+                    "loose": {
+                        "value": 0.25,
+                        "compare": "<="
+                    },
+
+                    "medium": {
+                        "value": 0.2,
+                        "compare": "<="
+                    },
+
+                    "tight": {
+                        "value": 0.15,
+                        "compare": "<="
+                    },
+
+                    "veto": {
+                        "value": 2,
+                        "compare": ">="
+                    }
                 }
             }
         },    
 
-        "scale-factors": [
-            "Electron_recoSF[SHIFT]",
-            "Electron_[WP]SF[SHIFT]"
-        ],
+        "scale-factors": {
+            "EleReco": "Electron_recoSF[SHIFT]",
+            "EleID": "Electron_[WP]SF[SHIFT]"
+        },
 
         "axis-name": "e_{[I]}",
 
@@ -37,20 +67,40 @@
 
         "identification": {
             "Muon_ID": {
-                "compare": ">=",
                 "WP": {
-                    "loose": 0,
-                    "medium": 1,    
-                    "tight": 2
+                    "loose": {
+                        "value": 1,
+                        "compare": ">="
+                    },
+
+                    "medium": {
+                        "value": 2,
+                        "compare": ">="
+                    },
+
+                    "tight": {
+                        "value": 3,
+                        "compare": ">="
+                    }
                 }
             },
 
             "Muon_isoID": {
-                "compare": ">=",
                 "WP": {
-                    "loose": 2,
-                    "medium": 2,    
-                    "tight": 2
+                    "loose": {
+                        "value": 2,
+                        "compare": ">="
+                    },
+
+                    "medium": {
+                        "value": 2,
+                        "compare": ">="
+                    },
+
+                    "tight": {
+                        "value": 2,
+                        "compare": ">="
+                    }
                 }
             }
         },
@@ -65,11 +115,11 @@
             }
         },
 
-        "scale-factors": [
-            "Muon_[WP]SF[SHIFT]",
-            "Muon_triggerSF[SHIFT]",
-            "Muon_tightIso[WP]SF[SHIFT]"
-        ],
+        "scale-factors": {
+            "MuonID": "Muon_[WP]SF[SHIFT]",
+            "MuonTrigger": "Muon_triggerSF[SHIFT]",
+            "MuonIso": "Muon_tightIso[WP]SF[SHIFT]"
+        },
 
         "axis-name": "#mu_{[I]}",
 
@@ -105,24 +155,32 @@
 
         "identification": {
             "Jet_CSVScore": {
-                "compare": ">=",
                 "WP": {
                     "loose": {
-                        "2016": 0.2217,
-                        "2017": 0.1522,
-                        "2018": 0.1241
+                        "value": {
+                            "2016": 0.2217,
+                            "2017": 0.1522,
+                            "2018": 0.1241
+                        },
+                        "compare": ">="
                     },
 
                     "medium": {
-                        "2016": 0.6321,
-                        "2017": 0.4941,
-                        "2018": 0.4184
+                        "value": {
+                            "2016": 0.6321,
+                            "2017": 0.4941,
+                            "2018": 0.4184
+                        },
+                        "compare": ">="
                     },
 
                     "tight": {
-                        "2016": 0.8953,
-                        "2017": 0.8001,
-                        "2018": 0.7527
+                        "value": {
+                            "2016": 0.8953,
+                            "2017": 0.8001,
+                            "2018": 0.7527
+                        },
+                        "compare": ">="
                     }
                 }
             }
@@ -142,9 +200,9 @@
             }
         },
 
-        "scale-factors": [
-            "Jet_[WP]CSVbTagSF[SHIFT]"
-        ],
+        "scale-factors": {
+            "BTag": "Jet_[WP]CSVbTagSF[SHIFT]"
+        },
 
         "axis-name": "bj_{[I]}",
 
@@ -182,21 +240,35 @@
 
         "axis-name": "Iso. track [I]",
 
-        "hist-name": "IsoTrack_[I]",
+        "hist-name": "IsoTrack_[I]_[WP]",
 
         "identification": {
             "IsoTrack_PDG": {
-                "compare": "<=",
                 "absolute-values": true,
                 "WP": {
-                    "lep": 13  
+                    "lep": {
+                        "value": 13,
+                        "compare": ">="
+                    },
+
+                    "QCD": {
+                        "value": 1e8,
+                        "compare": "<="
+                    }
                 }
             },
 
             "IsoTrack_Isolation": {
-                "compare": "<=",
                 "WP": {
-                    "lep": 0.2  
+                    "lep": {
+                        "value": 0.2,
+                        "compare": "<="
+                    },
+
+                    "QCD": {
+                        "value": 2,
+                        "compare": ">="
+                    }
                 }
             }
         },

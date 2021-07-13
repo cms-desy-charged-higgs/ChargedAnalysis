@@ -71,8 +71,8 @@
 
         "need": {
             "pt": [
-                {"P1": ""},
-                {"P2": ""}
+                {"P1": "1"},
+                {"P2": "2"}
             ]
 
         },
@@ -130,6 +130,26 @@
         "hist-name": "dPhi_[P]_[P]"
     },
 
+    "LP": {
+        "alias": "lp",
+
+        "axis-name": "L_{P}",
+
+        "need": {
+            "pt": [
+                {"P1": 1},
+                {"P2": 2}
+            ],
+
+            "phi": [
+                {"P1": 1},
+                {"P2": 2}
+            ]
+        },
+
+        "hist-name": "LP"
+    },
+
     "Njettiness" : {
         "alias": "tau",
 
@@ -172,7 +192,6 @@
         "alias": "dnn",
 
         "branch": "DNN_[V][V]",
-
         "hist-name": "DNN_[V][V]",
 
         "axis-name": "DNN score [V] (m(H^{#pm}) = [V] GeV)"
