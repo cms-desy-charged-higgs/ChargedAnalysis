@@ -1,8 +1,8 @@
-.RECIPEPREFIX+=
+.RECIPEPREFIX := $(.RECIPEPREFIX) 
 
 ##Compiler/Linking flags
 CC      = g++
-CFLAGS  = -fPIC -w -std=c++17 -fconcepts -fcompare-debug-second -g -D_GLIBCXX_USE_CXX11_ABI=0 -O2
+CFLAGS  = -fPIC -w -std=c++17 -fconcepts -fcompare-debug-second -g -rdynamic -D_GLIBCXX_USE_CXX11_ABI=0 -O2
 
 ##Ouput directories
 BINDIR=$(CHDIR)/ChargedAnalysis/bin
