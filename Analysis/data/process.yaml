@@ -42,7 +42,7 @@ DYJ:
 DYqq:
     - DYJetsToQQ 
 
-T:
+ST:
     - ST_s-channel_4f_leptonDecays
     - ST_tW_top_5f_inclusiveDecays
     - ST_tW_antitop_5f_inclusiveDecays
