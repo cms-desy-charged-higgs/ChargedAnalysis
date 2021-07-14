@@ -2,13 +2,14 @@ run-mode: Local
 
 skim-dir: Skim/Inclusive
 
+n-events: 100000
+
 shape-systs:
     all:
         - ""
 
 scale-systs:
-    all: 
-        - ""
+    all: []
 
 cuts:
     all: []
