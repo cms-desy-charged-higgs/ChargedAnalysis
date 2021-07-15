@@ -17,6 +17,7 @@ int main(int argc, char *argv[]){
     std::string outFile = parser.GetValue("out-file");
     std::map<std::pair<std::string, std::string>, std::string> inputFiles; //region, process : filename 
     std::vector<std::string> regions = {"A", "B", "C", "E", "F", "G", "H"}; 
+    std::vector<double> binning = parser.GetVector<double>("binning", std::initializer_list<double>());
     
     for(const std::string region : regions){
         for(const std::string& process : processes){
@@ -25,5 +26,5 @@ int main(int argc, char *argv[]){
     }
 
     QCDEstimator estimator(processes, inputFiles);
-    estimator.Estimate(outFile);
+    estimator.Estimate(outFile, binning);
 }

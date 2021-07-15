@@ -4,7 +4,7 @@ QCDEstimator::QCDEstimator(const std::vector<std::string>& processes, const std:
     processes(processes),
     inputFiles(inputFiles){}
 
-void QCDEstimator::Estimate(const std::string& outName){
+void QCDEstimator::Estimate(const std::string& outName, const std::vector<double>& bins){
     std::vector<std::string> regions = {"A", "B", "C", "E", "F", "G", "H"}; 
 
     //Open data/background files
@@ -75,49 +75,70 @@ void QCDEstimator::Estimate(const std::string& outName){
             kappa->Divide(yieldsInY["G"].get());
 
             //Get initial binning (n bins with n lower edges + 1 upper edge for last bin)
-            binning = std::vector<double>(tf->GetNbinsX() + 1, 0.);
-            
-            for(unsigned int i = 1; i <= tf->GetNbinsX() + 1; ++i){
-                binning[i - 1] = tf->GetBinLowEdge(i);
+            if(bins.size() == 0){
+                binning = std::vector<double>(tf->GetNbinsX() + 1, 0.);
+                
+                for(unsigned int i = 1; i <= tf->GetNbinsX() + 1; ++i){
+                    binning[i - 1] = tf->GetBinLowEdge(i);
+                }
+
+                //Rebinning
+                float errMin = 0.2;
+                int maxBin = 10;
+
+                while(true){
+                    bool finished = false;
+
+                    //Start with last lower edge and end with second lower edge to avoid purging first lower edge
+                    for(unsigned int i = binning.size() - 1; i > 1; --i){
+                        finished = true;
+
+                        float relErr = std::max(tf->GetBinError(i)/tf->GetBinContent(i), kappa->GetBinError(i)/kappa->GetBinContent(i));
+
+                        //If relative error too big, remove lower edge at position i-1 (to the left on the current lower edge)
+                        if(std::abs(relErr) > errMin or tf->GetBinContent(i) <= 0 or kappa->GetBinContent(i) <= 0){
+                            binning.erase(binning.begin() + i - 1);
+
+                            //Recalculate tf/kappa with rebinned histogram
+                            tf.reset(static_cast<TH1D*>(tf->Rebin(binning.size() - 1, "", binning.data())));
+                            tf->Divide(yieldsInY["B"]->Rebin(binning.size() - 1, "B", binning.data()), yieldsInY["A"]->Rebin(binning.size() - 1, "A", binning.data()));
+
+                            kappa.reset(static_cast<TH1D*>(tf->Rebin(binning.size() - 1, "", binning.data())));
+                            kappa->Divide(yieldsInY["E"]->Rebin(binning.size() - 1, "E", binning.data()), yieldsInY["F"]->Rebin(binning.size() - 1, "F", binning.data()));
+                            kappa->Multiply(yieldsInY["H"]->Rebin(binning.size() - 1, "H", binning.data()));
+                            kappa->Divide(yieldsInY["G"]->Rebin(binning.size() - 1, "G", binning.data()));
+
+                            finished = false;
+                            break;
+                        }
+                    }
+
+                    if(binning.size() == 2) throw std::runtime_error("No convergence of kappa/transfer factor! Check purity of your control regions!");
+
+                    if(binning.size() - 1 > maxBin and finished){
+                        errMin -= 0.01;
+                        continue;
+                    }
+     
+                    if(finished) break;
+                }
+
+                std::cout << "Final binning:" << std::endl;
+                std::cout << binning << std::endl;
             }
 
-            //Rebinning
-            float errMin = 0.2;
-            int maxBin = 10;
+            else{
+                tf.reset(static_cast<TH1D*>(tf->Rebin(bins.size() - 1, "", bins.data())));
+                tf->Divide(yieldsInY["B"]->Rebin(bins.size() - 1, "B", bins.data()), yieldsInY["A"]->Rebin(bins.size() - 1, "A", bins.data()));
 
-            while(true){
-                bool finished = false;
+                kappa.reset(static_cast<TH1D*>(tf->Rebin(bins.size() - 1, "", bins.data())));
+                kappa->Divide(yieldsInY["E"]->Rebin(bins.size() - 1, "E", bins.data()), yieldsInY["F"]->Rebin(bins.size() - 1, "F", bins.data()));
+                kappa->Multiply(yieldsInY["H"]->Rebin(bins.size() - 1, "H", bins.data()));
+                kappa->Divide(yieldsInY["G"]->Rebin(bins.size() - 1, "G", bins.data()));
 
-                //Start with last lower edge and end with second lower edge to avoid purging first lower edge
-                for(unsigned int i = binning.size() - 1; i > 1; --i){
-                    finished = true;
 
-                    float relErr = std::max(tf->GetBinError(i)/tf->GetBinContent(i), kappa->GetBinError(i)/kappa->GetBinContent(i));
-
-                    //If relative error too big, remove lower edge at position i-1 (to the left on the current lower edge)
-                    if(std::abs(relErr) > errMin or tf->GetBinContent(i) <= 0 or kappa->GetBinContent(i) <= 0){
-                        binning.erase(binning.begin() + i - 1);
-
-                        //Recalculate tf/kappa with rebinned histogram
-                        tf.reset(static_cast<TH1D*>(tf->Rebin(binning.size() - 1, "", binning.data())));
-                        tf->Divide(yieldsInY["B"]->Rebin(binning.size() - 1, "B", binning.data()), yieldsInY["A"]->Rebin(binning.size() - 1, "A", binning.data()));
-
-                        kappa.reset(static_cast<TH1D*>(tf->Rebin(binning.size() - 1, "", binning.data())));
-                        kappa->Divide(yieldsInY["E"]->Rebin(binning.size() - 1, "E", binning.data()), yieldsInY["F"]->Rebin(binning.size() - 1, "F", binning.data()));
-                        kappa->Multiply(yieldsInY["H"]->Rebin(binning.size() - 1, "H", binning.data()));
-                        kappa->Divide(yieldsInY["G"]->Rebin(binning.size() - 1, "G", binning.data()));
-
-                        finished = false;
-                        break;
-                    }
-                }
-    
-                if(binning.size() - 1 > maxBin and finished){
-                    errMin -= 0.01;
-                    continue;
-                }
- 
-                if(finished) break;
+                std::cout << "Used binning:" << std::endl;
+                std::cout << bins << std::endl;
             }
 
             // tf/kappa write to file

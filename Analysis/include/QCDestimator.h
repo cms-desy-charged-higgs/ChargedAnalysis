@@ -24,7 +24,7 @@ class QCDEstimator{
 
     public:
         QCDEstimator(const std::vector<std::string>& processes, const std::map<std::pair<std::string, std::string>, std::string>& inputFiles);
-        void Estimate(const std::string& outName);
+        void Estimate(const std::string& outName, const std::vector<double>& bins);
 };
 
 #endif
