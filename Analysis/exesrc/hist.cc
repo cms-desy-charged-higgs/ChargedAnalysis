@@ -10,21 +10,33 @@ int main(int argc, char* argv[]){
     Parser parser(argc, argv);
 
     std::string fileName = parser.GetValue<std::string>("filename");
-    std::vector<std::string> parameters = parser.GetVector<std::string>("parameters");
-    std::vector<std::string> cuts = parser.GetVector<std::string>("cuts", {});
-    std::string outDir = parser.GetValue<std::string>("out-dir");
-    std::string outFile = parser.GetValue<std::string>("out-file");
     std::string channel = parser.GetValue<std::string>("channel");
-    std::string bkgYieldFac = parser.GetValue<std::string>("bkg-yield-factor", "");
-    std::vector<std::string> bkgYieldFacSyst = parser.GetVector<std::string>("bkg-yield-factor-syst", {});
-    std::string bkgType = parser.GetValue<std::string>("bkg-type", "");
-    std::vector<std::string> scaleSysts = parser.GetVector<std::string>("scale-systs", {""});
-    std::vector<std::string> systDirs = parser.GetVector<std::string>("syst-dirs", {});
+    std::string outFile = parser.GetValue<std::string>("out-file");
+
     int era = parser.GetValue<int>("era", 2017);
     int eventStart = parser.GetValue<int>("event-start");
     int eventEnd = parser.GetValue<int>("event-end");
 
+    std::vector<std::string> parameters = parser.GetVector("parameters");
+    std::vector<std::string> regions = parser.GetVector("regions");
+    if(regions.size() == 0) regions = {""};
+    std::vector<std::string> scaleSysts = parser.GetVector("scale-systs");
+
+    std::string bkgYieldFac = parser.GetValue("bkg-yield-factor", "");
+    std::vector<std::string> bkgYieldFacSyst = parser.GetVector("bkg-yield-factor-syst", {});
+    std::string bkgType = parser.GetValue("bkg-type", "");
+
+    std::map<std::string, std::string> outDir;
+    std::map<std::string, std::vector<std::string>> cuts, systDirs;
+
+    for(const std::string& region : regions){
+        outDir[region] = parser.GetValue(region + "-out-dir");
+
+        cuts[region] = parser.GetVector(region + "-cuts");
+        systDirs[region] = parser.GetVector(region + "-syst-dirs");
+    }
+
     //Create treereader instance
-    HistMaker h(parameters, cuts, outDir, outFile, channel, systDirs, scaleSysts, era);
+    HistMaker h(parameters, regions, cuts, outDir, outFile, channel, systDirs, scaleSysts, era);
     h.Produce(fileName, eventStart, eventEnd, bkgYieldFac, bkgType, bkgYieldFacSyst);
 }
