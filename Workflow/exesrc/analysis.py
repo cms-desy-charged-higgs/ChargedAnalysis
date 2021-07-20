@@ -14,7 +14,7 @@ from collections import defaultdict as dd
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate", "Stitch"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate", "Stitch", "Fakerate"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--era", nargs='+', default = [""])
     parser.add_argument('--dry-run', default=False, action='store_true')
@@ -34,6 +34,7 @@ def taskReturner(taskName, config):
         "Merge": lambda: mergeskim(config),
         "Estimate": lambda : estimate(config),
         "Stitch": lambda: stitch(config),
+        "Fakerate": lambda: calcFR(config),
     }
 
     return tasks[taskName]
@@ -54,59 +55,18 @@ def plot(config):
 
                 for syst in shapeSysts:
                     for shift in ["Up", "Down"]:
-                        if config.get("estimate-QCD", False):
-                            for region in config["cuts"][channel]:
-                                c = copy.deepcopy(config)
-                                c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
-                                c["cuts"]["all"] = config["cuts"].get("all", []) +  config["cuts"][channel][region]
-                                c["cuts"].pop(channel)
-
-                                if region != "original":
-                                    treeread(tasks, c, channel, era, process, syst, shift, postFix = region)
-
-                                else:
-                                    treeread(tasks, c, channel, era, process, syst, shift, postFix = "Baseline")
-
-                        else:
-                            treeread(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
+                        treeread(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
 
                 for syst in allSysts:
                     for shift in ["Up", "Down"]:
-                        if config.get("estimate-QCD", False):
-                            for region in config["cuts"][channel]:
-                                c = copy.deepcopy(config)
-                                c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
-
-                                if region != "original":
-                                    mergeHists(tasks, c, channel, era, process, syst, shift, postFix = region)
-
-                                else:
-                                    mergeHists(tasks, c, channel, era, process, syst, shift, postFix = "Baseline")
-
-                        else:
-                            mergeHists(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
+                        mergeHists(tasks, config, channel, era, process, syst, shift, postFix = "Baseline")
 
             if config.get("estimate-QCD", False):
                 for syst in allSysts:
                     for shift in ["Up", "Down"]:
                         QCDEstimation(tasks, config, channel, era, syst, shift, "Baseline")
 
-                for region in config["cuts"][channel]:
-                    c = copy.deepcopy(config)
-                    c["dir"] =  "{}/{}".format(config["dir"], region) if region != "original" else config["dir"]
-       
-                    if region != "original":
-                        plotting(tasks, c, channel, era, processes, postFix = region)
-
-                    else:
-                        plotting(tasks, config, channel, era, processes, postFix = "Baseline")
-
-            else:
-                plotting(tasks, config, channel, era, processes, postFix = "Baseline")
-
-                for syst in allSysts:
-                    for shift in ["Up", "Down"]:
-                        eventCount(tasks, config, channel, era, processes, syst, shift, postFix = "Baseline")
+            plotting(tasks, config, channel, era, processes, postFix = "Baseline")
 
     return tasks
 
@@ -284,6 +244,34 @@ def limit(config):
         plotlimit(tasks, config, channel, "RunII")
 
     plotlimit(tasks, config, "Combined", "RunII")
+
+    return tasks
+
+def calcFR(config):
+    tasks = []
+
+    for channel in config["channels"]:
+        for era in config["era"]:
+            processes = sorted(config["processes"] + config.get("data", {}).get(channel, []))
+
+            shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+            allSysts = shapeSysts + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
+
+            for process in processes:
+                for syst in shapeSysts:
+                    for shift in ["Up", "Down"]:
+                        treeread(tasks, config, channel, era, process, syst, shift, postFix = "FR")
+
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:
+                        mergeHists(tasks, config, channel, era, process, syst, shift, postFix = "FR")
+
+            plotting(tasks, config, channel, era, processes, postFix = "FR")
+
+            for mode in config["modes"]:
+                for syst in allSysts:
+                    for shift in ["Up", "Down"]:
+                        fakerate(tasks, config, channel, era, mode, syst, shift)
 
     return tasks
 

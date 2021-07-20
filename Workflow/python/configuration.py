@@ -62,7 +62,7 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
     ##List of parameters
     parameters = config["parameters"].get("all", []) + config["parameters"].get(channel, [])
     if config.get("estimate-QCD", False):
-        parameters = parameters +  [p + "/" +  config.get("estimate-QCD", False) for p in parameters]
+        parameters = parameters +  [p + "/" +  config.get("estimate-QCD", "") for p in parameters]
 
     nJobs = 0
 
@@ -74,26 +74,22 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
 
         eventRanges = [[i if i == 0 else i+1, i+config["n-events"] if i+config["n-events"] <= nEvents else nEvents] for i in range(0, nEvents, config["n-events"])]
 
+        outDir, systDirs = {}, {}
+
         ##Configuration for treeread Task
         for start, end in eventRanges:
-            outDir = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era})) + "/{}/unmerged/{}/{}".format(process, systName, nJobs)
-
-            systDirs = [outDir.replace("unmerged/", "unmerged/{}{}/".format(scaleSyst, scaleShift)) for scaleSyst in scaleSysts if scaleSyst != "" for scaleShift in ["Up", "Down"]]
-
             ##Configuration for treeread Task
             task = {
                 "name": "TreeRead_{}_{}_{}_{}_{}_{}".format(channel, era, process, systName, nJobs, postFix),
                 "executable": "hist",
-                "dir": outDir,
+                "dir": config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": ""})) + "/{}/unmerged/{}/{}".format(process, systName, nJobs),
                 "run-mode": config["run-mode"],
                 "arguments": {
                     "filename": fileName,
                     "parameters": parameters,
-                    "cuts": config["cuts"].get("all", []) + config["cuts"].get(channel, []),
-                    "out-dir": outDir,
+                    "regions": config.get("regions", [""]),
                     "out-file": "{}.root".format(process),
                     "channel": channel,
-                    "syst-dirs": systDirs,
                     "scale-systs": scaleSysts,
                     "bkg-yield-factor": bkgYldFactor,
                     "bkg-yield-factor-syst": bkgYldFactorSyst,
@@ -104,12 +100,17 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                 }
             }
 
+            for region in config.get("regions", [""]):
+                task["arguments"]["{}-out-dir".format(region)] = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": region})) + "/{}/unmerged/{}/{}".format(process, systName, nJobs)
+                task["arguments"]["{}-syst-dirs".format(region)] = [task["arguments"]["{}-out-dir"].replace("unmerged/", "unmerged/{}{}/".format(scaleSyst, scaleShift)) for scaleSyst in scaleSysts if scaleSyst != "" for scaleShift in ["Up", "Down"]]
+                task["arguments"]["{}-cuts".format(region)] = config["cuts"].get("all", []) + (config["cuts"][channel][region] if region != "" else config["cuts"].get(channel, []))
+
             tasks.append(Task(task, "--"))
 
             nJobs += 1
 
 def mergeHists(tasks, config, channel, era, process, syst, shift, postFix = ""):
-    inputFiles, dependencies = [], []
+    inputFiles, dependencies = {}, []
 
     ##Skip Down for nominal case or and skip data if systematic
     if (syst == "" and shift == "Down") or (process in ["SingleE", "SingleMu"] and syst != ""): 
@@ -117,117 +118,127 @@ def mergeHists(tasks, config, channel, era, process, syst, shift, postFix = ""):
 
     systName = "{}{}".format(syst, shift) if syst != "" else ""
 
-    ##Output directory
-    outDir = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era})) + "/{}/merged/{}".format(process, systName)
-
     for t in tasks:
         if "TreeRead_{}_{}_{}".format(channel, era, process) in t["name"] and postFix in t["name"]:
             if systName != "" and systName in t["name"]:
                 dependencies.append(t["name"])
-                inputFiles.append("{}/{}".format(t["arguments"]["out-dir"], t["arguments"]["out-file"]))
+
+                for region in config.get("regions", [""]):
+                    inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)], t["arguments"]["out-file"]))
                 
             elif syst in t["arguments"]["scale-systs"]:
                 dependencies.append(t["name"])
-                inputFiles.append("{}/{}".format(t["arguments"]["out-dir"].replace("unmerged/", "unmerged/" + systName), t["arguments"]["out-file"]))
+
+                for region in config.get("regions", [""]):
+                    inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)].replace("unmerged/", "unmerged/" + systName), t["arguments"]["out-file"]))
 
             elif not "Up" in t["name"] and not "Down" in t["name"] and syst == "":
                 dependencies.append(t["name"])
-                inputFiles.append("{}/{}".format(t["arguments"]["out-dir"].replace("unmerged/", "unmerged/" + systName), t["arguments"]["out-file"]))
 
-    task = {
-        "name": "MergeHists_{}_{}_{}_{}_{}".format(channel, era, process, systName, postFix),
-        "executable": "merge",
-        "dir": outDir,
-        "dependencies": dependencies,
-        "process": process,
-        "arguments": {
-            "input-files": inputFiles,
-            "out-file": "{}/{}.root".format(outDir, process),
-            "exclude-objects": [], 
+                for region in config.get("regions", [""]):
+                    inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)].replace("unmerged/", "unmerged/" + systName), t["arguments"]["out-file"]))
+
+    for region in config.get("regions", [""]):
+        ##Output directory
+        outDir = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": region})) + "/{}/merged/{}".format(process, systName)
+
+        task = {
+            "name": "MergeHists_{}_{}_{}_{}_{}_{}".format(channel, era, region, process, systName, postFix),
+            "executable": "merge",
+            "dir": outDir,
+            "dependencies": dependencies,
+            "process": process,
+            "arguments": {
+                "input-files": inputFiles[region],
+                "out-file": "{}/{}.root".format(outDir, process),
+                "exclude-objects": [], 
+            }
         }
-    }
 
-    tasks.append(Task(task, "--"))
+        tasks.append(Task(task, "--"))
 
 def plotting(tasks, config, channel, era, processes, postFix = ""):
-    dependencies = []
-    bkgProcesses, sigProcesses = [], []
+    dependencies = {}
+    bkgProcesses, sigProcesses = {}, {}
     bkgFiles, sigFiles = {}, {}
-    data, dataFile = "", ""
+    data, dataFile = "", {}
 
     processes.sort()
-
-    outDir = config["dir"].format_map(dd(str, {"D": "PDF", "C": channel, "E": era}))
-    webDir = ""
-
-    if "Results/Plot" in outDir:
-        webDir = outDir.replace("Results/Plot", "WebPlotting/Plots").replace("PDF", "")
 
     systematics = config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []) + config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
     for t in tasks:
         for process in processes:
-            if "MergeHists_{}_{}_{}_".format(channel, era, process) in t["name"] and postFix in t["name"]:
-                dependencies.append(t["name"])
+            for i, region in enumerate(config.get("regions", [""])):
+                if "MergeHists_{}_{}_{}_{}_".format(channel, era, region, process) in t["name"] and postFix in t["name"]:
+                    dependencies.setdefault(region, []).append(t["name"])
 
-            elif process == "QCD" and "QCDEstimate_{}_{}".format(channel, era) in t["name"] and postFix in t["name"]:
-                dependencies.append(t["name"])
+                elif "QCDEstimate_{}_{}".format(channel, era) in t["name"] and postFix in t["name"] and not "QCD-" in region and process == "QCD":
+                    dependencies.setdefault(region, []).append(t["name"])
 
-            else:
-                continue
+                else:
+                    continue
 
-            if "Single" in process:
-                data = process
-                dataFile = t["arguments"]["out-file"]
-                    
-            for syst in systematics:
-                for shift in ["Up", "Down"]:
-                    if syst == "" and shift == "Down":
-                        continue
+                if "Single" in process:
+                    data = process
+                    dataFile[region] = t["arguments"]["out-file"]
+                    continue
+                        
+                for syst in systematics:
+                    for shift in ["Up", "Down"]:
+                        if syst == "" and shift == "Down":
+                            continue
 
-                    systName = "{}{}".format(syst, shift) if syst != "" else ""
-                    systCheck = systName in t["name"] if syst != "" else not "Up" in t["name"] and not "Down" in t["name"]
+                        systName = "{}{}".format(syst, shift) if syst != "" else ""
+                        systCheck = systName in t["name"] if syst != "" else not "Up" in t["name"] and not "Down" in t["name"]
 
-                    if "HPlus" in process and systName in t["name"] and systCheck:
-                        if syst == "":
-                            sigProcesses.append(process)
-                        sigFiles.setdefault(systName, []).append(t["arguments"]["out-file"])
+                        if "HPlus" in process and systName in t["name"] and systCheck:
+                            if syst == "":
+                                sigProcesses.setdefault(region, []).append(process)
+                            sigFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
 
-                    elif not "Single" in process and systName in t["name"] and systCheck:
-                        if syst == "":
-                            bkgProcesses.append(process)
-                        bkgFiles.setdefault(systName, []).append(t["arguments"]["out-file"])
+                        elif not "Single" in process and systName in t["name"] and systCheck:
+                            if syst == "":
+                                bkgProcesses.setdefault(region, []).append(process)
+                            bkgFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
 
-    task = {
-        "name": "Plot_{}_{}_{}".format(channel, era, postFix), 
-        "executable": "plot",
-        "dir": outDir,
-        "dependencies": dependencies,
-        "arguments": {
-            "channel": channel,
-            "era": era,
-            "bkg-processes": bkgProcesses,
-            "bkg-files": bkgFiles.get("", []),
-            "sig-processes": sigProcesses,
-            "sig-files": sigFiles.get("", []),
-            "data": data,
-            "data-file": dataFile,
-            "out-dirs": [outDir, webDir] if webDir != "" else [outDir],
-            "systematics": ['""'] + systematics[1:]
+    for region in config.get("regions", [""]):
+        outDir = config["dir"].format_map(dd(str, {"D": "PDF", "C": channel, "E": era, "R": region}))
+        webDir = ""
+
+        if "Results/Plot" in outDir:
+            webDir = outDir.replace("Results/Plot", "WebPlotting/Plots").replace("PDF", "")
+
+        task = {
+            "name": "Plot_{}_{}_{}_{}".format(channel, era, region, postFix), 
+            "executable": "plot",
+            "dir": outDir,
+            "dependencies": dependencies[region],
+            "arguments": {
+                "channel": channel,
+                "era": era,
+                "bkg-processes": bkgProcesses.get(region, []),
+                "bkg-files": bkgFiles.get(region, {}).get("", []),
+                "sig-processes": sigProcesses.get(region, []),
+                "sig-files": sigFiles.get(region, {}).get("", []),
+                "data": data,
+                "data-file": dataFile.get(region, ""),
+                "out-dirs": [outDir, webDir] if webDir != "" else [outDir],
+                "systematics": ['""'] + systematics[1:]
+            }
         }
-    }
 
-    for syst in systematics[1:]:
-        for shift in ["Up", "Down"]:
-            systName = "{}{}".format(syst, shift)
+        for syst in systematics[1:]:
+            for shift in ["Up", "Down"]:
+                systName = "{}{}".format(syst, shift)
 
-            if task["arguments"]["bkg-files"]:
-                task["arguments"]["bkg-files-{}{}".format(syst, shift)] = bkgFiles[systName]
+                if task["arguments"]["bkg-files"]:
+                    task["arguments"]["bkg-files-{}{}".format(syst, shift)] = bkgFiles[region][systName]
 
-            if task["arguments"]["sig-files"]:
-                task["arguments"]["sig-files-{}{}".format(syst, shift)] = sigFiles[systName]
+                if task["arguments"]["sig-files"]:
+                    task["arguments"]["sig-files-{}{}".format(syst, shift)] = sigFiles[region][systName]
 
-    tasks.append(Task(task, "--"))
+        tasks.append(Task(task, "--"))
 
 def treeappend(tasks, config, channel, era, syst, shift, postFix = ""):
     ##Skip Down for nominal case
@@ -294,6 +305,51 @@ def stitching(tasks, config, channel, era, syst, shift, postFix = ""):
         }
 
         tasks.append(Task(task, "--"))
+
+def fakerate(tasks, config, channel, era, mode, syst, shift, postFix = ""):
+    ##Skip Down for nominal case
+    if syst == "" and shift == "Down":
+        return
+
+    systName = "{}{}".format(syst, shift) if syst != "" else ""
+    outDir = config["dir"].format_map(dd(str, {"D": "Rates", "C": channel, "E": era})) + "/" + mode + "/" + systName
+    data = config["data"][channel][0]
+
+    depFiles, depTasks = {}, []
+
+    for t in tasks:
+        if "MergeHists_{}_{}_".format(channel, era) in t["name"] and ("{}-loose".format(mode) in t["name"] or "{}-tight".format(mode) in t["name"]):
+            region = "{}-loose".format(mode) if "{}-loose".format(mode) in t["name"] else "{}-tight".format(mode)
+
+            if systName in t["name"] and systName != "":
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+            elif data in t["name"]:
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault("data", t["arguments"]["out-file"])
+
+            elif syst == "" and not "Up" in t["name"] and not "Down" in t["name"]:
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+    task = {
+        "name": "Fakerate_{}_{}_{}_{}_{}".format(channel, era, mode, systName, postFix),
+        "dir": outDir,
+        "executable": "estimateFR",
+        "dependencies": [t["name"] for t in depTasks],
+        "arguments": {
+            "mode": mode,
+            "out-dir": outDir,
+            "processes":  config["processes"] + (["data"] if mode == "fake" else []),
+        }
+    }
+          
+    for process in task["arguments"]["processes"]:
+        task["arguments"]["{}-{}-file".format("{}-loose".format(mode), process)] = depFiles["{}-loose".format(mode)][process]
+        task["arguments"]["{}-{}-file".format("{}-tight".format(mode), process)] = depFiles["{}-tight".format(mode)][process]
+    
+    tasks.append(Task(task, "--"))
 
 def QCDEstimation(tasks, config, channel, era, syst, shift, postFix = ""):
     ##Skip Down for nominal case
