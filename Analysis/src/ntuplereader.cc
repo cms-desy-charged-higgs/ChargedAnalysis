@@ -184,11 +184,17 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
                                     parts.back().put(StrUtil::Merge("identification.", idName, ".wp.value"), parts.back().get<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value", era)));
                                 }
 
-                                else{
+                                else if(parts.back().get_optional<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value"))){
                                     parts.back().put(StrUtil::Merge("identification.", idName, ".wp.value"), parts.back().get<float>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "value")));
                                 }
 
+                                else{
+                                    parts.back().get_child("identification").erase(idName);
+                                    continue;
+                                }
+
                                 parts.back().put(StrUtil::Merge("identification.", idName, ".wp.compare"), parts.back().get<std::string>(StrUtil::Join(".", "identification", idName, "WP", pInfo.at(2), "compare")));
+                                parts.back().get_child("identification." + idName).erase("WP");
                                 
                             }
                         }
@@ -344,11 +350,17 @@ void NTupleReader::AddParticle(const std::string& pAlias, const int& idx, const 
                     particle.put(StrUtil::Merge("identification.", idName, ".wp.value"), particle.get<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value", era)));
                 }
 
-                else{
+                else if(particle.get_optional<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value"))){
                     particle.put(StrUtil::Merge("identification.", idName, ".wp.value"), particle.get<float>(StrUtil::Join(".", "identification", idName, "WP", wp, "value")));
                 }
 
+                else{
+                    particle.get_child("identification").erase(idName);
+                    continue;
+                }
+
                 particle.put(StrUtil::Merge("identification.", idName, ".wp.compare"), particle.get<std::string>(StrUtil::Join(".", "identification", idName, "WP", wp, "compare")));
+                particle.get_child("identification." + idName).erase("WP");
 
             }
         }
