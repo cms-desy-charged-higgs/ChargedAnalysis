@@ -223,17 +223,19 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
 
         //Check if event passed all cuts
         allFailed = true;
+        int offSet = 0;
 
         for(unsigned int region = 0; region < regions.size(); ++region){
             int nCuts = cutStrings[regions[region]].size();
             passed[region] = true;
 
             for(unsigned int j = 0; j < nCuts; ++j){
-                passed[region] = passed[region]*cutFunctions.at(j + region*nCuts).GetPassed();
+                passed[region] = passed[region]*cutFunctions.at(j + offSet).GetPassed();
 
                 if(!passed[region]) break;
             }
 
+            offSet += nCuts;
             allFailed = allFailed and !passed[region];
         }
 
