@@ -39,6 +39,17 @@
         "hist-name": "Eta_[P]"
     },
 
+    "Eta": {
+        "alias": "eta",
+
+        "branch": "[P]_Eta",
+
+        "axis-name": "#eta([P]) [rad]",
+
+        "hist-name": "Eta_[P]"
+    },
+
+
     "Charge": {
         "alias": "charge",
 
@@ -47,6 +58,16 @@
         "axis-name": "elec. Char([P]) [e]",
 
         "hist-name": "Charge_[P]"
+    },
+
+    "Isolation": {
+        "alias": "iso",
+
+        "branch": "[P]_Isolation",
+
+        "axis-name": "iso.",
+
+        "hist-name": "Isolation_[P]"
     },
 
     "DiCharge": {
@@ -64,6 +85,51 @@
         "hist-name": "DiCharge_[P]_[P]"
     },
 
+    "DiMass": {
+        "alias": "diM",
+
+        "need": {
+            "pt": [
+                {"P1": 1},
+                {"P2": 2}
+            ],
+
+            "phi": [
+                {"P1": 1},
+                {"P2": 2}
+            ],
+
+            "eta": [
+                {"P1": 1},
+                {"P2": 2}
+            ]
+        },
+
+        "axis-name": "m([P], [P]) [GeV]",
+
+        "hist-name": "DiMass_[P]_[P]"
+    },
+
+    "DiMT": {
+        "alias": "diMT",
+
+        "need": {
+            "pt": [
+                {"P1": 1},
+                {"P2": 2}
+            ],
+
+            "phi": [
+                {"P1": 1},
+                {"P2": 2}
+            ]
+        },
+
+        "axis-name": "m_{T}([P], [P]) [GeV]",
+
+        "hist-name": "DiMT_[P]_[P]"
+    },
+
     "HT": {
         "alias": "HT",
 
@@ -71,8 +137,7 @@
 
         "need": {
             "pt": [
-                {"P1": "1"},
-                {"P2": "2"}
+                {"P1": ""}
             ]
 
         },
@@ -205,6 +270,16 @@
         "hist-name": "DNNC_[V]",
 
         "axis-name": "DNN class (m(H^{#pm}) = [V] GeV)"
+    },
+
+    "ParticleID" : {
+        "alias": "pID",
+
+        "branch": "[P]_ParticleID",
+
+        "axis-name": "ParticleID",
+
+        "hist-name": "ParticleID"
     }
 }
     
