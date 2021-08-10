@@ -243,11 +243,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     NTupleReader lPt(inputTree, era), lEta(inputTree, era);
     float fRate, pRate, lpt, lta, wLoose = 1., wTight = 1.;
     std::function<float(float&, float&)> f1 = [&](float& f, float& p){return (f*p)/(p-f);};
-<<<<<<< Updated upstream
     std::function<float(float&)> f2 = [&](float& p){return (1.-p)/p;};
-=======
-    std::function<float(float&)> f2 = [&](float& p){return -(1.-p)/p;};
->>>>>>> Stashed changes
 
     if(fakeRateFile != ""){
         fFile = RUtil::Open(fakeRateFile);
@@ -317,10 +313,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
                 if(!passed[region]) break;
             }
 
-<<<<<<< Updated upstream
             offSet += nCuts;
-=======
->>>>>>> Stashed changes
             loosePassed[region] = passed[region]*loosePassed[region];
             passed[region] = passed[region]*tightLep;
 
@@ -337,24 +330,14 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             pRate = promptRate->GetBinContent(promptRate->FindBin(lpt, leta));
 
             if(fRate > 0 and pRate > 0){
-<<<<<<< Updated upstream
-                wLoose = std::abs(f1(fRate, pRate));
-                wTight = std::abs(wLoose * f2(pRate));
-=======
                 wLoose = f1(fRate, pRate);
                 wTight = wLoose * f2(pRate);
->>>>>>> Stashed changes
             }
             
             else{
                 wLoose = 0;
                 wTight = 0;
             }
-<<<<<<< Updated upstream
-
-            std::cout << fRate << "\t" << pRate << "\t" << wLoose << "\t" << wTight << std::endl;
-=======
->>>>>>> Stashed changes
         }
         
         //Fill histograms
@@ -436,7 +419,6 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
 
         hists1D.at(i)->GetDirectory()->cd();
         if(fakeRate){
-<<<<<<< Updated upstream
             hists1DEst.at(i)->SetName(StrUtil::Merge(hists1D.at(i)->GetName(), "_NTO").c_str());
             hists1DEst.at(i)->Write();
 
@@ -445,10 +427,6 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             h->Write();
     
             hists1D.at(i)->Add(hists1DEst.at(i).get(), hists1D.at(i).get(), 1, -1);
-=======
-            hists1D.at(i)->Add(hists1DEst.at(i).get());
-            hists1DEst.at(i)->Print();
->>>>>>> Stashed changes
         }
 
         hists1D.at(i)->Write();
