@@ -3,7 +3,7 @@
         "alias": "e",
 
         "identification": {
-            "Electron_ID": {
+            "Electron_CutID": {
                 "WP": {
                     "loose": {
                         "value": 1,
@@ -18,11 +18,6 @@
                     "tight": {
                         "value": 3,
                         "compare": ">="
-                    },
-
-                    "veto": {
-                        "value": 0,
-                        "compare": ">="
                     }
                 }
             },
@@ -30,22 +25,26 @@
             "Electron_Isolation": {
                 "WP": {
                     "loose": {
-                        "value": 0.25,
-                        "compare": "<="
-                    },
-
-                    "medium": {
-                        "value": 0.2,
-                        "compare": "<="
-                    },
-
-                    "tight": {
                         "value": 0.15,
                         "compare": "<="
                     },
 
-                    "veto": {
-                        "value": 2,
+                    "medium": {
+                        "value": 0.1,
+                        "compare": "<="
+                    },
+
+                    "tight": {
+                        "value": 0.05,
+                        "compare": "<="
+                    }
+                }
+            },
+
+            "Electron_ParticleID": {
+                "WP": {
+                    "gen": {
+                        "value": 0,
                         "compare": ">="
                     }
                 }
@@ -66,7 +65,7 @@
         "alias": "mu",
 
         "identification": {
-            "Muon_ID": {
+            "Muon_CutID": {
                 "WP": {
                     "loose": {
                         "value": 1,
@@ -85,21 +84,21 @@
                 }
             },
 
-            "Muon_isoID": {
+            "Muon_Isolation": {
                 "WP": {
                     "loose": {
-                        "value": 2,
-                        "compare": ">="
+                        "value": 0.15,
+                        "compare": "<="
                     },
 
                     "medium": {
-                        "value": 2,
-                        "compare": ">="
+                        "value": 0.1,
+                        "compare": "<="
                     },
 
                     "tight": {
-                        "value": 2,
-                        "compare": ">="
+                        "value": 0.05,
+                        "compare": "<="
                     }
                 }
             }
@@ -124,6 +123,30 @@
         "axis-name": "#mu_{[I]}",
 
         "hist-name": "Muon_[I]_[WP]"
+    },
+
+    "LepJet": {
+        "branch-prefix": "Jet",
+
+        "alias": "lj",
+
+        "requirements": {
+            "dR": {
+                "compare": "<=",
+                "cut": 0.01, 
+                "particles": {
+                    "THIS": "",
+                    "P2": {
+                        "Muon": ["mu", 1, "loose"],
+                        "Ele": ["e", 1, "loose"]
+                    }
+                }
+            }
+        },
+
+        "axis-name": "lep. j_{[I]}",
+
+        "hist-name": "LepJet_[I]"
     },
 
     "Jet": {
@@ -154,32 +177,20 @@
         "branch-prefix": "Jet",
 
         "identification": {
-            "Jet_CSVScore": {
+            "Jet_DeepCSVID": {
                 "WP": {
                     "loose": {
-                        "value": {
-                            "2016": 0.2217,
-                            "2017": 0.1522,
-                            "2018": 0.1241
-                        },
+                        "value": 1,
                         "compare": ">="
                     },
 
                     "medium": {
-                        "value": {
-                            "2016": 0.6321,
-                            "2017": 0.4941,
-                            "2018": 0.4184
-                        },
+                        "value": 2,
                         "compare": ">="
                     },
 
                     "tight": {
-                        "value": {
-                            "2016": 0.8953,
-                            "2017": 0.8001,
-                            "2018": 0.7527
-                        },
+                        "value": 3,
                         "compare": ">="
                     }
                 }
