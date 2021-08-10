@@ -23,24 +23,26 @@
 
 class HistMaker {
     private:
-        std::vector<std::string> regions, parameters, scaleSysts;
+        std::vector<std::string> regions, parameters, scaleSysts, parametersEst, cutStringsEst;
         std::map<std::string, std::string> outDir;
-        std::string outFile, channel;
+        std::string outFile, channel, fakeRateFile, promptRateFile;
         std::map<std::string, std::vector<std::string>> cutStrings, systDirs;
         int era;
 
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
 
-        std::vector<std::shared_ptr<TH1F>> hists1D, hists1DSystUp, hists1DSystDown;
-        std::vector<std::shared_ptr<TH2F>> hists2D, hists2DSystUp, hists2DSystDown;
+        std::vector<std::shared_ptr<TH1F>> hists1D, hists1DSystUp, hists1DSystDown, 
+                                           hists1DEst, hists1DSystUpEst, hists1DSystDownEst;
+        std::vector<std::shared_ptr<TH2F>> hists2D, hists2DSystUp, hists2DSystDown,
+                                           hists2DEst, hists2DSystUpEst, hists2DSystDownEst;
 
-        std::vector<std::shared_ptr<TH1F>> eventCount;
-        std::vector<std::shared_ptr<TH1F>> eventCountSystUp, eventCountSystDown;
+        std::vector<std::shared_ptr<TH1F>> eventCount, eventCountEst;
+        std::vector<std::shared_ptr<TH1F>> eventCountSystUp, eventCountSystDown, eventCountSystUpEst, eventCountSystDownEst;
 
         std::vector<std::shared_ptr<TFile>> outFiles;
 
-        std::vector<NTupleReader> hist1DFunctions, cutFunctions;
+        std::vector<NTupleReader> hist1DFunctions, cutFunctions,leptonCutsTight, leptonCutsLoose;
         std::vector<std::pair<NTupleReader, NTupleReader>> hist2DFunctions;
         std::vector<Weighter> weight;
 
@@ -48,7 +50,7 @@ class HistMaker {
 
     public:
         HistMaker();
-        HistMaker(const std::vector<std::string>& parameters, const std::vector<std::string>& regions, const std::map<std::string, std::vector<std::string>>& cutStrings, const std::map<std::string, std::string>& outDir, const std::string& outFile, const std::string &channel, const std::map<std::string, std::vector<std::string>>& systDirs, const std::vector<std::string>& scaleSysts, const int& era = 2017);
+        HistMaker(const std::vector<std::string>& parameters, const std::vector<std::string>& regions, const std::map<std::string, std::vector<std::string>>& cutStrings, const std::map<std::string, std::string>& outDir, const std::string& outFile, const std::string &channel, const std::map<std::string, std::vector<std::string>>& systDirs, const std::vector<std::string>& scaleSysts, const std::vector<std::string>& parametersEst, const std::vector<std::string>& cutStringsEst, const std::string& fakeRateFile, const std::string& promptRateFile, const int& era = 2017);
 
         void Produce(const std::string& fileName, const int& eventStart, const int& eventEnd, const std::string& bkgYieldFac = "", const std::string& bkgType = "", const std::vector<std::string>& bkgYieldFacSyst = {});
 };

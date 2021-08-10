@@ -9,13 +9,13 @@ channels:
     - EleIncl
 
 processes:
-    - W+j
-    - DY+j
-    - TT-1L
-    - TT-2L
-    - TT+V
-    - VV+VVV 
-    - T
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
     - HPlus200_h100_4B
     - QCD
 

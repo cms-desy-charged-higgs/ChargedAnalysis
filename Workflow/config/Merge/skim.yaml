@@ -9,10 +9,8 @@ shape-systs:
 channels:
     - Inclusive
 
-dir: Skim/{C}/{E}
-skim-dir: Skim/{C}/{E}
-dCache: Skim/{C}/{E}
+dir: Skim/27_05_21/{C}/{E}
+skim-dir: Skim/27_05_21/{C}/{E}
+dCache: Skim/27_05_21/{C}/{E}
 
 run-mode: Condor
-
-

@@ -1,17 +1,17 @@
-skim-dir: Skim/Inclusive/{E}
-out-dir: Skim/Channels/{C}/{E}
-dir: Skim/Channels/{C}/{E}
+skim-dir: Skim/27_05_21//Inclusive/{E}
+out-dir: Skim/27_05_21//Channels/{C}/{E}
+dir: 27_05_21//Channels/{C}/{E}
 
-run-mode: Condor
+run-mode: Local
 
-n-events: 3000000
+n-events: 300000
 
 channels:
-    Ele4J: EleIncl
-    Ele2J1FJ: EleIncl
-    Ele2FJ: EleIncl
-    Muon4J: MuonIncl
-    Muon2J1FJ: MuonIncl
+ #   Ele4J: EleIncl
+ #   Ele2J1FJ: EleIncl
+ #   Ele2FJ: EleIncl
+ #   Muon4J: MuonIncl
+  #  Muon2J1FJ: MuonIncl
     Muon2FJ: MuonIncl
 
 shape-systs:

@@ -60,4 +60,4 @@ alias voms="voms-proxy-init --voms cms:/cms/dcms --valid 168:00"
 
 ##CERN stuff
 export CERN_USER="dbrunner"
-alias www="rsync -art --exclude '.git*' --delete -e ssh $CHDIR/CernWebpage/ $CERN_USER@lxplus.cern.ch:/eos/home-${USER:0:1}/$CERN_USER/www/"
+alias www="rsync -r --update --existing --exclude '.git*' -e 'ssh' $CHDIR/CernWebpage/ $CERN_USER@lxplus.cern.ch:/eos/home-${USER:0:1}/$CERN_USER/www/"

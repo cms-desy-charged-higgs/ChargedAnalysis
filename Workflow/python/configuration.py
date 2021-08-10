@@ -37,25 +37,28 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
     ##Data driven scale factors           
     bkgYldFactor, bkgYldFactorSyst, bkgType = "", [], "Misc"
 
-    if "bkg-yield-factor" in config:
-        if "Single" not in process and "HPlus" not in process:
-            bkgYldFactor = "{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "SYS": syst, "SHIFT": shift if syst != "" else ""})))
+    if process != "QCD":
+        if "bkg-yield-factor" in config:
+            if "Single" not in process and "HPlus" not in process:
+                bkgYldFactor = "{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "SYS": syst, "SHIFT": shift if syst != "" else ""})))
 
-            with open(bkgYldFactor) as f:
-                reader = csv.reader(f, delimiter='\t')
+                with open(bkgYldFactor) as f:
+                    reader = csv.reader(f, delimiter='\t')
 
-                for row in reader:
-                    if process in row:
-                        bkgType = process
-                        break
+                    for row in reader:
+                        if process in row:
+                            bkgType = process
+                            break
 
-            for scaleSyst in scaleSysts:
-                for scaleShift in ["Up", "Down"]:
-                    bkgYldFactorSyst.append("{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "SYS": scaleSyst, "SHIFT": scaleShift}))))
+                for scaleSyst in scaleSysts:
+                    for scaleShift in ["Up", "Down"]:
+                        bkgYldFactorSyst.append("{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "SYS": scaleSyst, "SHIFT": scaleShift}))))
+
+    procName = config["data"][channel][0] if (config.get("qcd-estimate", False) and process == "QCD") else process
 
     ##List of filenames for each process
     for d in os.listdir(skimDir):
-        for processName in processes[process]:
+        for processName in processes[procName]:
             if d.startswith(processName) and not "_ext" in d:
                 fileNames.append("{skim}/{file}/merged/{syst}/{file}.root".format(skim=skimDir, file = d, syst = systName))
 
@@ -104,6 +107,12 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                 task["arguments"]["{}-out-dir".format(region)] = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": region})) + "/{}/unmerged/{}/{}".format(process, systName, nJobs)
                 task["arguments"]["{}-syst-dirs".format(region)] = [task["arguments"]["{}-out-dir"].replace("unmerged/", "unmerged/{}{}/".format(scaleSyst, scaleShift)) for scaleSyst in scaleSysts if scaleSyst != "" for scaleShift in ["Up", "Down"]]
                 task["arguments"]["{}-cuts".format(region)] = config["cuts"].get("all", []) + (config["cuts"][channel][region] if region != "" else config["cuts"].get(channel, []))
+
+            if config.get("qcd-estimate", False) and process == "QCD":
+                task["arguments"]["fake-rate"] = os.environ["CHDIR"] + "/" + config["qcd-estimate"]["rates"].format_map(dd(str, {"C": channel, "E": era, "M": "fake"}))
+                task["arguments"]["prompt-rate"] = os.environ["CHDIR"] + "/" + config["qcd-estimate"]["rates"].format_map(dd(str, {"C": channel, "E": era, "M": "prompt"}))
+                task["arguments"]["estimate-param"] = config["qcd-estimate"]["parameters"][channel]
+                task["arguments"]["estimate-cuts"] = config["qcd-estimate"]["cuts"][channel]
 
             tasks.append(Task(task, "--"))
 

@@ -1,16 +1,61 @@
 channels:
     - Muon2FJ
-   # - Ele2FJ
-  #  - Muon2J1FJ
-  #  - Ele2J1FJ
-  #  - Ele4J
- #   - Muon4J
-    
-run-mode: Local
+    - Ele2FJ
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Ele4J
+    - Muon4J
 
-skim-dir: Skim/Channels/{C}/{E}
+run-mode: Condor
+   
+skim-dir: Skim/19_03_2021/Channels/{C}/{E}
 
-dir: Baseline/{D}/{C}/{E}/{MHC}
+dir: Final/{D}/{C}/{E}/{MHC}
+
+scale-systs:
+    Muon2FJ:
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Muon2J1FJ:
+        - BTag
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Muon4J:
+        - BTag
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Ele2FJ:
+        - ElectronID
+        - EleReco
+    Ele2J1FJ:
+        - BTag
+        - ElectronID
+        - EleReco
+    Ele4J:
+        - BTag
+        - ElectronID
+        - EleReco
+
+    all:
+        - PileUp
+
+shape-systs:
+    Ele2FJ:
+        - energyScale
+        - energySigma
+    Ele2J1FJ:
+        - energyScale
+        - energySigma
+    Ele4J:
+        - energyScale
+        - energySigma
+    all:
+        - ''
+        - JECTotal
+        - JER
 
 processes:
     - WJ
@@ -19,7 +64,7 @@ processes:
     - TT2L
     - TTV
     - VV 
-    - T
+    - ST
     - QCD
 
 charged-masses:
@@ -56,111 +101,132 @@ parameters:
 estimate-process:
     TT1L:
         all:
+            - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
             - f:n=dnnc,v={MHC}/c:n=equal,v=2
-            - f:n=dnn,v=TT1L,v={MHC}/c:n=bigger,v=0.6
-
-        Ele4J:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon4J:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon2FJ:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
-
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Ele4J:
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
+        Muon2FJ:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Muon2J1FJ:
             - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
             - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Muon4J:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
             
     TT2L:
         all:
+            - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
             - f:n=dnnc,v={MHC}/c:n=equal,v=1
-            - f:n=dnn,v=TT2L,v={MHC}/c:n=bigger,v=0.8
-
-        Ele4J:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon4J:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon2FJ:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
-
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Ele4J:
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
+        Muon2FJ:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Muon2J1FJ:
             - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
             - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Muon4J:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
    
     Misc:
         all:
+            - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
             - f:n=dnnc,v={MHC}/c:n=equal,v=0
-            - f:n=dnn,v=Misc,v={MHC}/c:n=bigger,v=0.8
-
-        Ele4J:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon4J:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
-            - f:n=N/p:n=j/c:n=bigger,v=4
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=2
-
-        Muon2FJ:
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
 
         Ele2FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
-
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Ele2J1FJ:
-            - f:n=N/p:n=e,wp=medium/c:n=equal,v=1
-            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=0
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
-
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Ele4J:
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
+        Muon2FJ:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
         Muon2J1FJ:
             - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
             - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
             - f:n=N/p:n=j/c:n=bigger,v=2
-            - f:n=N/p:n=bj,wp=medium/c:n=bigger,v=1
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+            - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        Muon4J:
+            - f:n=N/p:n=mu,wp=medium/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+            - f:n=N/p:n=j/c:n=bigger,v=4
+            - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4

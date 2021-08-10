@@ -1,6 +1,6 @@
 #include <ChargedAnalysis/Analysis/include/histmaker.h>
 
-HistMaker::HistMaker(const std::vector<std::string>& parameters, const std::vector<std::string>& regions, const std::map<std::string, std::vector<std::string>>& cutStrings, const std::map<std::string, std::string>& outDir, const std::string& outFile, const std::string &channel, const std::map<std::string, std::vector<std::string>>& systDirs, const std::vector<std::string>& scaleSysts, const int& era):
+HistMaker::HistMaker(const std::vector<std::string>& parameters, const std::vector<std::string>& regions, const std::map<std::string, std::vector<std::string>>& cutStrings, const std::map<std::string, std::string>& outDir, const std::string& outFile, const std::string &channel, const std::map<std::string, std::vector<std::string>>& systDirs, const std::vector<std::string>& scaleSysts, const std::vector<std::string>& parametersEst, const std::vector<std::string>& cutStringsEst, const std::string& fakeRateFile, const std::string& promptRateFile, const int& era):
     parameters(parameters),
     regions(regions),
     cutStrings(cutStrings),
@@ -9,6 +9,10 @@ HistMaker::HistMaker(const std::vector<std::string>& parameters, const std::vect
     channel(channel),
     systDirs(systDirs),
     scaleSysts(scaleSysts),
+    parametersEst(parametersEst),
+    cutStringsEst(cutStringsEst),
+    fakeRateFile(fakeRateFile),
+    promptRateFile(promptRateFile),
     era(era){}
 
 void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, const std::experimental::source_location& location){
@@ -17,16 +21,16 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
     for(unsigned int i = 0; i < regions.size(); ++i){
         std::string region = regions[i];
 
-        for(const std::string& scaleSyst : VUtil::Merge(std::vector<std::string>{""}, scaleSysts)){
+        for(const std::string& scaleSyst : VUtil::Merge(std::vector<std::string>{"Nominal"}, scaleSysts)){
             for(const std::string shift : {"Up", "Down"}){
                 //Skip Down loop for nominal case
-                if(scaleSyst == "" and shift == "Down") continue;
+                if(scaleSyst == "Nominal" and shift == "Down") continue;
 
-                std::string systName = scaleSyst != "" ? StrUtil::Merge(scaleSyst, shift) : "";
+                std::string systName = scaleSyst != "Nominal" ? StrUtil::Merge(scaleSyst, shift) : "Nominal";
                 std::string outName;
 
                 //Change outdir for systematic
-                if(scaleSyst == ""){
+                if(scaleSyst == "Nominal"){
                     outName = StrUtil::Join("/", outDir[region], outFile);
                     std::system(StrUtil::Merge("mkdir -p ", outDir[region]).c_str());
                 }
@@ -85,10 +89,22 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
                         hist1D->SetTitle(paramX.GetHistName().c_str());
                         hist1D->GetXaxis()->SetTitle(paramX.GetAxisLabel().c_str());
 
-                        if(scaleSyst == "") hists1D.push_back(std::move(hist1D));
+                        if(scaleSyst == ""){
+                            hists1D.push_back(std::move(hist1D));
+                            if(fakeRateFile != ""){
+                                hists1DEst.push_back(RUtil::CloneSmart(hists1D.back().get()));
+                                hists1DEst.back()->SetDirectory(0);
+                            }
+                        }
                         else{
-                            if(shift == "Up") hists1DSystUp.push_back(std::move(hist1D));
-                            if(shift == "Down") hists1DSystDown.push_back(std::move(hist1D));
+                            if(shift == "Up"){
+                                hists1DSystUp.push_back(std::move(hist1D));
+                                if(fakeRateFile != "") hists1DSystUpEst.push_back(RUtil::CloneSmart(hists1DSystUp.back().get()));
+                            }
+                            if(shift == "Down"){
+                                hists1DSystDown.push_back(std::move(hist1D));
+                                if(fakeRateFile != "") hists1DSystDownEst.push_back(RUtil::CloneSmart(hists1DSystDown.back().get()));
+                            }
                         }
 
                         if(scaleSyst == "" and i == 0) hist1DFunctions.push_back(paramX);
@@ -110,10 +126,19 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
                         hist2D->GetXaxis()->SetTitle(paramX.GetAxisLabel().c_str());
                         hist2D->GetYaxis()->SetTitle(paramY.GetAxisLabel().c_str());
 
-                        if(scaleSyst == "") hists2D.push_back(std::move(hist2D));
+                        if(scaleSyst == ""){
+                            hists2D.push_back(std::move(hist2D));
+                            if(fakeRateFile != "") hists2DEst.push_back(RUtil::CloneSmart(hists2D.back().get()));
+                        }
                         else{
-                            if(shift == "Up") hists2DSystUp.push_back(std::move(hist2D));
-                            if(shift == "Down") hists2DSystDown.push_back(std::move(hist2D));
+                            if(shift == "Up"){
+                                hists2DSystUp.push_back(std::move(hist2D));
+                                if(fakeRateFile != "") hists2DSystUpEst.push_back(RUtil::CloneSmart(hists2DSystUp.back().get()));
+                            }
+                            if(shift == "Down"){
+                                hists2DSystDown.push_back(std::move(hist2D));
+                                if(fakeRateFile != "") hists2DSystDownEst.push_back(RUtil::CloneSmart(hists2DSystDown.back().get()));
+                            }
                         }
 
                         if(scaleSyst == "" and i == 0) hist2DFunctions.push_back({paramX, paramY});
@@ -134,10 +159,26 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
             parser.GetCut(cutString, cut);
             cut.Compile();
 
-            cutFunctions.push_back(cut);
+            if(fakeRateFile != "" and !StrUtil::Find(cutString, "tight-lep").empty()) leptonCutsTight.push_back(cut);
+            else cutFunctions.push_back(cut);
 
             std::cout << "Cut will be applied: '" << cut.GetCutName() << "'" << std::endl;
         }
+
+    }
+
+    for(const std::string& cutString: cutStringsEst){
+        //Functor structure and arguments
+        NTupleReader cut(inputTree, era);
+
+        parser.GetParticle(cutString, cut);
+        parser.GetFunction(cutString, cut);
+        parser.GetCut(cutString, cut);
+        cut.Compile();
+
+        leptonCutsLoose.push_back(cut);
+
+        std::cout << "Cut will used for QCD estimate: '" << cut.GetCutName() << "'" << std::endl;
     }
 }
 
@@ -195,9 +236,39 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             }
         }
     }
+
+    //Prepare QCD estimatation if wished
+    std::shared_ptr<TFile> fFile, pFile;
+    std::shared_ptr<TH2F> promptRate, fakeRate;
+    NTupleReader lPt(inputTree, era), lEta(inputTree, era);
+    float fRate, pRate, lpt, lta, wLoose = 1., wTight = 1.;
+    std::function<float(float&, float&)> f1 = [&](float& f, float& p){return (f*p)/(p-f);};
+<<<<<<< Updated upstream
+    std::function<float(float&)> f2 = [&](float& p){return (1.-p)/p;};
+=======
+    std::function<float(float&)> f2 = [&](float& p){return -(1.-p)/p;};
+>>>>>>> Stashed changes
+
+    if(fakeRateFile != ""){
+        fFile = RUtil::Open(fakeRateFile);
+        pFile = RUtil::Open(promptRateFile);
+
+        fakeRate = RUtil::CloneSmart(RUtil::Get<TH2F>(fFile.get(), "fakerate"));
+        promptRate = RUtil::CloneSmart(RUtil::Get<TH2F>(pFile.get(), "promptrate"));
+
+        Decoder parser;
+
+        parser.GetParticle(parametersEst.at(0), lPt);
+        parser.GetFunction(parametersEst.at(0), lPt);
+        lPt.Compile();
+
+        parser.GetParticle(parametersEst.at(1), lEta);
+        parser.GetFunction(parametersEst.at(1), lEta);
+        lEta.Compile();
+    }
     
     //Cutflow/Event count histogram
-    std::shared_ptr<TH1F> cutflow = RUtil::CloneSmart(RUtil::Get<TH1F>(inputFile.get(), "cutflow_" + channel));
+    std::shared_ptr<TH1F> cutflow = RUtil::CloneSmart(RUtil::Get<TH1F>(inputFile.get(), "Cutflow_" + channel));
     cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
   //  cutflow->Scale(1./weight.GetNGen());
 
@@ -208,6 +279,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
 
     bool allFailed = false;
     std::vector<double> wght(regions.size(), 1.), systWeight(regions.size(), 1.);
+    std::vector<bool> loosePassed(regions.size(), true);
     std::vector<bool> passed(regions.size(), true);
 
     std::cout << std::endl << "Start processing tree at event '" << eventStart << "'" << std::endl;
@@ -226,8 +298,18 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
         int offSet = 0;
 
         for(unsigned int region = 0; region < regions.size(); ++region){
-            int nCuts = cutStrings[regions[region]].size();
+            int nCuts = cutStrings[regions[region]].size() - leptonCutsTight.size();
             passed[region] = true;
+            loosePassed[region] = true;
+            bool tightLep = true;
+
+            for(NTupleReader& cut: leptonCutsTight){
+                tightLep = tightLep * cut.GetPassed();
+            }
+
+            for(NTupleReader& cut: leptonCutsLoose){
+                loosePassed[region] = loosePassed[region] * cut.GetPassed();
+            }
 
             for(unsigned int j = 0; j < nCuts; ++j){
                 passed[region] = passed[region]*cutFunctions.at(j + offSet).GetPassed();
@@ -235,11 +317,45 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
                 if(!passed[region]) break;
             }
 
+<<<<<<< Updated upstream
             offSet += nCuts;
-            allFailed = allFailed and !passed[region];
+=======
+>>>>>>> Stashed changes
+            loosePassed[region] = passed[region]*loosePassed[region];
+            passed[region] = passed[region]*tightLep;
+
+            allFailed = allFailed and !passed[region] and !loosePassed[region];
         }
 
         if(allFailed) continue;
+
+        if(fakeRate){
+            float lpt = lPt.Get();
+            float leta = lEta.Get();
+
+            fRate = fakeRate->GetBinContent(fakeRate->FindBin(lpt, leta));
+            pRate = promptRate->GetBinContent(promptRate->FindBin(lpt, leta));
+
+            if(fRate > 0 and pRate > 0){
+<<<<<<< Updated upstream
+                wLoose = std::abs(f1(fRate, pRate));
+                wTight = std::abs(wLoose * f2(pRate));
+=======
+                wLoose = f1(fRate, pRate);
+                wTight = wLoose * f2(pRate);
+>>>>>>> Stashed changes
+            }
+            
+            else{
+                wLoose = 0;
+                wTight = 0;
+            }
+<<<<<<< Updated upstream
+
+            std::cout << fRate << "\t" << pRate << "\t" << wLoose << "\t" << wTight << std::endl;
+=======
+>>>>>>> Stashed changes
+        }
         
         //Fill histograms
         for(unsigned int syst = 0; syst <= scaleSysts.size(); ++syst){
@@ -251,7 +367,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
                 for(unsigned int region = 0; region < regions.size(); ++region){
                     if(!passed[region]) continue;
                     wght[region] = weight[region].GetTotalWeight(i);
-                    eventCount[region]->Fill(0., wght[region]);            
+                  //  eventCount[region]->Fill(0., wght[region]);            
 
                     if(syst != 0){
                         if(!bkgYieldFac.empty()) systWeight[region] = (shift == "Up" ? bkgYUp[syst] : bkgYDown[syst]) * weight[region].GetTotalWeight(i, systName, shift);
@@ -267,14 +383,16 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
                     float indW = 1; //hist1DFunctions[j].GetWeight();
 
                     for(unsigned int region = 0; region < regions.size(); ++region){
-                        if(!passed[region]) continue;
                         unsigned int index = j + region*hist1DFunctions.size();
         
-                        if(syst == 0) hists1D[index]->Fill(value, wght[region]*indW);
+                        if(syst == 0){
+                            if(passed[region]) hists1D[index]->Fill(value, wght[region]*indW*wTight);
+                            if(fakeRate and loosePassed[region]) hists1DEst[index]->Fill(value, wght[region]*indW*wLoose);
+                        }
 
                         else{
-                            if(shift == "Up") hists1DSystUp[index]->Fill(value, systWeight[region]*indW);
-                            else hists1DSystDown[index]->Fill(value, systWeight[region]*indW);
+                            if(shift == "Up") hists1DSystUp[index]->Fill(value, systWeight[region]*indW*wTight);
+                            else hists1DSystDown[index]->Fill(value, systWeight[region]*indW*wTight);
                         }
                     }
                 }
@@ -305,20 +423,41 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     std::string currentFile = "";
 
     //Write all histograms
-    for(std::shared_ptr<TH1F>& hist: VUtil::Merge(eventCount, hists1D)){
+    for(unsigned int i = 0; i < hists1D.size(); ++i){
         if(currentFile == ""){
-            currentFile = hist->GetDirectory()->GetName();
+            currentFile = hists1D.at(i)->GetDirectory()->GetName();
             std::cout << std::endl << "Histograms saved in file '" << currentFile << "'" << std::endl;
         }
 
-        else if(currentFile != hist->GetDirectory()->GetName()){
-            currentFile = hist->GetDirectory()->GetName();
+        else if(currentFile != hists1D.at(i)->GetDirectory()->GetName()){
+            currentFile = hists1D.at(i)->GetDirectory()->GetName();
             std::cout << std::endl << "Histograms saved in file '" << currentFile << "'" << std::endl;
         }
 
-        hist->GetDirectory()->cd();
-        hist->Write();
-        std::cout << "Saved histogram: '" << hist->GetName() << "' with " << hist->GetEntries() << " entries" << std::endl;
+        hists1D.at(i)->GetDirectory()->cd();
+        if(fakeRate){
+<<<<<<< Updated upstream
+            hists1DEst.at(i)->SetName(StrUtil::Merge(hists1D.at(i)->GetName(), "_NTO").c_str());
+            hists1DEst.at(i)->Write();
+
+            auto h = RUtil::Clone(hists1D.at(i).get());
+            h->SetName(StrUtil::Merge(hists1D.at(i)->GetName(), "_NT1").c_str());
+            h->Write();
+    
+            hists1D.at(i)->Add(hists1DEst.at(i).get(), hists1D.at(i).get(), 1, -1);
+=======
+            hists1D.at(i)->Add(hists1DEst.at(i).get());
+            hists1DEst.at(i)->Print();
+>>>>>>> Stashed changes
+        }
+
+        hists1D.at(i)->Write();
+        std::cout << "Saved histogram: '" << hists1D.at(i)->GetName() << "' with " << hists1D.at(i)->GetEntries() << " entries" << std::endl;
+    }
+
+    for(const std::shared_ptr<TH1F> count : eventCount){
+        count->GetDirectory()->cd();
+        count->Write();
     }
 
     currentFile = "";
