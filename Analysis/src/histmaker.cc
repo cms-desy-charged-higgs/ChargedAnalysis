@@ -243,6 +243,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     NTupleReader lPt(inputTree, era), lEta(inputTree, era);
     float fRate, pRate, lpt, lta, wLoose = 1., wTight = 1.;
     std::function<float(float&, float&)> f1 = [&](float& f, float& p){return (f*p)/(p-f);};
+
     std::function<float(float&)> f2 = [&](float& p){return (1.-p)/p;};
 
     if(fakeRateFile != ""){
@@ -314,6 +315,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             }
 
             offSet += nCuts;
+
             loosePassed[region] = passed[region]*loosePassed[region];
             passed[region] = passed[region]*tightLep;
 
