@@ -12,6 +12,7 @@ HTagDataset::HTagDataset(std::shared_ptr<TFile>& inFile, std::shared_ptr<TTree>&
     isSignal(isSignal),
     matchedPart(matchedPart){
 
+    /*
     TreeParser parser;
     std::vector<TreeFunction> cuts;
     std::vector<std::string> cleanInfo = StrUtil::Split(cleanJet, "/");
@@ -74,6 +75,7 @@ HTagDataset::HTagDataset(std::shared_ptr<TFile>& inFile, std::shared_ptr<TTree>&
     jetCharge = inTree->GetLeaf("JetParticle_Charge");
     jetIdx = inTree->GetLeaf("JetParticle_FatJetIdx");
     vtxIdx = inTree->GetLeaf("SecondaryVertex_FatJetIdx");
+    */
 }
 
 torch::optional<size_t> HTagDataset::size() const {

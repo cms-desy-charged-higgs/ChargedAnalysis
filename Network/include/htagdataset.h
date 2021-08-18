@@ -16,8 +16,7 @@
 #include <TLeaf.h>
 
 #include <ChargedAnalysis/Utility/include/stringutil.h>
-#include <ChargedAnalysis/Analysis/include/treeparser.h>
-#include <ChargedAnalysis/Analysis/include/treefunction.h>
+#include <ChargedAnalysis/Utility/include/vectorutil.h>
 
 /**
 * @brief Structure with pytorch Tensors of charged/neutral particle for the Higgs tagger

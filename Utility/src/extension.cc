@@ -8,6 +8,7 @@
 std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
+    /*
     std::vector<std::string> branchNames;
     
     if(Utils::Find<std::string>(channel, "2FJ") == -1.) branchNames = {"ML_HTagFJ1"};
@@ -110,7 +111,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
             }
         }
     }
-
+    */
     return values;
 }
 
