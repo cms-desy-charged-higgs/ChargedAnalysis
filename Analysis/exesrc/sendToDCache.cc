@@ -29,7 +29,7 @@ int main(int argc, char *argv[]){
 
     while(true){
         std::system(("gfal-mkdir -p " + totalPath).c_str());
-        std::system(StrUtil::Merge("gfal-copy -f -t 100000 ", inputFile, " ", totalPath, fileName).c_str());
+        std::system(StrUtil::Merge("gfal-copy -f -t 1800 ", inputFile, " ", totalPath, fileName).c_str());
 
         try{
             RUtil::Open(outFile);
