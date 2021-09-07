@@ -5,84 +5,76 @@
 
 #include <ChargedAnalysis/Network/include/dnndataset.h>
 
-DNNDataset::DNNDataset(std::shared_ptr<TTree>& tree, const std::vector<std::string>& parameters, const std::vector<std::string>& cutNames, const int& era, const int& isEven, torch::Device& device, const int& classLabel) :
+DNNDataSet::DNNDataSet(const std::string& fileName, const std::string& channel, const std::string& entryListName, const std::vector<std::string>& parameters, const int& era, torch::Device& device, const int& classLabel) :
+    fileName(fileName),
+    channel(channel),
+    era(era),
+    parameters(parameters),
     device(device),
     classLabel(classLabel){
 
-    Decoder parser;
+    CSV idx(entryListName, "r", ",");
 
-    for(const std::string& parameter: parameters){
+    entryList = std::vector<std::size_t>(idx.GetNRows());
+
+    for(int row = 0; row < idx.GetNRows(); ++row){
+        entryList[row] = idx.Get<int>(row, 0);
+    }
+}
+
+void DNNDataSet::Init(){
+    //Open file/get tree (call this function in local thread)
+    file = RUtil::Open(fileName);
+    tree = RUtil::GetSmart<TTree>(file.get(), channel);
+
+    Decoder parser;
+    functions = std::vector<NTupleReader>(parameters.size());
+    cache = std::make_shared<NCache>();
+
+    for(std::size_t idx = 0; idx < parameters.size(); ++idx){
         //Functor structure and arguments
-        NTupleReader function(tree, era);
+        NTupleReader function(tree, era, cache);
         
         //Read in everything, orders matter
-        parser.GetParticle(parameter, function);
-        parser.GetFunction(parameter, function);
+        parser.GetParticle(parameters.at(idx), function);
+        parser.GetFunction(parameters.at(idx), function);
         function.Compile();
 
-        functions.push_back(function);
-    }
-
-    for(const std::string& cutName: cutNames){
-        //Functor structure and arguments
-        NTupleReader cut(tree, era);
-        
-        //Read in everything, orders matter
-        parser.GetParticle(cutName, cut);
-        parser.GetFunction(cutName, cut);
-        parser.GetCut(cutName, cut);
-        cut.Compile();
-        
-        cuts.push_back(cut);
-    }
-
-    TLeaf* evNr = RUtil::Get<TLeaf>(tree.get(), "Misc_eventNumber");
-
-    for(int i = 0; i < tree->GetEntries(); ++i){
-        NTupleReader::SetEntry(i);
-
-        if(isEven >= 0){
-            if(int(1./RUtil::GetEntry<int>(evNr, i)*10e10) % 2 == isEven) continue; 
-        }
- 
-        bool passed=true;
-
-        for(NTupleReader& cut : cuts){
-            passed = passed && cut.GetPassed();
-
-            if(!passed) break;
-        }
-
-        if(passed){
-            trueIndex.push_back(i);
-            nEntries++; 
-        }
+        functions[idx] = function;
     }
 }
 
-torch::optional<size_t> DNNDataset::size() const {
-    return nEntries;
+std::size_t DNNDataSet::Size(){
+    return entryList.size();
 }
-        
-DNNTensor DNNDataset::get(size_t index){
-    int entry = trueIndex[index];
 
-    NTupleReader::SetEntry(entry);
-    std::vector<float> paramValues;
+DNNTensor DNNDataSet::Get(const std::size_t& entry){
+    cache->clear();
+    std::vector<float> paramValues(parameters.size());
 
-    for(NTupleReader& func : functions){
-        paramValues.push_back(func.Get());
+    for(std::size_t idx = 0; idx < functions.size(); ++idx){
+        paramValues.at(idx) = functions.at(idx).Get(entryList.at(entry));
     }
-    
+
     return {torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device), torch::tensor({classLabel}).to(device)};
 }
 
-DNNTensor DNNDataset::Merge(const std::vector<DNNTensor>& tensors){
-    std::vector<torch::Tensor> input, label; 
+std::vector<DNNTensor> DNNDataSet::GetBatch(const std::size_t& entryStart, const std::size_t& entryEnd){
+    std::vector<DNNTensor> batch(entryEnd - entryStart);
 
-    for(const DNNTensor& tensor: tensors){
-        input.push_back(tensor.input);
-        label.push_back(tensor.label);
+    for(std::size_t entry = entryStart, idx = 0; entry < entryEnd; ++entry, ++idx){
+        batch.at(idx) = Get(entry);
+    }
+
+    return batch;
+}
+
+DNNTensor DNNDataSet::Merge(const std::vector<DNNTensor>& tensors){
+    std::vector<torch::Tensor> input(tensors.size()), label(tensors.size()); 
+
+    for(std::size_t idx = 0; idx < tensors.size(); ++idx){
+        input[idx] = tensors[idx].input;
+        label[idx] = tensors[idx].label;
     }
 
     return {torch::cat(input, 0), torch::cat(label, 0)};
