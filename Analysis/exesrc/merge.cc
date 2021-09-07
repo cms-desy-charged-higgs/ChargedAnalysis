@@ -30,7 +30,7 @@ void Merge(const std::vector<std::string>& inFiles, const std::string& outFile, 
     
     //Set file merger
     TFileMerger merger(false);
-    merger.SetFastMethod(optimize);
+    merger.SetFastMethod(!optimize);
     merger.SetPrintLevel(99);
 
     for(const std::string file: inFiles) merger.AddFile(file.c_str());
