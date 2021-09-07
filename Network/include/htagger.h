@@ -3,8 +3,6 @@
 
 #include <torch/torch.h>
 
-#include <ChargedAnalysis/Utility/include/utils.h>
-
 struct HTagger : torch::nn::Module{
     private:
         //Input layer

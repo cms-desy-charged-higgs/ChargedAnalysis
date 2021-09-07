@@ -8,8 +8,7 @@
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
 #include <ChargedAnalysis/Utility/include/parser.h>
-#include <ChargedAnalysis/Utility/include/frame.h>
-#include <ChargedAnalysis/Utility/include/utils.h>
+#include <ChargedAnalysis/Utility/include/stopwatch.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 
 typedef torch::disable_if_t<false, std::unique_ptr<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>, std::default_delete<torch::data::StatelessDataLoader<HTagDataset, torch::data::samplers::SequentialSampler>>>> DataLoader;
@@ -44,11 +43,10 @@ float Train(std::string& outDir, std::shared_ptr<HTagger>& tagger, std::vector<H
     //Initial best loss for later early stopping
     float bestLoss = 1e7;
     //Measure time
-    Utils::RunTime timer;
+    StopWatch timer; 
+    timer.Start();
 
     for(int i=0; i < 10000; i++){
-        int startTime = timer.Time();
-
         //Iterator returning batched data
         std::vector<torch::data::Iterator<std::vector<HTensor>>> sigIter;
         std::vector<torch::data::Iterator<std::vector<HTensor>>> bkgIter;
@@ -66,7 +64,7 @@ float Train(std::string& outDir, std::shared_ptr<HTagger>& tagger, std::vector<H
         HTensor train, test;
         std::vector<float> trainWeight, testWeight;
 
-        if(optimize and timer.Time() > 60*10) break;
+        if(optimize and timer.GetTime() > 60*10) break;
 
         while(nBatches - finishedBatches  != 0){
             //Do fewer n of batches for hyperopt
@@ -125,7 +123,7 @@ float Train(std::string& outDir, std::shared_ptr<HTagger>& tagger, std::vector<H
             torch::Tensor predictionTest = tagger->forward(test.charged, test.neutral, test.SV);
             torch::Tensor lossTest = torch::binary_cross_entropy(predictionTest, test.label, weightTest);
 
-            if(finishedBatches % 20 == 0) Utils::DrawScore(predictionTrain, train.label, outDir);
+           // if(finishedBatches % 20 == 0) Utils::DrawScore(predictionTrain, train.label, outDir);
 
             meanTrainLoss = (meanTrainLoss*finishedBatches + lossTrain.item<float>())/(finishedBatches+1);
             meanTestLoss = (meanTestLoss*finishedBatches + lossTest.item<float>())/(finishedBatches+1);
@@ -142,12 +140,10 @@ float Train(std::string& outDir, std::shared_ptr<HTagger>& tagger, std::vector<H
             std::string barString = StrUtil::Merge<4>("Epoch: ", i+1,
                                                    " | Batch: ", finishedBatches, "/", nBatches - 1, 
                                                    " | Mean Loss: ", meanTrainLoss, "/", meanTestLoss, 
-                                                   " | Time: ", timer.Time()-startTime, " s"
+                                                   " | Time: ", timer.GetTime(), " s"
                                     );
 
             finishedBatches++;
-
-            Utils::ProgressBar(float(finishedBatches)/nBatches*100, barString);
         }
 
         //Early stopping
@@ -178,7 +174,7 @@ int main(int argc, char** argv){
 
     bool optimize = parser.GetValue<bool>("optimize");
     std::string optParam = parser.GetValue<std::string>("opt-param", "");
-    std::unique_ptr<Frame> hyperParam;
+   /* std::unique_ptr<Frame> hyperParam;
 
     if(optParam != "") hyperParam = std::make_unique<Frame>(optParam);
 
@@ -187,7 +183,7 @@ int main(int argc, char** argv){
     int nConvFilter = parser.GetValue<int>("n-convfilter", optParam != "" ? hyperParam->Get("nConvFilter", 0) : 130);
     int kernelSize = parser.GetValue<int>("n-kernelsize", optParam != "" ? hyperParam->Get("kernelSize", 0) : 57);
     float dropOut = parser.GetValue<float>("drop-out", optParam != "" ? hyperParam->Get("dropOut", 0) : 0.1);
-    float lr = parser.GetValue<float>("lr", optParam != "" ? hyperParam->Get("lr", 0) : 1e-4);
+    float lr = parser.GetValue<float>("lr", optParam != "" ? hyperParam->Get("lr", 0) : 1e-4); 
 
     //Check if you are on CPU or GPU
     torch::Device device(optimize ? torch::kCPU : torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
@@ -238,5 +234,5 @@ int main(int argc, char** argv){
     }
 
     float bestLoss = Train(outPath, tagger, sigSets, bkgSets, device, batchSize, lr, optimize);
-    if(optimize) std::cout << "Best loss value: " << bestLoss << std::endl;
+    if(optimize) std::cout << "Best loss value: " << bestLoss << std::endl; */
 }
