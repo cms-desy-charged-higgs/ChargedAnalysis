@@ -16,31 +16,28 @@ Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const s
 
 void Plotter1D::ConfigureHists(){
     //Read out parameter
-    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles[""], bkgFiles[""]).at(0));
+    std::shared_ptr<TFile> f = RUtil::Open(VUtil::Merge(sigFiles["Nominal"], bkgFiles["Nominal"]).at(0));
 
-    for(int i = 0; i < f->GetListOfKeys()->GetSize(); ++i){
-        if(f->Get(f->GetListOfKeys()->At(i)->GetName())->InheritsFrom(TH1F::Class())){
-            parameters.push_back(f->GetListOfKeys()->At(i)->GetName());  
+    for(const std::string& param : RUtil::ListOfContent(f.get())){
+        if(f->Get(param.c_str())->InheritsFrom(TH1F::Class())){
+            parameters.push_back(param);  
         }
     }
 
     for(const std::string& syst : systematics){
         for(const std::string shift : {"Up", "Down"}){
             //Skip Down loop for nominal case
-            if(syst == "" and shift == "Down") continue;
+            if(syst == "Nominal" and shift == "Down") continue;
 
-            std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
-
+            std::string systName = syst == "Nominal" ? "Nominal" : StrUtil::Merge(syst, shift);
 
             for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
                 std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[systName].at(i));
 
                 for(std::string& param: parameters){
-                    if(param == "cutflow") continue;
-
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
-                    if(syst == ""){
+                    if(syst == "Nominal"){
                         //Set Style
                         hist->SetFillStyle(1001);
                         hist->SetFillColor(colors.at(bkgProcesses.at(i)));
@@ -76,11 +73,9 @@ void Plotter1D::ConfigureHists(){
                 std::shared_ptr<TFile> file = RUtil::Open(sigFiles[systName].at(i));
 
                 for(std::string& param: parameters){
-                    if(param == "cutflow") continue;
-
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
-                    if(syst == ""){
+                    if(syst == "Nominal"){
                         std::vector<std::string> s = StrUtil::Split(sigProcesses.at(i), "_");
 
                         hist->SetLineWidth(1 + 3*signal[param].size());
@@ -99,8 +94,6 @@ void Plotter1D::ConfigureHists(){
         std::shared_ptr<TFile> file = RUtil::Open(dataFile);
 
         for(std::string& param: parameters){
-            if(param == "cutflow") continue;
-
             std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
             hist->SetMarkerStyle(20);
@@ -117,8 +110,6 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
     PUtil::SetStyle();
 
     for(std::string& param: parameters){
-        if(param == "cutflow") continue;
-
         //All canvases/pads
         std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("canvas",  "canvas", 1000, 1000);
         std::shared_ptr<TPad> mainPad = std::make_shared<TPad>("mainPad", "mainPad", 0., 0. , 1., 1.);
