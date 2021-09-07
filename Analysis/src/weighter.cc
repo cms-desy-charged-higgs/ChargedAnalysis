@@ -2,9 +2,10 @@
 
 Weighter::Weighter(){}
 
-Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const int& era) : 
+Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const std::shared_ptr<NCache>& cache, const int& era) : 
     inputFile(inputFile),
     inputTree(inputTree),
+    cache(cache),
     era(era){
 
     isData = true;
@@ -23,7 +24,7 @@ Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_pt
     }
 
     //Stitching weights
-    if(inputFile->GetListOfKeys()->Contains("nGenStitched")){
+ /*   if(inputFile->GetListOfKeys()->Contains("nGenStitched")){
         nGen = 1.;
 
         for(int i = 0; i < 5; ++i){
@@ -31,8 +32,8 @@ Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_pt
         }
 
         nPartons = RUtil::Get<TLeaf>(inputTree.get(), "Misc_NParton");
-    }
-
+    } */
+        
     this->baseWeight = lumi/nGen;
 
     //Read out pile up histograms
@@ -55,33 +56,34 @@ Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_pt
     }
 }
 
-double Weighter::GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour){
-    const std::vector<float> scaleFactor = RUtil::GetVecEntry<float>(sf, entry);
-    const std::vector<int> trueFlav = RUtil::GetVecEntry<int>(flavour, entry);
-
-    const std::vector<float> jetPt = RUtil::GetVecEntry<float>(pt, entry);
-    const std::vector<float> jetEta = RUtil::GetVecEntry<float>(eta, entry);
-
+double Weighter::GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour){
     double wData = 1., wMC = 1.;
-    bPt.Reset();
+    float jetPt, jetEta, trueFlav, scaleFactor, eff;
 
-    for(std::size_t i = 0; i < scaleFactor.size(); ++i){
-        float eff = 1.;
-    
-        if(std::abs(trueFlav.at(i)) == 5) eff = effB->GetBinContent(effB->FindBin(jetPt.at(i), jetEta.at(i)));
-        else if(std::abs(trueFlav.at(i)) == 4) eff = effC->GetBinContent(effC->FindBin(jetPt.at(i), jetEta.at(i)));
-        else eff = effLight->GetBinContent(effLight->FindBin(jetPt.at(i), jetEta.at(i)));
+    int size = RUtil::GetLen(pt, entry);
+
+    for(std::size_t i = 0; i < size; ++i){
+        eff = 1.;
+        scaleFactor = RUtil::GetEntry<float>(sf, entry, i);
+        trueFlav = RUtil::GetEntry<int>(flavour, entry, i);
+
+        jetPt = RUtil::GetEntry<float>(pt, entry, i);
+        jetEta = RUtil::GetEntry<float>(eta, entry, i);
+        
+        if(std::abs(trueFlav) == 5) eff = effB->GetBinContent(effB->FindBin(jetPt, jetEta));
+        else if(std::abs(trueFlav) == 4) eff = effC->GetBinContent(effC->FindBin(jetPt, jetEta));
+        else eff = effLight->GetBinContent(effLight->FindBin(jetPt, jetEta));
 
         if(eff == 0 or eff == 1) continue;
 
-        if(bPt.Get() == jetPt.at(i)){
-            wData *= scaleFactor.at(i) * eff;
+        if(bPt.Get(entry) == jetPt){
+            wData *= scaleFactor * eff;
             wMC *= eff;
             bPt.Next();
         }
     
         else{
-            wData *= 1 - scaleFactor.at(i)*eff;
+            wData *= 1 - scaleFactor*eff;
             wMC *= (1 - eff);
         }
     }
@@ -107,28 +109,20 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
     std::vector<std::string> sfNames = NTupleReader::GetInfo(partInfo.get_child(pName + ".scale-factors"), false);
 
     for(int i = 0; i < sfNames.size(); ++i){
-        std::string sfWithWP = StrUtil::Replace(sfNames.at(i), "[WP]", wp);
-        std::string sfWithWPUpper = StrUtil::Replace(sfNames.at(i), "[WP]", StrUtil::Capitilize(wp));
-
         for(const std::string shift : {"", "Up", "Down"}){
-            std::string branchName;
+            std::string branchName = StrUtil::Replace(StrUtil::Replace(sfNames.at(i), "[WP]", wp), "[SHIFT]", shift);
 
-            if(RUtil::BranchExists(inputTree.get(), StrUtil::Replace(StrUtil::Replace(sfNames.at(i), "[WP]", wp), "[SHIFT]", shift))){
-                branchName = StrUtil::Replace(StrUtil::Replace(sfNames.at(i), "[WP]", wp), "[SHIFT]", shift);
+            if(!RUtil::BranchExists(inputTree.get(), branchName)){
+                std::cout << "Unknown branch '" << branchName << "', it will be skipped" << std::endl;
+                continue;
             }
-
-            else if(RUtil::BranchExists(inputTree.get(), StrUtil::Replace(StrUtil::Replace(sfNames.at(i), "[WP]", StrUtil::Capitilize(wp)), "[SHIFT]", shift))){
-                branchName = StrUtil::Replace(StrUtil::Replace(sfNames.at(i), "[WP]", StrUtil::Capitilize(wp)), "[SHIFT]", shift);
-            }
-
-            else continue;
 
             if(partInfo.get<std::string>(pName + ".alias") != "bj"){
                 if(shift == "") this->systematics.push_back(systematics.at(i));
 
                 std::vector<NTupleReader>& scaleFactor = shift == "" ? sf : shift == "Up" ? sfUp : sfDown;
 
-                scaleFactor.push_back(std::move(NTupleReader(inputTree, era)));
+                scaleFactor.push_back(std::move(NTupleReader(inputTree, era, cache)));
                 scaleFactor.back().AddParticle(pAlias, 0, wp);
                 scaleFactor.back().AddFunctionByBranchName(branchName);
                 scaleFactor.back().Compile();
@@ -137,29 +131,37 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
             else{
                 std::string wpName = StrUtil::Capitilize(wp);
 
-                TH2F* effB = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@BCSVbTag", "@", wpName)));
+                TH2F* effB = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@BbTagDeepCSV", "@", wpName)));
                 effB->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueB"));
-                TH2F* effC = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@CCSVbTag", "@", wpName)));
+                TH2F* effC = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@CbTagDeepCSV", "@", wpName)));
                 effC->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueC"));
-                TH2F* effLight = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@LightCSVbTag", "@", wpName)));
+                TH2F* effLight = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@LightbTagDeepCSV", "@", wpName)));
                 effLight->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueLight"));
 
-                NTupleReader bPt = NTupleReader(inputTree, era);
+                NTupleReader bPt = NTupleReader(inputTree, era, cache);
                 bPt.AddParticle("bj", 0, wp);
                 bPt.AddFunction("pt");
                 bPt.Compile();
 
-                std::function<float(const int&)>& bW = shift == "" ? bWeight : shift == "Up" ? bWeightUp : bWeightDown;
+                TLeaf* jetPt = RUtil::Get<TLeaf>(inputTree.get(), "Jet_Pt");
+                TLeaf* jetEta = RUtil::Get<TLeaf>(inputTree.get(), "Jet_Eta");
+                TLeaf* sf = RUtil::Get<TLeaf>(inputTree.get(), StrUtil::Replace(branchName, "[SHIFT]", shift));
+                TLeaf* partonFlav = RUtil::Get<TLeaf>(inputTree.get(), "Jet_PartonFlavour");
 
-                bW = std::bind(&Weighter::GetBJetWeight, std::placeholders::_1, effB, effC, effLight, bPt, RUtil::Get<TLeaf>(inputTree.get(), "Jet_Pt"), RUtil::Get<TLeaf>(inputTree.get(), "Jet_Eta"), RUtil::Get<TLeaf>(inputTree.get(), StrUtil::Replace(branchName, "[SHIFT]", shift)), RUtil::Get<TLeaf>(inputTree.get(), "Jet_TrueFlavour"));
+                std::function<float(const int&)> bW = [=, bPt = std::move(bPt)](const int& entry) mutable {
+                return Weighter::GetBJetWeight(entry, effB, effC, effLight, bPt, jetPt, jetEta, sf, partonFlav);};
+            
+                if(shift == "") bWeight = bW;
+                else{
+                    if(shift == "Up") bWeightUp = bW;
+                    else bWeightDown = bW;
+                }
             }
         }
     }
 }
 
 int Weighter::GetNWeights(){return sf.size() + bool(bWeight);}
-
-double Weighter::GetNGen(){return nGen;}
 
 double Weighter::GetBaseWeight(const std::size_t& entry, const std::string& sysShift){
     if(isData) return 1.;
@@ -168,26 +170,27 @@ double Weighter::GetBaseWeight(const std::size_t& entry, const std::string& sysS
     if(pileUpWeight){
         std::shared_ptr<TH1F>& pileUp = sysShift == "" ? pileUpWeight : sysShift == "Up" ? pileUpWeightUp : pileUpWeightDown;
 
-        std::size_t bin = RUtil::GetEntry<short>(RUtil::Get<TLeaf>(inputTree.get(), "Misc_TrueInteraction"), entry);
+        std::size_t bin = RUtil::GetEntry<short>(RUtil::Get<TLeaf>(inputTree.get(), "Weight_nTrueInt"), entry);
         puWeight = pileUp->GetBinContent(pileUpWeight->FindBin(bin));
     }
 
-    if(nPartons != nullptr){
+   /* if(nPartons != nullptr){
         short n = RUtil::GetEntry<short>(nPartons, entry);
 
         stitchWeight = stitchedWeights.at(n);
-    }
+    } */
 
     return this->baseWeight*puWeight*stitchWeight;
 }
 
 double Weighter::GetPartWeight(const std::size_t& entry, const std::string& syst, const std::string& sysShift){
     if(isData) return 1.;
+
     double partWeight = 1.;
 
     int systIdx;
 
-    if(syst == "" or syst == "PileUp") systIdx = -1;
+    if(syst == "Nominal" or syst == "PileUp") systIdx = -1;
     else if(syst == "BJet") systIdx = -2;
     else{
         try{
@@ -204,7 +207,7 @@ double Weighter::GetPartWeight(const std::size_t& entry, const std::string& syst
         scale.Reset();
 
         while(true){
-            float weight = scale.Get();
+            float weight = scale.Get(entry);
             scale.Next();
 
             if(weight != -999.) partWeight *= weight != 0 ? weight : 1.;
@@ -212,10 +215,12 @@ double Weighter::GetPartWeight(const std::size_t& entry, const std::string& syst
         }   
     }
 
-    if(bWeight){
-        std::function<float(const int&)>& bScale = systIdx != -2 ? bWeight : sysShift == "Up" ? bWeightUp : bWeightDown;
-
-        partWeight *= bScale(entry);
+    if(bWeight or bWeightUp or bWeightDown){
+        if(systIdx != -2) partWeight *= bWeight(entry);
+        else{
+            if(sysShift == "Up") partWeight *= bWeightUp(entry);
+            else partWeight *= bWeightDown(entry);
+        }
     }
 
     return partWeight;

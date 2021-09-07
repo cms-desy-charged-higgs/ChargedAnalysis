@@ -25,6 +25,7 @@ class Weighter{
     private:
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
+        std::shared_ptr<NCache> cache;
         int era;
         bool isData;
         double xSec = 1., lumi = 1.;
@@ -37,20 +38,18 @@ class Weighter{
         std::function<float(const int&)> bWeight, bWeightUp, bWeightDown; 
         std::vector<std::string> systematics;
 
-        static double GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour);
+        static double GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour);
 
     public:
         Weighter();
-        Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const int& era = 2017);
+        Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const std::shared_ptr<NCache>& cache = nullptr, const int& era = 2017);
 
         void AddParticle(const std::string& partName, const std::string& wp, const std::experimental::source_location& location = std::experimental::source_location::current());
 
         int GetNWeights();
 
-        double GetNGen();
         double GetBaseWeight(const std::size_t& entry, const std::string& sysShift = "");
         double GetPartWeight(const std::size_t& entry, const std::string& syst = "", const std::string& sysShift = "");
-        double GetPartWeightByIdx(const std::size_t& entry, const int& idx, const std::string& sysShift = "");
         double GetTotalWeight(const std::size_t& entry, const std::string& syst = "", const std::string& sysShift = "");
 };
 

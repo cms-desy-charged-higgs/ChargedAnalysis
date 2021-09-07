@@ -13,10 +13,10 @@ HistMaker::HistMaker(const std::vector<std::string>& parameters, const std::vect
     promptRateFile(promptRateFile),
     era(era){}
 
-void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, const std::experimental::source_location& location){
+void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, std::shared_ptr<NCache> cache, const std::experimental::source_location& location){
     Decoder parser;
     bool isData = !RUtil::BranchExists(inTree.get(), "Electron_GenID");
-    
+
     for(unsigned int i = 0; i < regions.size(); ++i){
         std::string region = regions[i];
 
@@ -62,14 +62,14 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
 
                 //Histograms for other parameters
                 for(const std::string& parameter: parameters){
-                    if(StrUtil::Find(parameter, "h:").empty()) throw std::runtime_error(StrUtil::PrettyError(location, "Missing key 'h:' in parameter '", parameter, "'!"));                       
+                    if(StrUtil::Find(parameter, "h:").empty()) throw std::runtime_error(StrUtil::PrettyError(location, "Missing key 'h:' in parameter '", parameter, "'!"));
 
                     //Functor structure and arguments
-                    NTupleReader paramX(inputTree, era), paramY(inputTree, era);
+                    NTupleReader paramX(inputTree, era, cache), paramY(inputTree, era, cache);
             
                     //Read in everything, orders matter
                     if(!StrUtil::Find(parameter, "n=N").empty() and scaleSyst == "Nominal" and i == 0){
-                        Weighter w(inFile, inTree, era);
+                        Weighter w(inFile, inTree, cache, era);
                         parser.GetParticle(parameter, w);
                         histPartWeight[hist1DFunctions.size()] = w;
                     }
@@ -144,7 +144,7 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
 
         for(const std::string& cutString: cutStrings[region]){
             //Functor structure and arguments
-            NTupleReader cut(inputTree, era);
+            NTupleReader cut(inputTree, era, cache);
             
             try{
                 parser.GetParticle(cutString, cut);
@@ -159,7 +159,7 @@ void HistMaker::PrepareHists(const std::shared_ptr<TFile>& inFile, const std::sh
             }
 
             if(!StrUtil::Find(cutString, "n=N").empty()){
-                Weighter w(inFile, inTree, era);
+                Weighter w(inFile, inTree, cache, era);
                 parser.GetParticle(cutString, w);
                 cutPartWeight[cutFunctions.size()] = w;
             }
@@ -178,8 +178,11 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     //Get input tree
     inputFile = RUtil::Open(fileName);
     inputTree = RUtil::GetSmart<TTree>(inputFile.get(), channel);
+    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
 
-    baseWeight = Weighter(inputFile, inputTree, era);
+    std::cout << cache << std::endl;
+    
+    baseWeight = Weighter(inputFile, inputTree, cache, era);
 
     std::cout << "Read file: '" << fileName << "'" << std::endl;
     std::cout << "Read tree '" << channel << "'" << std::endl;
@@ -189,7 +192,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     TH1::SetDefaultSumw2();
 
     //Open output file and set up all histograms/tree and their function to call
-    PrepareHists(inputFile, inputTree);
+    PrepareHists(inputFile, inputTree, cache);
 
     std::cout << "----------------------------------" << std::endl; 
 
@@ -229,7 +232,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     //Prepare QCD estimatation if wished
     std::shared_ptr<TFile> fFile, pFile;
     std::shared_ptr<TH2F> promptRate, fakeRate;
-    NTupleReader lPt(inputTree, era), lEta(inputTree, era);
+    NTupleReader lPt(inputTree, era, cache), lEta(inputTree, era, cache);
     float fRate, pRate, wLoose = 1., wTight = 1.;
     std::function<float(float&, float&)> f1 = [&](float& f, float& p){return (f*p)/(p-f);};
 
@@ -254,9 +257,13 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
     }
     
     //Cutflow/Event count histogram
-    std::shared_ptr<TH1F> cutflow = RUtil::CloneSmart(RUtil::Get<TH1F>(inputFile.get(), "Cutflow_" + channel));
-    cutflow->SetName("cutflow"); cutflow->SetTitle("cutflow");
-  //  cutflow->Scale(1./weight.GetNGen());
+ 
+    std::vector<std::shared_ptr<TH1F>> cutflows;
+
+    for(unsigned int region = 0; region < regions.size(); ++region){
+        cutflows.push_back(RUtil::CloneSmart(RUtil::Get<TH1F>(inputFile.get(), "Cutflow_" + channel)));
+        cutflows.back()->SetName("cutflow"); cutflows.back()->SetTitle("cutflow");
+    }
 
     StopWatch timer; 
     timer.Start();
@@ -278,8 +285,8 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             ++nTimeMarks;
         }
 
-        //Set Entry
-        NTupleReader::SetEntry(entry);
+        //Clear cache
+        cache->clear();
 
         //Check if event passed all cuts
         allFailed = true;
@@ -288,9 +295,10 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
             passed[region] = true;
 
             for(unsigned int j = region == 0 ? 0 : cutIdxRange[region-1]; j < cutIdxRange[region]; ++j){
-                passed[region] = passed[region] and cutFunctions.at(j).GetPassed();
+                passed[region] = passed[region] and cutFunctions.at(j).GetPassed(entry);
 
-                if(!passed[region]) break;
+                if(passed[region]) cutflows[region]->Fill(cutFunctions.at(j).GetCutName().c_str(), 1);
+                else break;
             }
 
             allFailed = allFailed and !passed[region];
@@ -299,13 +307,13 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
         if(allFailed) continue;
 
         if(fakeRate){
-            float lpt = lPt.Get();
-            float leta = lEta.Get();
+            float lpt = lPt.Get(entry);
+            float leta = lEta.Get(entry);
 
             fRate = fakeRate->GetBinContent(fakeRate->FindBin(lpt, leta));
             pRate = promptRate->GetBinContent(promptRate->FindBin(lpt, leta));
 
-            if(fRate == 0){
+            if(fRate == 0 or pRate == 0){
                 wLoose = 1.;
                 wTight = 0.;
             }
@@ -318,11 +326,11 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
         
         //Fill histograms
         for(unsigned int j=0; j < hist1DFunctions.size(); ++j){
-            values1D[j] = hist1DFunctions.at(j).Get();
+            values1D[j] = hist1DFunctions.at(j).Get(entry);
         }
 
         for(unsigned int j=0; j < hist2DFunctions.size(); ++j){
-            values2D[j] = {hist2DFunctions[j].first.Get(), hist2DFunctions[j].second.Get()};
+            values2D[j] = {hist2DFunctions[j].first.Get(entry), hist2DFunctions[j].second.Get(entry)};
         }
 
         for(unsigned int syst = 0; syst <= scaleSysts.size(); ++syst){
@@ -339,7 +347,7 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
                         wght[region] *= cutPartWeight.count(j) ? cutPartWeight.at(j).GetPartWeight(entry) : 1.;
                     }
 
-                    if(syst == 0) eventCount[region]->Fill(0., wght[region]);            
+                    if(syst == 0) eventCount[region]->Fill(0., wght[region]);       
 
                     else{
                         if(shift == "Up") eventCountSystUp[syst + region*(scaleSysts.size()+1)]->Fill(0., wght[region]);
@@ -377,13 +385,27 @@ void HistMaker::Produce(const std::string& fileName, const int& eventStart, cons
         }
     }
 
+    for(unsigned int region = 0; region < regions.size(); ++region){
+        cutflows[region]->Scale(baseWeight.GetBaseWeight(0));
+    }
+
     std::cout << "----------------------------------" << std::endl;
 
     for(unsigned int region = 0; region < regions.size(); ++region){
         if(fakeRate and region % 2 != 0) continue;
 
         eventCount[region]->GetDirectory()->cd();
-        eventCount[region]->Write();
+
+        if(fakeRate){
+            std::shared_ptr<TH1F> hist = RUtil::CloneSmart(eventCount[region + 1].get());
+            hist->Add(eventCount[region].get(), -1);
+            hist->Write();
+        }
+
+        else eventCount[region]->Write();
+
+        cutflows[region]->Write();
+
         std::cout << std::endl << "Histograms saved in file '" << eventCount[region]->GetDirectory()->GetName() << "'" << std::endl;
 
         for(std::shared_ptr<TH1F>& hist : eventCountSystUp){

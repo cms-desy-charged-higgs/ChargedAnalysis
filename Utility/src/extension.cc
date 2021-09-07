@@ -31,7 +31,7 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
 
         //Tagger
         torch::Device device(torch::kCPU);
-        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(4, hyperParam->Get("nHidden", 0), hyperParam->Get("nConvFilter", 0), hyperParam->Get("kernelSize", 0), hyperParam->Get("dropOut", 0), device));
+        std::vector<std::shared_ptr<HTagger>> tagger(2, std::make_shared<HTagger>(4, hyperCSV.Get("nHidden", 0), hyperCSV.Get("nConvFilter", 0), hyperCSV.Get("kernelSize", 0), hyperCSV.Get("dropOut", 0), device));
 
         torch::load(tagger[0], StrUtil::Join("/", std::getenv("CHDIR"), "DNN/Tagger/Even", era, "htagger.pt"));
         torch::load(tagger[1], StrUtil::Join("/", std::getenv("CHDIR"), "DNN/Tagger/Odd", era, "htagger.pt"));
@@ -115,29 +115,31 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
+std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TTree>& tree, const std::string& dnnDir, const std::string& hyperParamFile, const int& era){
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
 
     //Take time
-    Utils::RunTime timer;
-    std::shared_ptr<TTree> tree = RUtil::CloneSmart<TTree>(RUtil::Get<TTree>(file.get(), channel));
     int nEntries = tree->GetEntries();
-
-    //Path with DNN infos
-    std::string dnnPath = std::string(std::getenv("CHDIR")) + "/Results/DNN/";  
 
     //Set tree parser and tree functions
     Decoder parser;
     std::vector<NTupleReader> functions;
+    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
     TLeaf* evNr = RUtil::Get<TLeaf>(tree.get(), "Misc_eventNumber");
 
     //Read txt with parameter used in the trainind and set tree function
-    std::ifstream params(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/parameter.txt")); 
-    std::string parameter;
+    std::string paramFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/parameter.csv"); 
+    std::string clsFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/classes.csv"); 
+    std::string massFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/masses.csv"); 
+        
+    CSV paramCSV(paramFile, "r", "\t");
+    CSV clsCSV(clsFile, "r", "\t");
+    CSV massCSV(massFile, "r", "\t");
+    CSV hyperCSV(hyperParamFile, "r", "\t");
 
-    while(getline(params, parameter)){
-        NTupleReader func(tree, era);
+    for(const std::string parameter : paramCSV.GetColumn("Parameter")){
+        NTupleReader func(tree, era, cache);
 
         parser.GetParticle(parameter, func);
         parser.GetFunction(parameter, func);
@@ -145,61 +147,43 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
 
         functions.push_back(func);
     }
-    params.close();
     
     //Get classes
-    std::ifstream clsFile(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/classes.txt")); 
-    std::string cls;
-    
-    std::vector<std::string> classes;
-    
-    while(getline(clsFile, cls)){
-        classes.push_back(cls);
-    }
+    std::vector<std::string> classes = clsCSV.GetColumn("ClassName");
     classes.push_back("HPlus");
-    
-    clsFile.close();
-    
-        //Get classes
-    std::ifstream massFile(StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/masses.txt")); 
-    std::string mass;
-    
-    std::vector<int> masses;
-    
-    while(getline(massFile, mass)){
-        masses.push_back(std::atoi(mass.c_str()));
+
+    //Get classes
+    std::vector<std::pair<int, int>> masses(massCSV.GetNRows());
+
+    for(std::size_t i = 0; i < massCSV.GetNRows(); ++i){
+        masses[i] = {massCSV.Get<int>(i, "ChargedMass"), massCSV.Get<int>(i, "NeutralMass")};
     }
-    massFile.close();
-    
+
     //Define branch names
-    std::vector<std::string> branchNames;
+    std::vector<std::string> branchNames; 
+    std::vector<std::vector<float>> branchValues;
     
-    for(int& mass : masses){
+    for(std::pair<int, int>& m : masses){
         for(std::string& cls : classes){
-            branchNames.push_back(StrUtil::Merge("DNN_", cls, mass));
-            values[branchNames.back()] = std::vector<float>(nEntries, -999.);
+            branchNames.push_back(StrUtil::Join("_", "DNN", cls, m.first, m.second));
+            branchValues.push_back(std::vector<float>(nEntries, -999.));                
         }
-    }
 
-    for(int& mass : masses){
-        branchNames.push_back(StrUtil::Merge("DNN_Class", mass));
-        values[branchNames.back()] = std::vector<float>(nEntries, -999.);
+        branchNames.push_back(StrUtil::Join("_", "DNN_Class", m.first, m.second));
+        branchValues.push_back(std::vector<float>(nEntries, -999.));
     }
-
-    //Frame with optimized hyperparameter
-    std::unique_ptr<Frame> hyperParam = std::make_unique<Frame>(StrUtil::Join("/", dnnPath, "HyperOpt", channel, era, "hyperparameter.csv"));
 
     //Get/load model and set to evaluation mode
     torch::Device device(torch::kCPU);
-    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperParam->Get("n-nodes", 0), hyperParam->Get("n-layers", 0), hyperParam->Get("drop-out", 0), true, classes.size(), device));
+    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperCSV.Get<int>(0, "n-nodes"), hyperCSV.Get<int>(0, "n-layers"), hyperCSV.Get<float>(0, "drop-out"), true, classes.size(), device));
 
     model[0]->eval();
     model[1]->eval();
     
     model[0]->Print();
 
-    torch::load(model[0], StrUtil::Join("/", dnnPath, "Main", channel, era, "Even/model.pt"));
-    torch::load(model[1], StrUtil::Join("/", dnnPath, "Main", channel, era, "Odd/model.pt"));
+    torch::load(model[0], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
+    torch::load(model[1], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
 
     torch::NoGradGuard no_grad;
 
@@ -217,21 +201,20 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
         std::vector<torch::Tensor> evenTensors;
         std::vector<torch::Tensor> oddTensors;
 
-        for(int j = 0; j < batchSize; j++){
+        for(int bRow = 0; bRow < batchSize; bRow++){
             if(*entry % 1000 == 0 and *entry != 0){
-                std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
+                //std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
             }
 
-            NTupleReader::SetEntry(*entry);
-
             //Fill event class with particle content
+            cache->clear();
             std::vector<float> paramValues;
 
             for(int i=0; i < functions.size(); ++i){
-                paramValues.push_back(functions[i].Get());
+                paramValues.push_back(functions[i].Get(*entry));
             }
 
-            if(int(1/RUtil::GetEntry<float>(evNr, *entry)*10e10) % 2 == 0){
+            if(RUtil::GetEntry<int>(evNr, *entry) % 2 == 0){
                 evenTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 evenIndex.push_back(counter);
             }
@@ -246,77 +229,79 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TF
             if(entry == entries.end()) break; 
         }
 
-        for(int i = 0; i < masses.size(); ++i){
+        for(int m = 0; m < masses.size(); ++m){
             //Prediction
             torch::Tensor even, odd; 
             torch::Tensor evenPredict, oddPredict;
 
             if(evenTensors.size() != 0){    
                 even = torch::cat(evenTensors, 0);
-                evenPredict = model[1]->forward(even, masses[i]*torch::ones({evenTensors.size(), 1}), true);
+                evenPredict = model[1]->forward(even, masses[m].first*torch::ones({evenTensors.size(), 1}), masses[m].second*torch::ones({evenTensors.size(), 1}), true);
             }  
 
             if(oddTensors.size() != 0){    
                 odd = torch::cat(oddTensors, 0);
-                oddPredict = model[0]->forward(odd, masses[i]*torch::ones({oddTensors.size(), 1}), true);
+                oddPredict = model[0]->forward(odd, masses[m].first*torch::ones({oddTensors.size(), 1}), masses[m].second*torch::ones({oddTensors.size(), 1}), true);
             }
 
             //Put all predictions back in order again
-            for(int j = 0; j < evenTensors.size(); ++j){
-                for(int k = 0; k < classes.size(); ++k){
-                    values[branchNames[k + i*classes.size()]].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict.index({j, k}).item<float>() : evenPredict[k].item<float>();
+            for(int k = 0; k < classes.size(); ++k){
+                for(int j = 0; j < evenTensors.size(); ++j){
+                    branchValues[k + m*classes.size() + m].at(evenIndex.at(j)) = evenTensors.size() != 1 ? evenPredict.index({j, k}).item<float>() : evenPredict[k].item<float>();
+
+                    branchValues[k + 1 + m*classes.size() + m].at(evenIndex.at(j)) = torch::argmax(evenPredict[j]).item<int>();
                 }
 
-                values[StrUtil::Merge("DNN_Class", masses.at(i))].at(evenIndex.at(j)) = torch::argmax(evenPredict[j]).item<int>();
-            }
+                for(int j = 0; j < oddTensors.size(); ++j){
+                    branchValues[k + m*classes.size() + m].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict.index({j, k}).item<float>() : oddPredict[k].item<float>();
 
-            for(int j = 0; j < oddTensors.size(); ++j){
-                for(int k = 0; k < classes.size(); ++k){
-                    values[branchNames[k + i*classes.size()]].at(oddIndex.at(j)) = oddTensors.size() != 1 ? oddPredict.index({j, k}).item<float>() : oddPredict[k].item<float>();
+                    branchValues[k + 1 + m*classes.size() + m].at(oddIndex.at(j)) = torch::argmax(oddPredict[j]).item<int>();
                 }
-
-                values[StrUtil::Merge("DNN_Class", masses.at(i))].at(oddIndex.at(j)) = torch::argmax(oddPredict[j]).item<int>();
             }
         }
+    }
+
+    for(int b = 0; b < branchNames.size(); ++b){
+        values[branchNames[b]] = std::move(branchValues[b]);
     }
 
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel, const int& era){
+std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TTree>& tree, const int& era){
     typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> PolarLV;
     typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
     typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;
 
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
-    std::vector<std::string> branchNames = {"W_Mass", "W_Pt", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Mass", "HPlus_Phi"};
-
-    std::shared_ptr<TTree> tree = RUtil::CloneSmart<TTree>(RUtil::Get<TTree>(file.get(), channel));
+    std::vector<std::string> branchNames = {"W_Mass", "W_Mt", "W_Pt", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Mt", "HPlus_Mass", "HPlus_Phi"};
 
     for(const std::string& branchName: branchNames){
         values[branchName] = std::vector<float>(tree->GetEntries(), -999.);
     }
     
-    std::string lepName = !StrUtil::Find(channel, "Muon").empty() ? "mu" : "e";
-    float lepMass = !StrUtil::Find(channel, "Muon").empty() ? 0.10565: 0.000510;
+    std::string lepName = !StrUtil::Find(tree->GetName(), "Muon").empty() ? "mu" : "e";
+    float lepMass = !StrUtil::Find(tree->GetName(), "Muon").empty() ? 0.10565: 0.000510;
 
-    NTupleReader LepPt(tree, era), LepEta(tree, era), LepPhi(tree, era);
-    LepPt.AddParticle(lepName, 1, "medium"); LepEta.AddParticle(lepName, 1, "medium"); LepPhi.AddParticle(lepName, 1, "medium");
+    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
+
+    NTupleReader LepPt(tree, era, cache), LepEta(tree, era, cache), LepPhi(tree, era, cache);
+    LepPt.AddParticle(lepName, 1, "loose"); LepEta.AddParticle(lepName, 1, "loose"); LepPhi.AddParticle(lepName, 1, "loose");
     LepPt.AddFunction("pt"); LepEta.AddFunction("eta"); LepPhi.AddFunction("phi");
     LepPt.Compile(); LepEta.Compile(); LepPhi.Compile();
 
-    NTupleReader METPt(tree, era), METPhi(tree, era);
+    NTupleReader METPt(tree, era, cache), METPhi(tree, era, cache);
     METPt.AddParticle("met", 0, ""); METPhi.AddParticle("met", 0, "");
     METPt.AddFunction("pt"); METPhi.AddFunction("phi");
     METPt.Compile(); METPhi.Compile();
 
-    NTupleReader JetPt(tree, era), JetEta(tree, era), JetPhi(tree, era), JetMass(tree, era);
+    NTupleReader JetPt(tree, era, cache), JetEta(tree, era, cache), JetPhi(tree, era, cache), JetMass(tree, era, cache);
     JetPt.AddParticle("j", 0, ""); JetEta.AddParticle("j", 0, ""); JetPhi.AddParticle("j", 0, ""); JetMass.AddParticle("j", 0, "");
     JetPt.AddFunction("pt"); JetEta.AddFunction("eta"); JetPhi.AddFunction("phi"); JetMass.AddFunction("m");
     JetPt.Compile(); JetEta.Compile(); JetPhi.Compile(); JetMass.Compile();
 
-    NTupleReader FatJetPt(tree, era), FatJetEta(tree, era), FatJetPhi(tree, era), FatJetMass(tree, era);
+    NTupleReader FatJetPt(tree, era, cache), FatJetEta(tree, era, cache), FatJetPhi(tree, era, cache), FatJetMass(tree, era, cache);
     FatJetPt.AddParticle("fj", 0, ""); FatJetEta.AddParticle("fj", 0, ""); FatJetPhi.AddParticle("fj", 0, ""); FatJetMass.AddParticle("fj", 0, "");
     FatJetPt.AddFunction("pt"); FatJetEta.AddFunction("eta"); FatJetPhi.AddFunction("phi"); FatJetMass.AddFunction("m");
     FatJetPt.Compile(); FatJetEta.Compile(); FatJetPhi.Compile(); FatJetMass.Compile();
@@ -324,15 +309,16 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
     float pXNu, pYNu, pXLep, pYLep, pZLep, mW;
 
     for(int i = 0; i < tree->GetEntries(); ++i){
-        NTupleReader::SetEntry(i);
+        cache->clear();
 
-        PolarLV LepLV(LepPt.Get(), LepEta.Get(), LepPhi.Get(), lepMass);
-        PolarLV W = LepLV + PolarLV(METPt.Get(), 0, METPhi.Get(), 0);
+        PolarLV LepLV(LepPt.Get(i), LepEta.Get(i), LepPhi.Get(i), lepMass);
+        PolarLV W = LepLV + PolarLV(METPt.Get(i), 0, METPhi.Get(i), 0);
 
         if(LepLV.Pt() == -999.) continue;
 
         values["W_Mass"][i] = W.M();
         values["W_Pt"][i] = W.Pt();
+        values["W_Mt"][i] = W.Mt();
         values["W_Phi"][i] = W.Phi();
 
         std::vector<PolarLV> jets;
@@ -342,7 +328,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         FatJetPt.Reset(); FatJetEta.Reset(); FatJetPhi.Reset(); FatJetMass.Reset();
 
         while(true){
-            PolarLV jet = PolarLV(JetPt.Get(), JetEta.Get(), JetPhi.Get(), JetMass.Get());
+            PolarLV jet = PolarLV(JetPt.Get(i), JetEta.Get(i), JetPhi.Get(i), JetMass.Get(i));
 
             if(jet.Pt() != -999.){
                 jets.push_back(jet);
@@ -353,7 +339,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         }
 
         while(true){
-            PolarLV fatJet = PolarLV(FatJetPt.Get(), FatJetEta.Get(), FatJetPhi.Get(), FatJetMass.Get());
+            PolarLV fatJet = PolarLV(FatJetPt.Get(i), FatJetEta.Get(i), FatJetPhi.Get(i), FatJetMass.Get(i));
 
             if(fatJet.Pt() != -999.){
                 fatJets.push_back(fatJet);
@@ -415,7 +401,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         PolarLV Hc1 = hCands[0].first + W;
         PolarLV Hc2 = hCands[0].second + W;
 
-        if(ROOT::Math::VectorUtil::DeltaPhi(hCands[0].first, Hc1) < ROOT::Math::VectorUtil::DeltaPhi(hCands[0].second, Hc2)){
+        if(ROOT::Math::VectorUtil::DeltaPhi(hCands[0].first, W) < ROOT::Math::VectorUtil::DeltaPhi(hCands[0].second, W)){
             values["H1_Pt"][i] = hCands[0].first.Pt();
             values["H1_Eta"][i] = hCands[0].first.Eta();
             values["H1_Phi"][i] = hCands[0].first.Phi();
@@ -427,6 +413,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
             values["HPlus_Mass"][i] = Hc1.M();
             values["HPlus_Pt"][i] = Hc1.Pt();
             values["HPlus_Phi"][i] = Hc1.Phi();
+            values["HPlus_Mt"][i] = Hc1.Mt();
         }
 
         else{
@@ -441,6 +428,7 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
             values["HPlus_Mass"][i] = Hc2.M();
             values["HPlus_Phi"][i] = Hc2.Phi();
             values["HPlus_Pt"][i] = Hc2.Pt();
+            values["HPlus_Mt"][i] = Hc2.Mt();
         }
     }
 

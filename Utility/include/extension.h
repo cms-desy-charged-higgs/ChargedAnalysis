@@ -20,11 +20,10 @@
 #include <Math/GenVector/PtEtaPhiM4D.h>
 #include <Math/GenVector/PxPyPzE4D.h>
 
-#include <ChargedAnalysis/Utility/include/utils.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Analysis/include/ntuplereader.h>
 #include <ChargedAnalysis/Analysis/include/decoder.h>
-#include <ChargedAnalysis/Utility/include/frame.h>
+#include <ChargedAnalysis/Utility/include/csv.h>
 #include <ChargedAnalysis/Network/include/dnnmodel.h>
 #include <ChargedAnalysis/Network/include/htagger.h>
 #include <ChargedAnalysis/Network/include/htagdataset.h>
@@ -35,8 +34,8 @@
 
 namespace Extension {
     std::map<std::string, std::vector<float>> HScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
-    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
-    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
+    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TTree>& tree, const std::string& dnnDir, const std::string& hyperParamFile, const int& era);
+    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TTree>& tree, const int& era);
 }
 
 #endif
