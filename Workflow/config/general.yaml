@@ -1,12 +1,16 @@
 run-mode: Local
 
-skim-dir: Skim/Inclusive
+skim-base-dir: Skim/26_8_2021/{C}/{E}
+
+skim-dir: Skim/26_8_2021/{C}/{E}/{P}/{S}
 
 n-events: 100000
 
+web-dir: WebPlotting/Plots
+
 shape-systs:
     all:
-        - ""
+        - Nominal
 
 scale-systs:
     all: []
@@ -18,6 +22,9 @@ y-parameters:
     all: []
 
 data:
+    EleIncl: 
+        - SingleE
+
     Ele4J: 
         - SingleE
 
@@ -27,6 +34,9 @@ data:
     Ele2FJ: 
         - SingleE
 
+    MuonIncl: 
+        - SingleMu
+
     Muon4J: 
         - SingleMu
 
@@ -35,11 +45,3 @@ data:
 
     Muon2FJ: 
         - SingleMu
-
-clean-jet:
-    Ele4J: e/m
-    Ele2J1FJ: e/m
-    Ele2FJ: e/m
-    Muon4J: mu/m
-    Muon2J1FJ: mu/m
-    Muon2FJ: mu/m
