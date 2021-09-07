@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CURRENTDIR=$PWD
+
 ##Reset some variables
 export PATH="$(getconf PATH)"
 export LD_LIBRARY_PATH=""
@@ -31,7 +33,7 @@ case $1 in
 
         alias scramb="scram b -j 20"
 
-        cd $CHDIR
+        cd $CURRENTDIR
         ;;
             
     "Analysis")
