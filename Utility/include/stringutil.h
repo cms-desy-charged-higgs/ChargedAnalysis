@@ -43,7 +43,7 @@ namespace StrUtil{
         std::stringstream item;
         item << itemToFind;
 
-        int pos = string.find(item.str());
+        std::size_t pos = string.find(item.str());
         
         while(pos != std::string::npos){   
             position.push_back(pos);
@@ -138,23 +138,36 @@ namespace StrUtil{
     * @param label Delimiter string to search for
     * @return Vector with splitted string
     */
-    template <Streamable Label>
-    std::vector<std::string> Split(const std::string& toSplit, const Label& label){
-        std::vector<std::string> splittedString;        
+    template <typename T = std::string>
+    std::vector<T> Split(const std::string& toSplit, const std::string& label){
+        std::vector<int> positions = Find(toSplit, label);
+        std::vector<T> splittedString(positions.size() + 1, T());      
 
-        std::vector<int> positions = StrUtil::Find(toSplit, label);
+        if(positions.size() == 0) return splittedString;
 
-        if(!positions.empty()){
-            splittedString.push_back(toSplit.substr(0, positions[0]));
+        for(std::size_t pos = 0; pos < positions.size() + 1; ++pos){
+            T split;
+            std::stringstream splitStr;
 
-            std::vector<std::string> newSplitted = StrUtil::Split(toSplit.substr(positions[0] + 1), label);
-            splittedString.insert(splittedString.end(), newSplitted.begin(), newSplitted.end());
+            if(pos == 0){
+                splitStr << toSplit.substr(0, positions[pos]);
+                splitStr >> split;
+                splittedString[pos] = split;
+            }
+            
+            else if(pos == positions.size()){
+                splitStr << toSplit.substr(positions.back() + 1);
+                splitStr >> split;
+                splittedString[pos] = split;    
+            }
+            
+            else{
+                splitStr << toSplit.substr(positions[pos - 1] + 1, positions[pos] - positions[pos - 1] - 1);
+                splitStr >> split;
+                splittedString[pos] = split;    
+            }
         }
-
-        else{
-            splittedString.push_back(toSplit);
-        }
-
+        
         return splittedString;
     }
 
