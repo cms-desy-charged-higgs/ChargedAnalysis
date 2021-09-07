@@ -17,7 +17,7 @@ DNNModel::DNNModel(const int& nInput, const int& nNodes, const int& nHidden, con
     inNormLayer = register_module("Input norm layer", torch::nn::BatchNorm1d(nInput));
     inNormLayer->pretty_print(modelSummary); modelSummary << "\n";
 
-    inputLayer = register_module("Input layer", torch::nn::Linear(nInput+isParametrized, nNodes));
+    inputLayer = register_module("Input layer", torch::nn::Linear(nInput + 2*isParametrized, nNodes));
     inputLayer->pretty_print(modelSummary); modelSummary << "\n";
 
     reluInLayer = register_module("Input ReLU layer", torch::nn::ReLU());
@@ -71,10 +71,10 @@ int DNNModel::GetNWeights(){
     return nWeights;
 }
 
-torch::Tensor DNNModel::forward(torch::Tensor input, torch::Tensor masses, const bool& predict){
+torch::Tensor DNNModel::forward(const torch::Tensor& input, const torch::Tensor& chargedMasses, const torch::Tensor& neutralMasses, const bool& predict){
     //Normalize input without mass and merge with mass if mass parametrized
     torch::Tensor z = inNormLayer->forward(input);
-    if(isParametrized) z = torch::cat({z, masses.to(torch::kFloat)/1000.}, 1);
+    if(isParametrized) z = torch::cat({z, chargedMasses.to(torch::kFloat)/1000., neutralMasses.to(torch::kFloat)/1000.}, 1);
 
     //Input layer
     z = inputLayer->forward(z);

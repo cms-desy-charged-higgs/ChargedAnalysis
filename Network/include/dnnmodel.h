@@ -31,7 +31,7 @@ struct DNNModel : torch::nn::Module{
         
     public:
         DNNModel(const int& nInput, const int& nNodes, const int& nHidden, const float& dropOut, const bool& isParametrized, const int& nClasses, torch::Device& device);
-        torch::Tensor forward(torch::Tensor input, torch::Tensor masses, const bool& predict = false);
+        torch::Tensor forward(const torch::Tensor& input, const torch::Tensor& chargedMasses, const torch::Tensor& neutralMasses, const bool& predict = false);
         void Print();
         int GetNWeights();
 };
