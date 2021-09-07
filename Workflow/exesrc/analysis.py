@@ -14,12 +14,14 @@ from collections import defaultdict as dd
 
 def parser():
     parser = argparse.ArgumentParser(description = "Script to handle and execute analysis tasks", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Slim", "Merge", "Estimate", "Stitch", "Fakerate"])
+    parser.add_argument("--task", type=str, choices = ["Plot", "HTagger", "Append", "Limit", "DNN", "Index", "Merge", "Estimate", "Stitch", "Fakerate", "NanoSkim"])
     parser.add_argument("--config", type=str)
     parser.add_argument("--era", nargs='+', default = [""])
     parser.add_argument('--dry-run', default=False, action='store_true')
     parser.add_argument("--run-again", type=str)
     parser.add_argument("--long-condor", default=False, action='store_true')
+    parser.add_argument("--global-mode", type=str, default = "")
+    parser.add_argument("--n-cores", default=None, type=int)
 
     return parser.parse_args()
 
@@ -27,17 +29,34 @@ def taskReturner(taskName, config):
     tasks = {
         "Append": lambda : append(config),
         "HTagger": lambda : htagger(config),
+        "Index": lambda : index(config),
         "DNN": lambda : dnn(config),
         "Plot": lambda : plot(config),
         "Limit": lambda : limit(config),
-        "Slim": lambda : slim(config),
         "Merge": lambda: mergeskim(config),
         "Estimate": lambda : estimate(config),
         "Stitch": lambda: stitch(config),
         "Fakerate": lambda: calcFR(config),
+        "NanoSkim": lambda : nanoskim(config),
     }
 
     return tasks[taskName]
+
+def index(config):
+    tasks = []
+
+    for channel in config["channels"]:
+        for era in config["era"]:
+            processes = sorted(config["processes"] + config.get("data", {}).get(channel, []))
+            shapeSysts = config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, [])
+
+            for process in processes:
+                for syst in shapeSysts:
+                    for shift in ["Up", "Down"]:
+                        treeIndex(tasks, config, channel, era, process, syst, shift)
+                        mergeCSV(tasks, config, channel, era, process, syst, shift)
+
+    return tasks
 
 def plot(config):
     tasks = []
@@ -75,21 +94,13 @@ def mergeskim(config):
 
     for channel in config["channels"]:
         for era in config["era"]:
-            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+            for syst in config["systematics"]:
                 for shift in ["Up", "Down"]:
-                    mergeSkim(tasks, config, channel, era, syst, shift)
+                    if config.get("is-nano", True):
+                        mergeNanoSkim(tasks, config, channel, era, syst, shift)
 
-    return tasks
-
-def slim(config):
-    tasks = []
-
-    for outChannel, inChannel in config["channels"].items():
-        for era in config["era"]:
-            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(inChannel, []):
-                for shift in ["Up", "Down"]:
-                    treeslim(tasks, config, inChannel, outChannel, era, syst, shift)
-                    mergeFiles(tasks, config, inChannel, outChannel, era, syst, shift)
+                    else:
+                        mergeSkim(tasks, config, channel, era, syst, shift)
 
     return tasks
 
@@ -99,8 +110,6 @@ def dnn(config):
     for channel in config["channels"]:
         for era in config["era"]:
             for evType in ["Even", "Odd"]:
-                c = copy.deepcopy(config)
-
                 DNN(tasks, config, channel, era, evType)
 
     return tasks
@@ -161,7 +170,7 @@ def stitch(config):
 
     for channel in config["channels"]:
         for era in config["era"]:
-            for syst in config["shape-systs"].get("all", []) + config["shape-systs"].get(channel, []):
+            for syst in config["shape-systs"].get("all", [""]) + config["shape-systs"].get(channel, []):
                 for shift in ["Up", "Down"]:
                     stitching(tasks, config, channel, era, syst, shift)
 
@@ -275,6 +284,14 @@ def calcFR(config):
 
     return tasks
 
+def nanoskim(config):
+    tasks = []
+
+    for era in config["era"]:
+        nanoSkim(tasks, config, era)
+
+    return tasks
+
 def main():
     args = parser()
 
@@ -304,7 +321,7 @@ def main():
         taskDir = "/".join(args.run_again.split("/")[:-1])
 
     ##Run the manager
-    manager = TaskManager(tasks = tasks, existingFlow = args.run_again, dir = taskDir, longCondor = args.long_condor)
+    manager = TaskManager(tasks = tasks, existingFlow = args.run_again, dir = taskDir, longCondor = args.long_condor, globalMode = args.global_mode, nCores = args.n_cores)
     manager.run(args.dry_run)
             
 if __name__=="__main__":
