@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <filesystem>
 
 #include <TFile.h>
 #include <TParameter.h>
@@ -42,6 +43,7 @@ int main(int argc, char* argv[]){
         std::shared_ptr<TFile> file = RUtil::Open(fileName);
 
         std::string tmpName = fileName.substr(0, StrUtil::Find(fileName, "/").back()) + "/tmp.root";
+        std::filesystem::remove_all(tmpName);
         std::shared_ptr<TFile> tmpFile = std::make_shared<TFile>(tmpName.c_str(), "RECREATE");
 
         for(TObject* key : *(file->GetListOfKeys())){
