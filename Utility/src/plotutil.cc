@@ -248,6 +248,49 @@ float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector
     return accuracy;
 }
 
+float PUtil::DrawLoss(const std::string outDir, const std::vector<float>& epoch, const std::vector<float>& trainLoss, const std::vector<float>& valLoss, const std::vector<float>& accuracy){
+    std::shared_ptr<TGraph> vLoss = std::make_shared<TGraph>(epoch.size(), epoch.data(), valLoss.data());
+    std::shared_ptr<TGraph> tLoss = std::make_shared<TGraph>(epoch.size(), epoch.data(), trainLoss.data());
+    std::shared_ptr<TGraph> acc = std::make_shared<TGraph>(epoch.size(), epoch.data(), accuracy.data());
+
+    vLoss->SetLineWidth(5);
+    vLoss->SetLineColor(kBlue);
+
+    tLoss->SetLineWidth(5);
+    tLoss->SetLineColor(kViolet);
+
+    acc->SetLineWidth(5);
+    acc->SetLineColor(kBlack);
+
+    std::shared_ptr<TLegend> l = std::make_shared<TLegend>(0., 0., 1, 1);
+    l->AddEntry(vLoss.get(), "Validation", "L");
+    l->AddEntry(tLoss.get(), "Train", "L");
+
+    std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("c", "c", 1000, 1000);
+    PUtil::SetStyle();
+    PUtil::SetPad(canvas.get());
+    PUtil::SetHist(canvas.get(), vLoss->GetHistogram(), "");
+    vLoss->GetHistogram()->GetXaxis()->SetTitle("Epoch");
+    vLoss->GetHistogram()->GetYaxis()->SetTitle("Loss");
+
+    vLoss->Draw("AL");
+    tLoss->Draw("L SAME");
+
+    PUtil::DrawLegend(canvas.get(), l.get(), 3);
+
+    canvas->SaveAs((outDir + "/loss.pdf").c_str());
+
+    canvas->Clear();
+    PUtil::SetHist(canvas.get(), acc->GetHistogram(), "");
+    acc->GetHistogram()->GetXaxis()->SetTitle("Epoch");
+    acc->GetHistogram()->GetYaxis()->SetTitle("Accuracy");
+    acc->Draw("AL");
+
+    canvas->SaveAs((outDir + "/accuracy.pdf").c_str());
+
+    return 1.;
+}
+
 std::string PUtil::GetChannelTitle(const std::string& channel){
     std::map<std::string, std::string> channelTitle = {
         {"EleIncl", "e incl."},
@@ -265,7 +308,8 @@ std::string PUtil::GetChannelTitle(const std::string& channel){
 
 std::string PUtil::GetLumiTitle(const std::string& lumi){
     std::map<std::string, std::string> lumiTitle = {
-        {"2016", "35.92 fb^{-1} (2016, 13 TeV)"}, 
+        {"2016Pre", "19.52 fb^{-1} (2016 pre-VFP, 13 TeV)"}, 
+        {"2016Post", "16.81 fb^{-1} (2016 post-VFP, 13 TeV)"}, 
         {"2017", "41.53 fb^{-1} (2017, 13 TeV)"}, 
         {"2018", "59.74 fb^{-1} (2018, 13 TeV)"},
         {"RunII", "137.19 fb^{-1} (RunII, 13 TeV)"},
