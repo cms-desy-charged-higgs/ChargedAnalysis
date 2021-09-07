@@ -4,7 +4,7 @@ import signal
 import copy
 import traceback
 import subprocess
-import csv
+import pandas as pd
 import json
 import yaml
 import multiprocessing as mp
@@ -14,15 +14,22 @@ from taskmonitor import TaskMonitor
 from task import Task
 
 class TaskManager(object):
-    def __init__(self, tasks = [], existingFlow = "", dir = "", condorSub = "$CHDIR/ChargedAnalysis/Workflow/templates/tasks.sub", html = "$CHDIR/ChargedAnalysis/Workflow/templates/workflow.html", longCondor = False):
+    def __init__(self, tasks = [], existingFlow = "", dir = "", condorSub = "$CHDIR/ChargedAnalysis/Workflow/templates/tasks.sub", longCondor = False, nCores = None, globalMode = ""):
         self.time = time.time()
 
         ##Read in tasks or create from given csv summary file of other workflow
         dirs, self._tasks = [], {}
+
+        ##Write summary to csv file
+        self.summary = pd.DataFrame({"Status": [], "Name": [], "Dir": []})
         
         for t in tasks:
+            if globalMode != "":
+                t["run-mode"] = globalMode           
+
             self._tasks[t["name"]] = t
             dirs.append(t["dir"])
+            self.summary = self.summary.append({"Status": t["status"], "Dir": t["dir"], "Name": t["name"]}, ignore_index = True)
             
         self._taskNames = {}
         self.nTasks, self.preFinished = 0, 0
@@ -35,7 +42,8 @@ class TaskManager(object):
         os.makedirs(self.dir, exist_ok = True)
 
         ##Stuff for job starter function
-        self.pool = mp.Pool(processes=mp.cpu_count(), initializer = lambda : signal.signal(signal.SIGINT, signal.SIG_IGN))
+        self.nCores = nCores if nCores else mp.cpu_count()
+        self.pool = mp.Pool(processes=self.nCores, initializer = lambda : signal.signal(signal.SIGINT, signal.SIG_IGN))
         self.condorSubmit = "condor_submit {} -batch-name TaskManager".format(condorSub) + (" -append '+RequestRuntime = 86400' " if longCondor else "") + " -queue DIR in "
 
         if tasks:
@@ -45,68 +53,32 @@ class TaskManager(object):
             if len(self._tasks) != len(dirs):
                 raise RuntimeError("Each task has to have an unique directory!")
 
-            ##Write summary to csv file
-            self.summary = csv.DictWriter(open("{}/summary.csv".format(self.dir), "w"), delimiter = "\t", fieldnames = ["Status", "Task", "Dir"])
-            self.summary.writeheader()
-
             self.nTasks = len(self._tasks)
         
         elif existingFlow:
-            oldFlow = "/tmp/summary.csv"
-            subprocess.run("cp {} /tmp/summary.csv".format(existingFlow), shell = True)
-
             ##Write summary to csv file
-            self.summary = csv.DictWriter(open("{}/summary.csv".format(self.dir), "w"), delimiter = "\t", fieldnames = ["Status", "Task", "Dir"])
-            self.summary.writeheader()
+            self.summary = pd.read_csv(existingFlow, sep = "\t")
 
-            with open(oldFlow, "r") as flow:
-                summary = csv.reader(flow, delimiter = "\t")
-                next(summary, None)
-
-                for (taskStatus, taskName, taskDir) in summary:
+            for idx, tIter in self.summary.iterrows():
+                if tIter["Status"] != "Finished":
                     self.nTasks += 1
 
-                    with open("{}/task.yaml".format(taskDir)) as taskConfig:
+                    with open("{}/task.yaml".format(tIter["Dir"])) as taskConfig:
                         t = yaml.safe_load(taskConfig)
                         task = Task(t)
 
-                        ##If task already finished from previous execution just continue
-                        if taskStatus == "Finished":
-                            self.preFinished += 1
-                            self.__changeStatus(task, "Finished", task["run-mode"])
+                        task["status"] = "None"
 
-                        else:
-                            self._tasks[taskName] = task
+                        if globalMode != "":
+                            task["run-mode"] = globalMode
+
+                        self._tasks[tIter["Name"]] = task
 
         else:
             raise RuntimeError("No tasks will be running! You need to provide a list of tasks or a existing workflow by handing the csv summary!")
 
         ##Monitor displayed
         self.monitor = TaskMonitor(self.nTasks)
-
-        ##Template for workflow.html displaying jobs
-        self.html = html
-        self.htmlTemplate, self.divTemplate = "", ""
-
-        with open(os.path.expandvars(html), "r") as workflow:
-            for line in workflow:
-                if "div class='task'" in line:
-                    self.divTemplate = line
-                    self.htmlTemplate += "{divs}"
-
-                else:
-                    self.htmlTemplate += line
-        
-    def __writeSummary(self):
-        ##Write remaining jobs in case of failure
-        for name, task in self._tasks.items():
-            if task["status"] == "None":
-                task.prepare()
-            self.summary.writerow({"Task": name, "Dir": task["dir"], "Status": task["status"]})
-
-        for mode in self._taskNames.keys():
-            for name, task in self.runningTasks.get(mode, {}).items():
-                self.summary.writerow({"Task": name, "Dir": task["dir"], "Status": task["status"]})            
 
     def __sortTasks(self, dryRun):
         ##Sort tasks by Kahn’s algorithm for topological sorting
@@ -134,10 +106,7 @@ class TaskManager(object):
 
             if not dryRun:
                 next(self.__jobStarter, None)
-                next(self.__jobFinisher, None)
-
-            else:
-                self.summary.writerow({"Task": t["name"], "Dir": t["dir"], "Status": t["status"]})            
+                next(self.__jobFinisher, None)           
 
             for dep in dependencies.get(t["name"], []):
                 idx = self._tasks[dep].idx
@@ -150,29 +119,11 @@ class TaskManager(object):
             counter+=1
            
         if counter != self.nTasks - self.preFinished:
-            raise RuntimeError("There exists a cyclic dependency in your tasks!")   
-
-    def __writeHTML(self):
-        finished = ""
-        running = ""
-
-        ##Loop over all jobs and create div element with template
-        for name, t in self._tasks.items():
-            div = self.divTemplate.format(data = json.dumps(t, separators=(',', ':')), id = name, dependent = ",".join(t["dependencies"]))
-
-            if t["status"] != "Finished":
-                running += div
-
-            else:
-                finished += div
-
-        ##Create workflow html
-        self.htmlTemplate = self.htmlTemplate.replace("{divs}", finished + "{divs}")
-
-        with open("{}/workflow.html".format(self.dir), "w") as workflow:
-            workflow.write(self.htmlTemplate.replace("{divs}", running))
+            raise RuntimeError("There exists a cyclic dependency in your tasks!")
 
     def __changeStatus(self, task, status, runType):
+        self.summary.at[self.summary["Name"][self.summary["Name"] == task["name"]].index[0], "Status"] = status
+
         if task["status"] != "None":
             ##Decrement number of old status
             self.status.setdefault(runType, {}).setdefault(task["status"], 0)
@@ -185,17 +136,10 @@ class TaskManager(object):
         self.status.setdefault(runType, {}).setdefault(status, 0)
         self.status[runType][status] += 1
         task["status"] = status
-
-        ##Write workflow.html
-      #  self.__writeHTML()
-
-        if status == "Finished":
-            self.summary.writerow({"Task": task["name"], "Dir": task["dir"], "Status": status})
         
         ##Break if job failed
         if status == "Failed":
             if task.retries >= 3:
-                self.summary.writerow({"Task": task["name"], "Dir": task["dir"], "Status": status})
                 self.monitor.updateMonitor(time.time() - self.time, self.status)
                 raise RuntimeError("Task '{}' failed! See error message: {}/err.txt".format(task["name"], task["dir"]))
 
@@ -246,7 +190,7 @@ class TaskManager(object):
                     
                 ##Local job configuration
                 if task["run-mode"] == "Local":
-                    if len(self.runningTasks.get("Local", [])) >= mp.cpu_count():
+                    if len(self.runningTasks.get("Local", [])) >= self.nCores:
                         self._taskNames[mode].insert(0, name)
                         self._tasks[name] = task
                         continue
@@ -258,7 +202,7 @@ class TaskManager(object):
                 
                 ##Condor job configuration
                 if task["run-mode"] == "Condor":
-                    if len(self.runningTasks.get("Condor", [])) >= 600:
+                    if len(self.runningTasks.get("Condor", [])) >= 1000:
                         self._taskNames[mode].insert(0, name)
                         self._tasks[name] = task
                         continue
@@ -329,6 +273,7 @@ class TaskManager(object):
             self.__sortTasks(dryRun)
 
             if dryRun:
+                self.summary.to_csv("{}/summary.csv".format(self.dir), index=False, sep="\t")
                 return 0
             
             while(self._tasks or len([t for m in self.runningTasks.keys() for t in self.runningTasks[m]]) != 0):
@@ -336,11 +281,13 @@ class TaskManager(object):
                 next(self.__jobFinisher, None)
                 self.monitor.updateMonitor(time.time() - self.time, self.status)
 
+            self.summary.to_csv("{}/summary.csv".format(self.dir), index=False, sep="\t")
+
         except KeyboardInterrupt:
             self.pool.terminate()
-            self.__writeSummary()
+            self.summary.to_csv("{}/summary.csv".format(self.dir), index=False, sep="\t")
             print("\nKeyboardInterrupt! Taskmanager writing summary...")
 
         except RuntimeError as e:
-            self.__writeSummary()
+            self.summary.to_csv("{}/summary.csv".format(self.dir), index=False, sep="\t")
             print("\n{}: {}\nTaskmanager writing summary...".format(type(e).__name__, str(e)))
