@@ -6,49 +6,42 @@ bool Smaller(const float& v1, const float& v2){return v1 != -999 and v1 <= v2;}
 bool SmallerAbs(const float& v1, const float& v2){return v1 != -999 and std::abs(v1) <= v2;}
 bool Equal(const float& v1, const float& v2){return v1 != -999 and v1 == v2;}
 bool EqualAbs(const float& v1, const float& v2){return v1 != -999 and std::abs(v1) == v2;}
+bool Modulo(const float& v1, const float& v2){return v1 != -999 and int(v1) % 2 == int(v2);}
 
 //Constructor
 NTupleReader::NTupleReader(){}
 
-NTupleReader::NTupleReader(const std::shared_ptr<TTree>& inputTree, const int& era) : inputTree(inputTree), era(era) {
+NTupleReader::NTupleReader(const std::shared_ptr<TTree>& inputTree, const int& era, const std::shared_ptr<NCache>& cache) : inputTree(inputTree), era(era), cache(cache) {
     pt::json_parser::read_json(StrUtil::Merge(std::getenv("CHDIR"), "/ChargedAnalysis/Analysis/data/particle.json"), partInfo);
     pt::json_parser::read_json(StrUtil::Merge(std::getenv("CHDIR"), "/ChargedAnalysis/Analysis/data/function.json"), funcInfo);
 }
 
 //Read out vector like branch at index idx
-float NTupleReader::GetEntry(TLeaf* leaf, const int& idx){
-    if(idx == -1) return RUtil::GetEntry<float>(leaf, entry);
-
-    try{
-        return RUtil::GetVecEntry<float>(leaf, entry).at(idx);
-    }
-
-    catch(...){
-        return -999.;
-    }
+float NTupleReader::GetEntry(TLeaf* leaf, const int& entry, const int& idx){
+    return RUtil::GetEntry<float>(leaf, entry, idx == -1 ? 0 : idx);
 }
 
 //Read out vector like branch at index idx with wished WP
-float NTupleReader::GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<CompiledFunc>>& cuts, const int& idx, const std::size_t& hash){
-    const std::vector<float> data = RUtil::GetVecEntry<float>(leaf, entry);
-    if(idx >= data.size()) return -999.;
-
+float NTupleReader::GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<CompiledFunc>>& cuts, const std::size_t& hash, const std::shared_ptr<NCache>& cache, const int& entry, const int& idx){
     //Check if idx already calculated for this particle
     if(hash != 0){
-        if(idxCache.count(hash) and idxCache.at(hash).count(idx)) return data.at(idxCache.at(hash).at(idx));
+      //  if(cache and cache->count(hash) and cache->at(hash).count(idx)) return RUtil::GetEntry<float>(leaf, entry, cache->at(hash).at(idx));
     }
+
+    int size = RUtil::GetLen(leaf, entry);
+    if(idx >= size) return -999.;
 
     int wpIdx = -1, counter = -1;
 
     //Loop over all entries in collection
-    for(std::size_t i = 0; i < data.size(); ++i){
+    for(std::size_t i = 0; i < size; ++i){
         bool passed = true;
 
         //Check if all id cuts are passed
         for(std::shared_ptr<CompiledFunc>& cut : cuts){
             if(i == 0) cut->Reset();
 
-            if(passed) passed = passed && cut->GetPassed();
+            if(passed) passed = passed && cut->GetPassed(entry);
             cut->Next();
         }
 
@@ -61,8 +54,12 @@ float NTupleReader::GetEntryWithWP(TLeaf* leaf, std::vector<std::shared_ptr<Comp
     }
 
     if(wpIdx != -1){
-        idxCache[hash][idx] = wpIdx;
-        return data.at(wpIdx);
+      /*  if(cache){ 
+            if(cache->count(idx)) cache->at(hash)[idx] = wpIdx;
+            else cache->insert({hash, {{idx, wpIdx}}});
+        } */
+
+        return RUtil::GetEntry<float>(leaf, entry, wpIdx);
     }
   
     else return -999.;
@@ -125,6 +122,10 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
 
                 else if(part.get<std::string>("identification." + idName + ".wp.compare") == "<="){
                     cutFunc->AddCut(checkAbs? &SmallerAbs : &Smaller, part.get<float>("identification." + idName + ".wp.value"));
+                }
+
+                else if(part.get<std::string>("identification." + idName + ".wp.compare") == "%"){
+                    cutFunc->AddCut(&Modulo, part.get<float>("identification." + idName + ".wp.value"));
                 }
 
                 else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown cut operator: '", part.get<std::string>("identification." + idName + ".wp.compare"), "'!"));
@@ -226,6 +227,10 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
                     cutFunc->AddCut(&Smaller, part.get<float>("requirements." + fAlias + ".cut"));
                 }
 
+                else if(part.get<std::string>("requirements." + fAlias + ".compare") == "%"){
+                    cutFunc->AddCut(&Modulo, part.get<float>("requirements." + fAlias + ".cut"));
+                }
+
                 else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown cut operator: '", part.get<std::string>("requirements." + fAlias + ".compare"), "'!"));
 
                 cuts.push_back(cutFunc);
@@ -233,18 +238,29 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileBranchReading(pt::ptree& func
         }
 
         //Bind everything together
-        bindedFunc = std::make_shared<CompiledFunc>(&NTupleReader::GetEntryWithWP, RUtil::Get<TLeaf>(inputTree.get(), branchName), cuts, part.get<int>("index"), part.get<std::size_t>("hash"), part.get<int>("index") == -1);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree.get(), branchName);
+        std::size_t hash = part.get<std::size_t>("hash");
+
+        std::function<float(const int&, const int&)> func = [=, cuts = std::move(cuts)](const int& entry, const int& idx) mutable {return GetEntryWithWP(leaf, cuts, hash, cache, entry, idx);};
+
+        bindedFunc = std::make_shared<CompiledFunc>(func, part.get<int>("index"), part.get<int>("index") == -1);
 
     }
 
     //Compile vector like branch
     else if(part.get_optional<int>("index")){
-        bindedFunc = std::make_shared<CompiledFunc>(&NTupleReader::GetEntry, RUtil::Get<TLeaf>(inputTree.get(), branchName), part.get<int>("index"), part.get<int>("index") == -1);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree.get(), branchName);
+        std::function<float(const int&, const int&)> func = [=](const int& entry, const int& idx) mutable {return GetEntry(leaf, entry, idx);};
+
+        bindedFunc = std::make_shared<CompiledFunc>(func, part.get<int>("index"), part.get<int>("index") == -1);
     }
 
     //Compile non-vector like branch
     else{
-        bindedFunc = std::make_shared<CompiledFunc>(&NTupleReader::GetEntry, RUtil::Get<TLeaf>(inputTree.get(), branchName), -1);
+        TLeaf* leaf = RUtil::Get<TLeaf>(inputTree.get(), branchName);
+        std::function<float(const int&, const int&)> func = [=](const int& entry, const int& idx) mutable {return this->GetEntry(leaf, entry, -1);};
+
+        bindedFunc = std::make_shared<CompiledFunc>(func);
     }
 
     return bindedFunc;
@@ -314,7 +330,46 @@ std::shared_ptr<CompiledFunc> NTupleReader::compileCustomFunction(pt::ptree& fun
     }
 
     //Bind all sub function to the wished function
-    bindedFunc = std::make_shared<CompiledCustomFunc>(Properties::properties.at(func.get<std::string>("alias")), subFuncs);
+    std::function<float(const int&, const int&)> f;
+
+    //Register all functions here!
+    if(func.get<std::string>("alias") == "dR"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::dR(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "dphi"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::dPhi(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "N"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::NParticles(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "HT"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::HT(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "dicharge"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::diCharge(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "diM"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::diMass(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "gM"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::isGenMatched(entry, subFuncs);};
+    }
+
+    else if(func.get<std::string>("alias") == "lp"){
+        f = [subFuncs=std::move(subFuncs)](const int& entry, const int& idx) mutable {return Properties::LP(entry, subFuncs);};
+    }
+
+    else{
+        throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Unknown custom function alias '", func.get<std::string>("alias"), "'!")); 
+    }
+
+    bindedFunc = std::make_shared<CompiledFunc>(f);
 
     return bindedFunc;
 }
@@ -368,6 +423,8 @@ void NTupleReader::AddParticle(const std::string& pAlias, const int& idx, const 
         else particle.erase("identification");
   
         particles.push_back(particle);
+
+      //  pt::write_json(std::cout, particles.back());
     }
 
     else throw std::runtime_error(StrUtil::PrettyError(location, "Unknown particle alias: '", pAlias, "'!"));
@@ -399,11 +456,6 @@ void NTupleReader::AddCut(const float& value, const std::string& op, const std::
     function.put("cut-op", op);
     function.put("cut-value", value);
 }
-
-void NTupleReader::AddWeighter(const std::shared_ptr<Weighter>& w, const std::experimental::source_location& location){
-    weight = w;
-}
-
 
 void NTupleReader::Compile(const std::experimental::source_location& location){
     isCompiled = true;
@@ -446,25 +498,24 @@ void NTupleReader::Compile(const std::experimental::source_location& location){
             func->AddCut(&Smaller, function.get<float>("cut-value"));
         }
 
+        else if(function.get<std::string>("cut-op") == "%"){
+            func->AddCut(&Modulo, function.get<float>("cut-value"));
+        }
+
         else throw std::runtime_error(StrUtil::PrettyError(location, "Unknown cut operator: '", function.get<std::string>("cut-op"), "'!"));
 
         function.put("cut-name", StrUtil::Replace("[] [] []", "[]", function.get<std::string>("axis-name"), function.get<std::string>("cut-op"), function.get<std::string>("cut-value")));
     }
 }
 
-float NTupleReader::Get(){
-    if(isCompiled) return func->Get();
+float NTupleReader::Get(const int& entry){
+    if(isCompiled) return func->Get(entry);
     else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Use the 'Compile' function before calling the 'Get' function!"));
 }
 
-bool NTupleReader::GetPassed(){
-    if(isCompiled) return func->GetPassed();
+bool NTupleReader::GetPassed(const int& entry){
+    if(isCompiled) return func->GetPassed(entry);
     else throw std::runtime_error(StrUtil::PrettyError(std::experimental::source_location::current(), "Use the 'Compile' function before calling the 'GetPassed' function!"));
-}
-
-double NTupleReader::GetWeight(){
-    if(weight) return weight->GetPartWeight(entry);
-    else return 1.;
 }
 
 std::string NTupleReader::GetHistName(){
@@ -489,14 +540,14 @@ void NTupleReader::Reset(){func->Reset();}
 
 ////// Custom functions of Properties namespace used by the NTupleReader
 
-float Properties::HT(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+float Properties::HT(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
     float sum = 0.;
 
     for(std::shared_ptr<CompiledFunc>& func : VUtil::MapValues(funcs)){
         func->Reset();
 
         while(true){
-            const float& value = func->Get();
+            const float& value = func->Get(entry);
             if(value == -999.) break;
 
             func->Next();
@@ -507,25 +558,32 @@ float Properties::HT(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs
     return sum;
 }
 
-float Properties::dR(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
-    return std::sqrt(std::pow(funcs.at("eta_P1")->Get() - funcs.at("eta_P2")->Get(), 2) + std::pow(funcs.at("phi_P1")->Get() - funcs.at("phi_P2")->Get(), 2));
+float Properties::dR(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return std::sqrt(std::pow(funcs.at("eta_P1")->Get(entry) - funcs.at("eta_P2")->Get(entry), 2) + std::pow(funcs.at("phi_P1")->Get(entry) - funcs.at("phi_P2")->Get(entry), 2));
 }
 
-float Properties::dPhi(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
-    return std::acos(std::cos(funcs.at("phi_P1")->Get())*std::cos(funcs.at("phi_P2")->Get()) + std::sin(funcs.at("phi_P1")->Get())*std::sin(funcs.at("phi_P2")->Get()));
+float Properties::dPhi(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return std::acos(std::cos(funcs.at("phi_P1")->Get(entry))*std::cos(funcs.at("phi_P2")->Get(entry)) + std::sin(funcs.at("phi_P1")->Get(entry))*std::sin(funcs.at("phi_P2")->Get(entry)));
 }
 
-float Properties::diCharge(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
-    return funcs.at("charge_P1")->Get() * funcs.at("charge_P2")->Get();
+float Properties::diCharge(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return funcs.at("charge_P1")->Get(entry) * funcs.at("charge_P2")->Get(entry);
 }
 
-float Properties::NParticles(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+float Properties::diMass(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    ROOT::Math::PtEtaPhiMVector p1(funcs.at("pt_P1")->Get(entry), funcs.at("eta_P1")->Get(entry), funcs.at("phi_P1")->Get(entry), 0.);
+    ROOT::Math::PtEtaPhiMVector p2(funcs.at("pt_P2")->Get(entry), funcs.at("eta_P2")->Get(entry), funcs.at("phi_P2")->Get(entry), 0.);
+
+    return (p1 + p2).M();
+}
+
+float Properties::NParticles(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
     int count = 0;
 
     funcs.at("pt_P")->Reset();
 
     while(true){
-        if(funcs.at("pt_P")->Get() != -999.) ++count;
+        if(funcs.at("pt_P")->Get(entry) != -999.) ++count;
         else break;
 
         funcs.at("pt_P")->Next();
@@ -534,27 +592,13 @@ float Properties::NParticles(std::map<std::string, std::shared_ptr<CompiledFunc>
     return count;
 }
 
-float Properties::DAK8C(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
-    int argMax = -1, counter = 0;
-    float max = 0;
-
-    for(std::shared_ptr<CompiledFunc>& func : VUtil::MapValues(funcs)){
-        float score = func->Get();      
-
-        if(score > max){
-            max = score;
-            argMax = counter;
-        }
-
-        ++counter;
-    }
-
-    return argMax;
+float Properties::isGenMatched(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    return funcs.at("gID_P1")->Get(entry) > -20.;
 }
 
-float Properties::LP(std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
-    ROOT::Math::PtEtaPhiMVector l(funcs.at("pt_P1")->Get(), 0, funcs.at("phi_P1")->Get(), 0);
-    ROOT::Math::PtEtaPhiMVector MET(funcs.at("pt_P2")->Get(), 0, funcs.at("phi_P2")->Get(), 0);
+float Properties::LP(const int& entry, std::map<std::string, std::shared_ptr<CompiledFunc>>& funcs){
+    ROOT::Math::PtEtaPhiMVector l(funcs.at("pt_P1")->Get(entry), 0, funcs.at("phi_P1")->Get(entry), 0);
+    ROOT::Math::PtEtaPhiMVector MET(funcs.at("pt_P2")->Get(entry), 0, funcs.at("phi_P2")->Get(entry), 0);
     ROOT::Math::PtEtaPhiMVector W = l + MET;
 
 	float dPhi = l.phi() - W.phi();
