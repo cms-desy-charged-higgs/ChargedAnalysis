@@ -14,17 +14,19 @@ int main(int argc, char *argv[]){
     Parser parser(argc, argv);
 
     std::vector<std::string> processes = parser.GetVector("processes");
-    std::string outFile = parser.GetValue("out-file");
-    std::map<std::pair<std::string, std::string>, std::string> inputFiles; //region, process : filename 
-    std::vector<std::string> regions = {"A", "B", "C", "E", "F", "G", "H"}; 
+    std::vector<std::string> regions = parser.GetVector("regions");
     std::vector<double> binning = parser.GetVector<double>("binning", std::initializer_list<double>());
-    
+    bool onlyTF = parser.GetValue<bool>("only-tf");
+    std::string outFile = parser.GetValue("out-file");
+
+    std::map<std::pair<std::string, std::string>, std::string> inputFiles; //region, process : filename 
+
     for(const std::string region : regions){
         for(const std::string& process : processes){
             inputFiles[{region, process}] = parser.GetValue(StrUtil::Join("-", region, process, "file"));
         }
     }
 
-    QCDEstimator estimator(processes, inputFiles);
-    estimator.Estimate(outFile, binning);
+    QCDEstimator estimator(processes, regions, inputFiles);
+    estimator.Estimate(outFile, binning, onlyTF);
 }
