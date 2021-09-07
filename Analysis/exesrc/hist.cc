@@ -28,8 +28,6 @@ int main(int argc, char* argv[]){
 
     std::string fakeRate = parser.GetValue("fake-rate", "");
     std::string promptRate = parser.GetValue("prompt-rate", "");
-    std::vector<std::string> estimateParams = parser.GetVector("estimate-param", std::initializer_list<std::string>());
-    std::vector<std::string> estimateCuts = parser.GetVector("estimate-cuts", std::initializer_list<std::string>());
 
     std::map<std::string, std::string> outDir;
     std::map<std::string, std::vector<std::string>> cuts, systDirs;
@@ -42,6 +40,6 @@ int main(int argc, char* argv[]){
     }
 
     //Create treereader instance
-    HistMaker h(parameters, regions, cuts, outDir, outFile, channel, systDirs, scaleSysts, estimateParams, estimateCuts, fakeRate, promptRate, era);
+    HistMaker h(parameters, regions, cuts, outDir, outFile, channel, systDirs, scaleSysts, fakeRate, promptRate, era);
     h.Produce(fileName, eventStart, eventEnd, bkgYieldFac, bkgType, bkgYieldFacSyst);
 }
