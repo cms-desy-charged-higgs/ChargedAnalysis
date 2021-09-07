@@ -49,6 +49,8 @@ namespace RUtil{
     
     std::vector<std::string> ListOfContent(TDirectory* f, const std::experimental::source_location& location = std::experimental::source_location::current());
 
+    int GetLen(TLeaf* leaf, const int& entry);
+
     /**
     * @brief Get object from TFile with exception handling
     *
@@ -178,29 +180,12 @@ namespace RUtil{
     * @param entry Entry number
     * @return Return data
     */
+
     template<typename T>
-    const T GetEntry(TLeaf* leaf, const int& entry){
+    const T GetEntry(TLeaf* leaf, const int& entry, const int& idx = 0){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-        return leaf->GetValue();
-    }
-
-    /**
-    * @brief Get vector data from given TLeaf with given entry number
-    *
-    * @param leaf TLeaf to be readed out
-    * @param entry Entry number
-    * @return Return vector data
-    */
-    template<typename T>
-    const std::vector<T> GetVecEntry(TLeaf* leaf, const int& entry){
-        if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
-        std::vector<T> v(leaf->GetLen());
-
-        for(int i = 0; i < v.size(); ++i){
-            v[i] = leaf->GetValue(i);
-        }
-
-        return v;
+        if(idx >= leaf->GetLen()) return -999.;
+        return leaf->GetTypedValue<T>(idx);
     }
 
     template <Hist2D H> 
