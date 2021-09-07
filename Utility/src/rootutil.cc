@@ -37,3 +37,8 @@ std::vector<std::string> RUtil::ListOfContent(TDirectory* f, const std::experime
 
     return content;
 }
+
+int RUtil::GetLen(TLeaf* leaf, const int& entry){
+    if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
+    return leaf->GetLen();
+}
