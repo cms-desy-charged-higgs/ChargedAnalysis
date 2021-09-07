@@ -6,8 +6,6 @@
 #ifndef TREEAPPENDER_H
 #define TREEAPPENDER_H
 
-#include <torch/torch.h>
-
 #include <string>
 #include <vector>
 #include <map>
@@ -17,6 +15,7 @@
 #include <TTree.h>
 #include <TBranch.h>
 
+#include <ChargedAnalysis/Utility/include/parser.h>
 #include <ChargedAnalysis/Utility/include/extension.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 
@@ -48,7 +47,7 @@ class TreeAppender{
         * @brief Function which will execute the appending
         * @param outName Name of ROOT file which contains appended TTree
         */
-        void Append(const std::string& outName);
+        void Append(const std::string& outName, Parser& parser);
 };
 
 #endif

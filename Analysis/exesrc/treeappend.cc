@@ -3,8 +3,6 @@
 
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 
-#include <torch/torch.h>
-
 int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
@@ -15,11 +13,11 @@ int main(int argc, char* argv[]){
     std::vector<std::string> functions = parser.GetVector<std::string>("functions");
 
     std::string dir = fileName.substr(0, StrUtil::Find(fileName, "/").back());
-    std::string tmpFile = dir + "/tmp.root";
+    std::string tmpFile = "tmp.root"; //dir + "/tmp.root";
 
     TreeAppender appender(fileName, treeName, era, functions);
-    appender.Append(tmpFile);
+    appender.Append(tmpFile, parser);
 
-    if(RUtil::Open(tmpFile)) std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
+   // if(RUtil::Open(tmpFile)) std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
 }
 

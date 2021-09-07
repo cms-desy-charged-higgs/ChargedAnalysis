@@ -13,10 +13,7 @@ TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeN
         era(era),
         appendFunctions(appendFunctions){}
 
-void TreeAppender::Append(const std::string& outName){
-    at::set_num_interop_threads(1);
-    at::set_num_threads(1);
-
+void TreeAppender::Append(const std::string& outName, Parser& parser){
     //Get old Tree
     std::shared_ptr<TFile> oldF = RUtil::Open(fileName);
     std::shared_ptr<TTree> oldT = RUtil::GetSmart<TTree>(oldF.get(), treeName);
@@ -30,18 +27,30 @@ void TreeAppender::Append(const std::string& outName){
     std::map<std::string, float> branchValues;
     std::map<std::string, std::vector<float>> values;
 
-    std::map<std::string, std::map<std::string, std::vector<float>>(*)(std::shared_ptr<TFile>&, const std::string&, const int&)> expandFunctions = {
-        {"HTagger", &Extension::HScore}, 
-        {"DNN", &Extension::DNNScore}, 
-        {"HReco", &Extension::HReconstruction}, 
-    };
-
     for(const std::string& function: appendFunctions){
-        for(const std::pair<std::string, std::vector<float>>& funcValues : expandFunctions.at(function)(oldF, treeName, era)){
-            oldT->SetBranchStatus(funcValues.first.c_str(), 0);
+        std::map<std::string, std::vector<float>> funcValues;
 
-            branchNames.push_back(funcValues.first);
-            values[funcValues.first] = funcValues.second;  
+        if(function == "DNN"){
+            std::string dnnDir = parser.GetValue("DNN-base-dir");
+            dnnDir = StrUtil::Replace(dnnDir, "{C}", treeName);
+            dnnDir = StrUtil::Replace(dnnDir, "{E}", era);
+
+            std::string hyperParam = parser.GetValue("DNN-hyper-param-file");
+            hyperParam = StrUtil::Replace(hyperParam, "{C}", treeName);
+            hyperParam = StrUtil::Replace(hyperParam, "{E}", era);
+
+            funcValues = Extension::DNNScore(oldT, dnnDir, hyperParam, era);
+        }
+
+        else if(function == "HReco"){
+            funcValues = Extension::HReconstruction(oldT, era);
+        }
+
+        for(const std::pair<std::string, std::vector<float>>& f : funcValues){
+            oldT->SetBranchStatus(f.first.c_str(), 0);
+
+            branchNames.push_back(f.first);
+            values[f.first] = f.second;  
         }
     }
 
