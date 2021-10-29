@@ -182,7 +182,7 @@ namespace RUtil{
     */
 
     template<typename T>
-    const T GetEntry(TLeaf* leaf, const int& entry, const int& idx = 0){
+    const T GetEntry(TLeaf* leaf, const std::size_t& entry, const std::size_t& idx = 0){
         if(leaf->GetBranch()->GetReadEntry() != entry) leaf->GetBranch()->GetEntry(entry);
         if(idx >= leaf->GetLen()) return -999.;
         return leaf->GetTypedValue<T>(idx);
