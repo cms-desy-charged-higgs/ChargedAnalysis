@@ -9,6 +9,7 @@
 #include <TH2D.h>
 #include <TH1D.h>
 #include <TGraph.h>
+#include <TGraph2D.h>
 #include <TGraphAsymmErrors.h>
 #include <TTree.h>
 #include <TCanvas.h>
@@ -16,6 +17,7 @@
 #include <TPad.h>
 #include <TLeaf.h>
 
+#include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/vectorutil.h>
 #include <ChargedAnalysis/Utility/include/plotutil.h>
@@ -27,14 +29,13 @@ class PlotterLimit : public Plotter{
     private:
         std::vector<std::string> limitFiles;
         std::vector<int> chargedMasses, neutralMasses;
-        std::string channel, era;
+        std::string histDir, channel, era;
 
         std::vector<float> xSecs;
 
-        std::shared_ptr<TH2D> expected;
-        std::shared_ptr<TH2D> theory;
-        std::shared_ptr<TGraphAsymmErrors> sigmaOne;
-        std::shared_ptr<TGraphAsymmErrors> sigmaTwo;
+        std::shared_ptr<TGraph2D> sigmaOneUp2D, sigmaOneDown2D, sigmaTwoUp2D, sigmaTwoDown2D, expected2D, theory2D;
+        std::map<int, std::shared_ptr<TGraph>> expected, theory;
+        std::map<int, std::shared_ptr<TGraphAsymmErrors>> sigmaOne, sigmaTwo;
 
     public:
         PlotterLimit();

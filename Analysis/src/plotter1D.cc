@@ -1,9 +1,8 @@
 #include <ChargedAnalysis/Analysis/include/plotter1D.h>
 
-Plotter1D::Plotter1D() : Plotter(){}
+Plotter1D::Plotter1D(){}
 
 Plotter1D::Plotter1D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::map<std::string, std::vector<std::string>>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::map<std::string, std::vector<std::string>>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string> systematics) :
-    Plotter(), 
     channel(channel), 
     era(era), 
     bkgProcesses(bkgProcesses), 
@@ -31,7 +30,14 @@ void Plotter1D::ConfigureHists(){
 
             std::string systName = syst == "Nominal" ? "Nominal" : StrUtil::Merge(syst, shift);
 
+            //If QCD data driven, there are no syst shifts, so place dummy file
+            if(bkgFiles[systName].size() < bkgProcesses.size()){
+                bkgFiles[systName].insert(bkgFiles[systName].begin() + VUtil::Find<std::string>(bkgProcesses, "QCD").at(0) - 1, "dummy.root");
+            }
+
             for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
+                if(bkgFiles[systName].at(i) == "dummy.root") continue;
+
                 std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[systName].at(i));
 
                 for(std::string& param: parameters){
@@ -40,9 +46,9 @@ void Plotter1D::ConfigureHists(){
                     if(syst == "Nominal"){
                         //Set Style
                         hist->SetFillStyle(1001);
-                        hist->SetFillColor(colors.at(bkgProcesses.at(i)));
-                        hist->SetLineColor(colors.at(bkgProcesses.at(i)));
-                        hist->SetName(bkgProcesses.at(i).c_str());
+                        hist->SetFillColor(PUtil::GetProcColor(bkgProcesses.at(i)));
+                        hist->SetLineColor(PUtil::GetProcColor(bkgProcesses.at(i)));
+                        hist->SetName(PUtil::GetProcTitle(bkgProcesses.at(i)).c_str());
                         hist->SetDirectory(0);
 
                         background[param].push_back(hist);                   
@@ -76,11 +82,9 @@ void Plotter1D::ConfigureHists(){
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), param);
 
                     if(syst == "Nominal"){
-                        std::vector<std::string> s = StrUtil::Split(sigProcesses.at(i), "_");
-
-                        hist->SetLineWidth(1 + 3*signal[param].size());
-                        hist->SetLineColor(kBlack);
-                        hist->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
+                        hist->SetLineWidth(3);
+                        hist->SetLineColor(kBlack + 2*i);
+                        hist->SetName(PUtil::GetProcTitle(sigProcesses.at(i)).c_str());    
                         hist->SetDirectory(0);        
 
                         signal[param].push_back(hist);
@@ -236,7 +240,7 @@ void Plotter1D::Draw(std::vector<std::string> &outdirs){
                 float min = 0., max = 0.;
 
                 for(const std::string& syst : systematics){
-                    if(syst == "") continue;
+                    if(syst == "Nominal") continue;
                     std::string key = syst + param;
 
                     TH1F* relErr = RUtil::Clone(shift == "Up" ? systUp.at(key).get() : systDown.at(key).get());

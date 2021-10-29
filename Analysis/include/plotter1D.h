@@ -14,11 +14,11 @@
 #include <TPad.h>
 #include <Rtypes.h>
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 
-class Plotter1D : public Plotter{
+class Plotter1D {
     private:
         std::map<std::string, std::vector<std::shared_ptr<TH1F>>> background, signal;
         std::map<std::string, std::shared_ptr<TH1F>> data, bkgSum, systUp, systDown;

@@ -20,7 +20,7 @@
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 
-class PlotterPostfit : public Plotter{
+class PlotterPostfit{
     private:
         std::string inFile, sigProcess;
         std::vector<std::string> bkgProcesses;

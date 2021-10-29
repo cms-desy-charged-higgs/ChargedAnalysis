@@ -5,12 +5,11 @@
 #include <TFile.h>
 #include <TH2F.h>
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
+#include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 
-class Plotter2D : public Plotter{
-    
+class Plotter2D {
     private:
         std::map<std::string, std::vector<std::shared_ptr<TH2F>>> background, signal;
         std::map<std::string, std::shared_ptr<TH2F>> data, bkgSum, systUp, systDown;

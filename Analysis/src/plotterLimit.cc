@@ -1,9 +1,8 @@
 #include <ChargedAnalysis/Analysis/include/plotterLimit.h>
 
-PlotterLimit::PlotterLimit() : Plotter(){}
+PlotterLimit::PlotterLimit(){}
 
 PlotterLimit::PlotterLimit(const std::vector<std::string> limitFiles, const std::vector<int>& chargedMasses, const std::vector<int>& neutralMasses, const std::string& channel, const std::string& era, const std::vector<float>& xSecs) : 
-    Plotter(),
     limitFiles(limitFiles),
     chargedMasses(chargedMasses),
     neutralMasses(neutralMasses),
@@ -12,49 +11,61 @@ PlotterLimit::PlotterLimit(const std::vector<std::string> limitFiles, const std:
     xSecs(xSecs){}
 
 void PlotterLimit::ConfigureHists(){
-    expected = std::make_shared<TH2D>(("Ex" + channel).c_str(), ("Ex" + channel).c_str(), chargedMasses.size(), chargedMasses[0] - 50, chargedMasses.back() + 50, neutralMasses.size() + 1, neutralMasses[0] - 5, neutralMasses.back() + 5);
-
-    theory = std::make_shared<TH2D>(("Theo" + channel).c_str(), ("Theo" + channel).c_str(), chargedMasses.size(), chargedMasses[0] - 50, chargedMasses.back() + 50, neutralMasses.size() + 1, neutralMasses[0] - 5, neutralMasses.back() + 5);
+    expected2D = std::make_shared<TGraph2D>();
+    theory2D = std::make_shared<TGraph2D>();
+    sigmaOneUp2D = std::make_shared<TGraph2D>();
+    sigmaOneDown2D = std::make_shared<TGraph2D>();
+    sigmaTwoUp2D = std::make_shared<TGraph2D>();
+    sigmaTwoDown2D = std::make_shared<TGraph2D>();
 
     for(unsigned int i=0; i < chargedMasses.size(); ++i){
-        for(unsigned int j=0; j < neutralMasses.size(); ++j){
-            int mHC = chargedMasses[i], mh = neutralMasses[j];
-            int idx = MUtil::RowMajIdx({chargedMasses.size(), neutralMasses.size()}, {i, j});
+        int mHC = chargedMasses[i], mh = neutralMasses[i];
 
-            std::shared_ptr<TFile> limitFile = RUtil::Open(limitFiles.at(idx));
-            std::shared_ptr<TTree> limitTree = RUtil::GetSmart<TTree>(limitFile.get(), "limit");
+        std::shared_ptr<TFile> limitFile = RUtil::Open(limitFiles.at(i));
+        std::shared_ptr<TTree> limitTree = RUtil::GetSmart<TTree>(limitFile.get(), "limit");
 
-            //Set branch for reading limits
-            std::vector<double> limitValues;
-            TLeaf* limitValue = RUtil::Get<TLeaf>(limitTree.get(), "limit");       
+        //Set branch for reading limits
+        std::vector<double> limitValues;
+        TLeaf* limitValue = RUtil::Get<TLeaf>(limitTree.get(), "limit");       
 
-            //Values
-            for(int k=0; k < 5; k++){
-                limitValues.push_back(RUtil::GetEntry<double>(limitValue, k) * xSecs[idx]);
-            }
-
-            expected->SetBinContent(i+1, j+1, limitValues[2]);    
-            theory->SetBinContent(i+1, j+1, xSecs[idx]);
-
-            if(i == 0 and j == 0){
-                sigmaOne = std::make_shared<TGraphAsymmErrors>();
-                sigmaTwo = std::make_shared<TGraphAsymmErrors>();
-
-                sigmaOne->SetFillColor(kGreen);
-                sigmaOne->SetFillStyle(1001);  
-
-                sigmaTwo->SetFillColor(kYellow);
-                sigmaTwo->SetFillStyle(1001);
-            }
-
-            sigmaOne->SetPoint(i, mHC, limitValues[2]);
-            sigmaOne->SetPointEYlow(i, limitValues[2] - limitValues[1]);
-            sigmaOne->SetPointEYhigh(i, limitValues[3] - limitValues[1]);  
-
-            sigmaTwo->SetPoint(i, mHC, limitValues[2]);
-            sigmaTwo->SetPointEYlow(i, limitValues[2] - limitValues[0]);
-            sigmaTwo->SetPointEYhigh(i, limitValues[4] - limitValues[1]);
+        //Values
+        for(int k=0; k < 5; k++){
+            limitValues.push_back(RUtil::GetEntry<double>(limitValue, k) * xSecs.at(i));
         }
+
+        expected2D->AddPoint(mHC, mh, limitValues[2]);    
+        theory2D->AddPoint(mHC, mh, xSecs.at(i));
+
+        if(!sigmaOne.count(mh)){
+            theory[mh] = std::make_shared<TGraph>();
+            expected[mh] = std::make_shared<TGraph>();
+            sigmaOne[mh] = std::make_shared<TGraphAsymmErrors>();
+            sigmaTwo[mh] = std::make_shared<TGraphAsymmErrors>();
+
+            expected[mh]->SetLineWidth(3);
+            expected[mh]->SetLineColor(kBlack);
+
+            theory[mh]->SetLineWidth(3);
+            theory[mh]->SetLineStyle(2);
+            theory[mh]->SetLineColor(kBlack);
+
+            sigmaOne[mh]->SetFillColor(kGreen);
+            sigmaOne[mh]->SetFillStyle(1001);  
+
+            sigmaTwo[mh]->SetFillColor(kYellow);
+            sigmaTwo[mh]->SetFillStyle(1001);
+        }
+
+        theory[mh]->SetPoint(theory[mh]->GetN(), mHC, xSecs[i]);
+        expected[mh]->SetPoint(expected[mh]->GetN(), mHC, limitValues[2]);
+
+        sigmaOne[mh]->SetPoint(sigmaOne[mh]->GetN(), mHC, limitValues[2]);
+        sigmaOne[mh]->SetPointEYlow(sigmaOne[mh]->GetN() - 1, limitValues[2] - limitValues[1]);
+        sigmaOne[mh]->SetPointEYhigh(sigmaOne[mh]->GetN() - 1, limitValues[3] - limitValues[1]);  
+
+        sigmaTwo[mh]->SetPoint(sigmaTwo[mh]->GetN(), mHC, limitValues[2]);
+        sigmaTwo[mh]->SetPointEYlow(sigmaTwo[mh]->GetN() - 1, limitValues[2] - limitValues[0]);
+        sigmaTwo[mh]->SetPointEYhigh(sigmaTwo[mh]->GetN() - 1, limitValues[4] - limitValues[1]);
     }
 }
 
@@ -74,41 +85,32 @@ void PlotterLimit::Draw(std::vector<std::string>& outdirs){
     for(unsigned int j=0; j < neutralMasses.size(); j++){
         int mh = neutralMasses[j];
 
-        //Expected/theory hist configuration
-        std::shared_ptr<TH1D> exHist(expected->ProjectionX("ex", j+1, j+2));
-        exHist->SetLineWidth(3);
-        exHist->SetLineColor(kBlack);
-
-        std::shared_ptr<TH1D> theoHist(theory->ProjectionX("theo", j+1, j+2));
-        theoHist->SetLineWidth(3);
-        theoHist->SetLineStyle(2);
-        theoHist->SetLineColor(kBlack);
-
         //Frame histo
-        std::shared_ptr<TH1D> frameHist = RUtil::CloneSmart<TH1D>(exHist.get());
+        std::shared_ptr<TH1F> frameHist = RUtil::CloneSmart(expected[mh]->GetHistogram());
         frameHist->Reset();
         PUtil::SetHist(mainPad.get(), frameHist.get(), "95% CL Limit on #sigma(pp #rightarrow H^{#pm}h #rightarrow lb#bar{b}b#bar{b}) [pb]");
   
-        float min = std::min(theoHist->GetMinimum(), sigmaTwo->GetHistogram()->GetMinimum());
+        float min = std::min(theory[mh]->GetHistogram()->GetMinimum(), sigmaTwo[mh]->GetHistogram()->GetMinimum());
 
-        frameHist->GetXaxis()->SetLimits(chargedMasses[0], chargedMasses.back());
+        frameHist->GetXaxis()->SetLimits(*std::min_element(chargedMasses.begin(), chargedMasses.end()),
+                                         *std::max_element(chargedMasses.begin(), chargedMasses.end()));
         frameHist->SetMinimum(min*1e-1);
         frameHist->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
 
         //Add legend information            
         std::shared_ptr<TLegend> legend = std::make_shared<TLegend>(0.0, 0.0, 1.0, 1.0);
 
-        legend->AddEntry(exHist.get(), "Expected", "L");
-        legend->AddEntry(theoHist.get(), "Theo. prediction", "L");
-        legend->AddEntry(sigmaOne.get(), "68% expected", "F");
-        legend->AddEntry(sigmaTwo.get(), "95% expected", "F");
+        legend->AddEntry(expected[mh].get(), "Expected", "L");
+        legend->AddEntry(theory[mh].get(), "Theo. prediction", "L");
+        legend->AddEntry(sigmaOne[mh].get(), "68% expected", "F");
+        legend->AddEntry(sigmaTwo[mh].get(), "95% expected", "F");
 
         //Draw everything and save
         frameHist->Draw();
-        sigmaTwo->Draw("SAME 3");
-        sigmaOne->Draw("SAME 3");
-        exHist->Draw("C SAME");
-        theoHist->Draw("C SAME");
+        sigmaTwo[mh]->Draw("SAME 3");
+        sigmaOne[mh]->Draw("SAME 3");
+        expected[mh]->Draw("C SAME");
+        theory[mh]->Draw("C SAME");
         gPad->RedrawAxis();
         PUtil::DrawHeader(mainPad.get(), channel == "Combined" ? channel : PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
         PUtil::DrawLegend(mainPad.get(), legend.get(), 2);
@@ -125,12 +127,19 @@ void PlotterLimit::Draw(std::vector<std::string>& outdirs){
     mainPad->SetLogy(0);
 
     //Draw 2D limit plot 
-    expected->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
-    expected->GetXaxis()->SetLimits(chargedMasses[0], chargedMasses.back());  
-    expected->GetYaxis()->SetLimits(neutralMasses[0], neutralMasses.back() + 10);  
-    PUtil::SetHist(mainPad.get(), expected.get(), "m(h) [GeV]");
+    std::shared_ptr<TH2D> frameHist = RUtil::CloneSmart(expected2D->GetHistogram());
+
+    frameHist->GetXaxis()->SetTitle("m(H^{#pm}) [GeV]");
+    frameHist->GetXaxis()->SetLimits(*std::min_element(chargedMasses.begin(), chargedMasses.end()),
+                                      *std::max_element(chargedMasses.begin(), chargedMasses.end()));  
+    frameHist->GetYaxis()->SetLimits(*std::min_element(neutralMasses.begin(), neutralMasses.end()),
+                                      *std::max_element(neutralMasses.begin(), neutralMasses.end()));  
+    PUtil::SetHist(mainPad.get(), frameHist.get(), "m(h) [GeV]");
         
-    expected->Draw("COLZ");
+    frameHist->Draw();
+    expected2D->Draw("SAME COL");
+  //  theory2D->Draw("SAME L");
+
     PUtil::DrawHeader(mainPad.get(), channel == "Combined" ? channel : PUtil::GetChannelTitle(channel), "Work in progress", PUtil::GetLumiTitle(era));
 
     for(std::string outdir: outdirs){

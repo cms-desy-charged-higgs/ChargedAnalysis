@@ -2,6 +2,7 @@
 #define PLOTUTIL_H
 
 #include <string>
+#include <filesystem>
 
 #include <TPad.h>
 #include <TCanvas.h>
@@ -30,11 +31,13 @@ namespace PUtil{
     TPad* DrawLegend(TPad* pad, TLegend* legend, const int& nColumns);
     void DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig);
     
-    float DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir);
-    float DrawLoss(const std::string outDir, const std::vector<float>& epoch, const std::vector<float>& trainLoss, const std::vector<float>& valLoss, const std::vector<float>& accuracy);
+    float DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::vector<std::string>& outDirs, const bool& isVali);
+    void DrawLoss(const std::vector<std::string> outDirs, const float& trainLoss, const float& valLoss,  const float& trainAcc, const float& valAcc);
 
     std::string GetChannelTitle(const std::string& channel);
     std::string GetLumiTitle(const std::string& lumi);
+    int GetProcColor(const std::string& proc);
+    std::string GetProcTitle(const std::string& proc);
 };
 
 #endif

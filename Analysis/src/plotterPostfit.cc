@@ -1,9 +1,8 @@
 #include <ChargedAnalysis/Analysis/include/plotterPostfit.h>
 
-PlotterPostfit::PlotterPostfit() : Plotter(){}
+PlotterPostfit::PlotterPostfit(){}
 
 PlotterPostfit::PlotterPostfit(const std::string& inFile, const std::vector<std::string>& bkgProcesses, const std::string& sigProcess, const bool& isPostfit) : 
-    Plotter(),
     inFile(inFile),
     sigProcess(sigProcess),
     bkgProcesses(bkgProcesses),
@@ -35,8 +34,9 @@ void PlotterPostfit::ConfigureHists(){
 
                 //Set Style
                 backgrounds[bkg]->SetFillStyle(1001);
-                backgrounds[bkg]->SetFillColor(colors.at(bkg));
-                backgrounds[bkg]->SetLineColor(colors.at(bkg));
+                hist->SetFillColor(PUtil::GetProcColor(bkg));
+                hist->SetLineColor(PUtil::GetProcColor(bkg));
+                hist->SetName(PUtil::GetProcTitle(bkg).c_str());
                 backgrounds[bkg]->SetDirectory(0);
             }
 
@@ -47,12 +47,11 @@ void PlotterPostfit::ConfigureHists(){
         std::shared_ptr<TH1F> sig = RUtil::GetSmart<TH1F>(file.get(), StrUtil::Join("/", type, dirName, sigProcess));
 
         if(signal == nullptr){
-            std::vector<std::string> s = StrUtil::Split(sigProcess, "_");
             signal = std::make_shared<TH1F>("sig", "sig", 1, 1, 1);
 
             signal->SetLineWidth(3);
             signal->SetLineColor(kBlack);
-            signal->SetName(StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1)).c_str());    
+            signal->SetName(PUtil::GetProcTitle(sigProcess).c_str());     
             signal->SetDirectory(0);
         }
 

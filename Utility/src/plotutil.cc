@@ -191,7 +191,13 @@ void PUtil::DrawShapes(TCanvas* canvas, TH1* bkg, TH1* sig){
     PUtil::DrawLegend(canvas, l, 2);
 }
 
-float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::string& outDir){
+float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector<long>& predLabel, const std::vector<std::string>& classNames, const std::vector<std::string>& outDirs, const bool& isVali){
+    for(const std::string outDir : outDirs){
+        if(!std::filesystem::exists(outDir)){
+            std::filesystem::create_directories(outDir);
+        }
+    }
+
     int nClasses = classNames.size();
     float accuracy = 0.;
 
@@ -236,6 +242,7 @@ float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector
 
     //Calculate accuracy
     for(int i = 0; i < nClasses; ++i){
+        if(!std::isnan(confusionNormed->GetBinContent(i + 1, nClasses - i)))
         accuracy += confusionNormed->GetBinContent(i + 1, nClasses - i)/float(nClasses);
     }
     
@@ -243,15 +250,59 @@ float PUtil::DrawConfusion(const std::vector<long>& trueLabel, const std::vector
     confusionNormed->Draw("COL");
     confusionNormed->Draw("TEXT SAME");
     
-    canvas->SaveAs((outDir + "/confusion.pdf").c_str());
+    for(const std::string outDir : outDirs){
+        canvas->SaveAs((outDir + "/confusion" + (isVali ? "_vali" : "_train") + ".pdf").c_str());
+        canvas->SaveAs((outDir + "/confusion" + (isVali ? "_vali" : "_train") + ".png").c_str());
+    }
 
     return accuracy;
 }
 
-float PUtil::DrawLoss(const std::string outDir, const std::vector<float>& epoch, const std::vector<float>& trainLoss, const std::vector<float>& valLoss, const std::vector<float>& accuracy){
-    std::shared_ptr<TGraph> vLoss = std::make_shared<TGraph>(epoch.size(), epoch.data(), valLoss.data());
-    std::shared_ptr<TGraph> tLoss = std::make_shared<TGraph>(epoch.size(), epoch.data(), trainLoss.data());
-    std::shared_ptr<TGraph> acc = std::make_shared<TGraph>(epoch.size(), epoch.data(), accuracy.data());
+void PUtil::DrawLoss(const std::vector<std::string> outDirs, const float& trainLoss, const float& valLoss, const float& trainAcc, const float& valAcc){
+    for(const std::string outDir : outDirs){
+        if(!std::filesystem::exists(outDir)){
+            std::filesystem::create_directories(outDir);
+        }
+    }
+
+    std::shared_ptr<TFile> fStatsNew, fStatsOld;
+    std::shared_ptr<TGraph> vLoss, tLoss, vAcc, tAcc; 
+
+    fStatsNew = std::make_shared<TFile>((outDirs.at(0) + "/tmp.root").c_str(), "RECREATE");
+
+    if(std::filesystem::exists(outDirs.at(0) + "/stats.root")){
+        fStatsOld = RUtil::Open(outDirs.at(0) + "/stats.root");
+        
+        vLoss = RUtil::CloneSmart(RUtil::Get<TGraph>(fStatsOld.get(), "valLoss"));
+        tLoss = RUtil::CloneSmart(RUtil::Get<TGraph>(fStatsOld.get(), "trainLoss"));
+        vAcc = RUtil::CloneSmart(RUtil::Get<TGraph>(fStatsOld.get(), "valiAcc"));
+        tAcc = RUtil::CloneSmart(RUtil::Get<TGraph>(fStatsOld.get(), "trainAcc"));
+    }
+    
+    else{        
+        vLoss = std::make_shared<TGraph>();
+        vLoss->SetTitle("valLoss");
+        vLoss->SetName("valLoss");
+        
+        tLoss = std::make_shared<TGraph>();
+        tLoss->SetTitle("trainLoss");
+        tLoss->SetName("trainLoss");
+
+        vAcc = std::make_shared<TGraph>();
+        vAcc->SetTitle("valiAcc");
+        vAcc->SetName("valiAcc");
+        
+        tAcc = std::make_shared<TGraph>();
+        tAcc->SetTitle("trainAcc");
+        tAcc->SetName("trainAcc");
+    }
+    
+    fStatsNew = std::make_shared<TFile>((outDirs.at(0) + "/tmp.root").c_str(), "RECREATE");
+
+    vLoss->SetPoint(vLoss->GetN(), vLoss->GetN(), valLoss);
+    tLoss->SetPoint(tLoss->GetN(), tLoss->GetN(), trainLoss);
+    vAcc->SetPoint(vAcc->GetN(), vAcc->GetN(), valAcc);
+    tAcc->SetPoint(tAcc->GetN(), tAcc->GetN(), trainAcc);
 
     vLoss->SetLineWidth(5);
     vLoss->SetLineColor(kBlue);
@@ -259,12 +310,19 @@ float PUtil::DrawLoss(const std::string outDir, const std::vector<float>& epoch,
     tLoss->SetLineWidth(5);
     tLoss->SetLineColor(kViolet);
 
-    acc->SetLineWidth(5);
-    acc->SetLineColor(kBlack);
+    vAcc->SetLineWidth(5);
+    vAcc->SetLineColor(kBlack);
+
+    tAcc->SetLineWidth(5);
+    tAcc->SetLineColor(kViolet);
 
     std::shared_ptr<TLegend> l = std::make_shared<TLegend>(0., 0., 1, 1);
     l->AddEntry(vLoss.get(), "Validation", "L");
     l->AddEntry(tLoss.get(), "Train", "L");
+
+    std::shared_ptr<TLegend> l2 = std::make_shared<TLegend>(0., 0., 1, 1);
+    l2->AddEntry(vAcc.get(), "Validation", "L");
+    l2->AddEntry(tAcc.get(), "Train", "L");
 
     std::shared_ptr<TCanvas> canvas = std::make_shared<TCanvas>("c", "c", 1000, 1000);
     PUtil::SetStyle();
@@ -278,17 +336,37 @@ float PUtil::DrawLoss(const std::string outDir, const std::vector<float>& epoch,
 
     PUtil::DrawLegend(canvas.get(), l.get(), 3);
 
-    canvas->SaveAs((outDir + "/loss.pdf").c_str());
+    for(const std::string outDir : outDirs){
+        canvas->SaveAs((outDir + "/loss.pdf").c_str());
+        canvas->SaveAs((outDir + "/loss.png").c_str());
+    }
 
     canvas->Clear();
-    PUtil::SetHist(canvas.get(), acc->GetHistogram(), "");
-    acc->GetHistogram()->GetXaxis()->SetTitle("Epoch");
-    acc->GetHistogram()->GetYaxis()->SetTitle("Accuracy");
-    acc->Draw("AL");
 
-    canvas->SaveAs((outDir + "/accuracy.pdf").c_str());
+    PUtil::SetHist(canvas.get(), vAcc->GetHistogram(), "");
+    vAcc->GetHistogram()->GetXaxis()->SetTitle("Epoch");
+    vAcc->GetHistogram()->GetYaxis()->SetTitle("Accuracy");
 
-    return 1.;
+    vAcc->Draw("AL");
+    tAcc->Draw("L SAME");
+
+    PUtil::DrawLegend(canvas.get(), l2.get(), 3);
+
+    for(const std::string outDir : outDirs){
+        canvas->SaveAs((outDir + "/accuracy.pdf").c_str());
+        canvas->SaveAs((outDir + "/accuracy.png").c_str());
+    }
+   
+    fStatsNew->cd();
+    vLoss->Write();
+    tLoss->Write();
+    vAcc->Write();
+    tAcc->Write();
+  
+    fStatsNew->Close();
+    if(fStatsOld) fStatsOld->Close();
+    
+    std::filesystem::rename(outDirs.at(0) + "/tmp.root", outDirs.at(0) + "/stats.root");
 }
 
 std::string PUtil::GetChannelTitle(const std::string& channel){
@@ -308,12 +386,55 @@ std::string PUtil::GetChannelTitle(const std::string& channel){
 
 std::string PUtil::GetLumiTitle(const std::string& lumi){
     std::map<std::string, std::string> lumiTitle = {
-        {"2016Pre", "19.52 fb^{-1} (2016 pre-VFP, 13 TeV)"}, 
-        {"2016Post", "16.81 fb^{-1} (2016 post-VFP, 13 TeV)"}, 
-        {"2017", "41.53 fb^{-1} (2017, 13 TeV)"}, 
-        {"2018", "59.74 fb^{-1} (2018, 13 TeV)"},
-        {"RunII", "137.19 fb^{-1} (RunII, 13 TeV)"},
+        {"2016Pre", "19.52 fb^{-1} (2016 pre-VFP)"}, 
+        {"2016Post", "16.81 fb^{-1} (2016 post-VFP)"}, 
+        {"2017", "41.53 fb^{-1} (2017)"}, 
+        {"2018", "59.74 fb^{-1} (2018)"},
+        {"RunII", "137.19 fb^{-1} (RunII)"},
     };
 
     return VUtil::At(lumiTitle, lumi);
+}
+
+int PUtil::GetProcColor(const std::string& proc){
+    std::map<std::string, int> colors = {
+        {"DYJ", kRed + -7}, 
+        {"TT1L", kYellow -7}, 
+        {"TT2L", kYellow +4}, 
+        {"TTHad", kYellow +8}, 
+        {"TTV", kOrange +2},            
+        {"ST", kGreen  + 2},             
+        {"WJ", kCyan + 2},             
+        {"QCD", kBlue -3},
+        {"MisIDJ", kBlue -5},
+        {"VV", kViolet -3},
+    };
+
+    if(!colors.count(proc)) throw std::runtime_error("Unknown color for given process: " + proc);
+
+    return colors.at(proc);
+}
+
+
+std::string PUtil::GetProcTitle(const std::string& proc){
+    std::map<std::string, std::string> titles = {
+        {"DYJ", "Z#rightarrowll"}, 
+        {"TT1L", "t#bar{t}#rightarrow l+X"}, 
+        {"TT2L", "t#bar{t}#rightarrow 2l+X"}, 
+        {"TTV", "t#bar{t}+W/Z"},            
+        {"ST", "t/tW#rightarrow l+X"},             
+        {"WJ", "W#rightarrowl#nu"},             
+        {"QCD", "QCD"},
+        {"MisIDJ", "Misid. jet"},
+        {"VV", "ZZ/WZ/WW"},
+    };
+
+    if(!StrUtil::Find(proc, "HPlus").empty()){
+        std::vector<std::string> s = StrUtil::Split(proc, "_");
+        return StrUtil::Replace("H^{#pm}_{[M]} + h_{[M]}", "[M]", s.at(0).substr(5), s.at(1).substr(1));    
+    }
+
+    else if(!titles.count(proc)) throw std::runtime_error("Unknown title for given process: " + proc);
+
+    return titles.at(proc);
 }

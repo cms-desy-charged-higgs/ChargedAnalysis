@@ -1,9 +1,8 @@
 #include <ChargedAnalysis/Analysis/include/plotter2D.h>
 
-Plotter2D::Plotter2D() : Plotter(){}
+Plotter2D::Plotter2D(){}
 
 Plotter2D::Plotter2D(const std::string& channel, const std::string& era, const std::vector<std::string>& bkgProcesses, const std::map<std::string, std::vector<std::string>>& bkgFiles, const std::vector<std::string>& sigProcesses, const std::map<std::string, std::vector<std::string>>& sigFiles, const std::string& data, const std::string& dataFile, const std::vector<std::string> systematics) :
-    Plotter(), 
     channel(channel), 
     era(era), 
     bkgProcesses(bkgProcesses), 
