@@ -1,8 +1,12 @@
 #include <deque>
 #include <vector>
+#include <chrono>
 #include <thread>
+#include <future>
 #include <mutex>
 #include <random>
+#include <exception>
+#include <stdexcept>
 #include <experimental/random>
 
 #include <TROOT.h>
@@ -11,31 +15,33 @@
 
 class DataLoader {
     private:
-        std::vector<std::thread> threads;
+        DNNDataSet sigSet;
+        std::vector<DNNDataSet> bkgSets;
+        std::size_t batchSize, nBatchesTrain, nBatchesVali;
+
+        std::thread trainThread, valiThread;
         std::mutex mutex;
         std::condition_variable condition;
+        std::exception_ptr exception = nullptr;
 
-        std::vector<int> readOrder, readVali;
-        int nProcessed = 0;
+        std::size_t sigSetMaxEventTrain;
+        std::vector<std::size_t> bkgSetMaxEventTrain;
+        torch::Tensor clsWeights;
 
-        std::size_t nBatches, nBatchesTrain;
-        torch::Tensor classWeights;
+        std::deque<DNNTensor> trainBatches, valiBatches;
 
-        std::deque<std::tuple<std::vector<DNNTensor>, std::vector<int>, std::vector<int>>> batchQueue;
-
-        void ReadBatch(std::vector<DNNDataSet> sigSets, std::vector<DNNDataSet> bkgSets, const std::vector<std::vector<std::pair<int, int>>> sigBatches, std::vector<std::vector<std::pair<int, int>>> bkgBatches);
+        void InitSets(DNNDataSet& sigSet, std::vector<DNNDataSet>& bkgSets);
+        void ValidationBatcher(DNNDataSet sigSet, std::vector<DNNDataSet> bkgSets);
+        void TrainBatcher(DNNDataSet sigSet, std::vector<DNNDataSet> bkgSets);
 
     public:
-        DataLoader(std::vector<DNNDataSet>& sigSets, std::vector<DNNDataSet>& bkgSets, const int& nClasses, const int& batchSize, const std::size_t& nThreads);
+        DataLoader(const DNNDataSet& sigSet, const std::vector<DNNDataSet>& bkgSets, const std::size_t& batchSize, const float& validation, const bool& optimize);
+        ~DataLoader();
 
-        ~DataLoader(){
-            for(std::thread& t : threads) t.join();
-        }
-
-        std::size_t GetNBatches(){return nBatches;}
         std::size_t GetNTrainBatches(){return nBatchesTrain;}
-        torch::Tensor GetClassWeights(){return classWeights;}
+        std::size_t GetNValiBatches(){return nBatchesVali;}
+        torch::Tensor GetClsWeights(){return clsWeights;}
 
-        void InitEpoch(const float& vali);
-        std::tuple<std::vector<DNNTensor>, std::vector<int>, std::vector<int>> GetBatch();
+        void InitEpoch();
+        DNNTensor GetBatch(const bool& isVali);
 };

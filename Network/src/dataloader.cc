@@ -1,177 +1,163 @@
 #include <ChargedAnalysis/Network/include/dataloader.h>
 
-DataLoader::DataLoader(std::vector<DNNDataSet>& sigSets, std::vector<DNNDataSet>& bkgSets, const int& nClasses, const int& batchSize, const std::size_t& nThreads){
+DataLoader::DataLoader(const DNNDataSet& sigSet, const std::vector<DNNDataSet>& bkgSets, const std::size_t& batchSize, const float& validation, const bool& optimize) :
+    sigSet(sigSet),
+    bkgSets(bkgSets),
+    batchSize(batchSize){
+    
     //Allows opening/reading of TFiles in local thread
     ROOT::EnableThreadSafety();
 
-    //Calculate weights to equalize pure number of events for signal and background
-    std::vector<int> nBkg(nClasses - 1, 0);
-    int nSig = 0, nBkgTotal = 0;
-    
-    for(DNNDataSet& set : sigSets) nSig += set.Size();
-    
-    for(DNNDataSet& set : bkgSets){        
-        nBkg[set.GetClass()] += set.Size();
-        nBkgTotal += set.Size();
+    //Pure number of events for signal and background
+    sigSetMaxEventTrain = sigSet.Size()*(1-validation);
+    bkgSetMaxEventTrain = std::vector<std::size_t>(bkgSets.size());
+    std::size_t nMin = 1e10;
+
+    for(std::size_t set = 0; set < bkgSets.size(); ++set){
+        bkgSetMaxEventTrain[set] = bkgSets[set].Size()*(1-validation);
+        if(nMin > bkgSets[set].Size()) nMin = bkgSets[set].Size();
     }
 
-    float wSig = (nBkgTotal+nSig)/float(nSig);
-    std::vector<float> wBkg(nClasses - 1, 1.);
-    
-    for(int i = 0; i < nClasses - 1; ++i){
-        wBkg[i] = (nBkgTotal+nSig)/float(nBkg[i]);
-    }
+    if(nMin > sigSet.Size()) nMin = sigSet.Size();
 
     //Calculate number of batches
-    nBatches = nSig+nBkgTotal % batchSize == 0 ? (nSig+nBkgTotal)/batchSize - 1 : std::ceil((nSig+nBkgTotal)/batchSize);
+    nBatchesTrain = optimize ? 30 : (bkgSets.size() + 1.)*nMin/batchSize*(1 - validation);
+    nBatchesVali = (bkgSets.size() + 1.)*nMin/batchSize*validation;
+}
 
-    //Fill ranges of event number for each batch
-    std::vector<std::vector<std::pair<int, int>>> sigBatches;
-    std::vector<std::vector<std::pair<int, int>>> bkgBatches;
+DataLoader::~DataLoader(){
+    if(trainThread.joinable()) trainThread.join();
+    if(valiThread.joinable()) valiThread.join();
+}
 
-    for(DNNDataSet& set : sigSets){
-        int bSize  = float(set.Size())*batchSize/(nBkgTotal+nSig);
-        int skip = bSize > 1 ? 0 : std::ceil(1./bSize);
-    
-        std::vector<std::pair<int, int>> batches(nBatches);
-
-        for(std::size_t i = 0; i < nBatches; ++i){
-            if(skip == 0){
-                batches.at(i) = {i*bSize, (i + 1)*bSize};
-            }
-
-            else if(i % skip == 0){
-                batches.at(i/skip) = {i/skip*bSize, (i/skip + 1)*bSize};
-            }
-        }
-
-        sigBatches.push_back(std::move(batches));
-    }
+void DataLoader::InitSets(DNNDataSet& sigSet, std::vector<DNNDataSet>& bkgSets){
+    std::unique_lock<std::mutex> lock(mutex);
+    sigSet.Init();
 
     for(DNNDataSet& set : bkgSets){
-        float bSize  = float(set.Size())*batchSize/(nBkgTotal+nSig);
-        int skip = bSize > 1 ? 0 : std::ceil(1./bSize);
-        
-        std::vector<std::pair<int, int>> batches(nBatches);
-
-        for(std::size_t i = 0; i < nBatches; ++i){
-            if(skip == 0){
-                batches.at(i) = {i*bSize, (i + 1)*bSize};
-            }
-
-            else if(i % skip == 0){
-                batches.at(i/skip) = {i/skip*bSize, (i/skip + 1)*bSize};
-            }
-        }
-
-        bkgBatches.push_back(std::move(batches));
-    }
-    
-    //Class weights
-    classWeights = torch::from_blob(VUtil::Append(wBkg, wSig).data(), {nClasses}).clone();
-
-    //Define threads
-    threads = std::vector<std::thread>(nThreads);
-    std::size_t vecSize = sigBatches.size()/nThreads;
-
-    for(std::size_t thread = 0; thread < nThreads; ++thread){
-        //Start threads
-        threads[thread] = std::thread(&DataLoader::ReadBatch, this, sigSets, bkgSets, sigBatches, bkgBatches);
+        set.Init();
     }
 }
 
-void DataLoader::ReadBatch(std::vector<DNNDataSet> sigSets, std::vector<DNNDataSet> bkgSets, const std::vector<std::vector<std::pair<int, int>>> sigBatches, std::vector<std::vector<std::pair<int, int>>> bkgBatches){
-    //Init of dataset class (Open files, set up ntuplerreader)
-    for(DNNDataSet& set : sigSets) set.Init();
-    for(DNNDataSet& set : bkgSets) set.Init();
+void DataLoader::TrainBatcher(DNNDataSet sigSet, std::vector<DNNDataSet> bkgSets){
+    try{
+        InitSets(sigSet, bkgSets);
+    
+        std::size_t sigPos = 0;
+        std::vector<std::size_t> bkgPos(bkgSets.size(), 0);
 
-    //Wait for first initiazer call (if not already happended)
-    std::unique_lock<std::mutex> lock(mutex);
-    while(readOrder.size() == 0) condition.wait(lock);
-    lock.unlock();
+        for(std::size_t i = 0; i < nBatchesTrain; ++i){
+            std::vector<DNNTensor> batch;
 
-    while(true){
-        //Get current batch idx to read and increment counter (thread unsafe, so lock up)
+            sigPos = std::experimental::randint(0, int(sigSetMaxEventTrain - batchSize));
+            for(std::size_t set = 0; set < bkgSets.size(); ++set) bkgPos[set] = std::experimental::randint(0, int(bkgSetMaxEventTrain[set] - batchSize));
+
+            for(std::size_t j = 0; j < batchSize; j += bkgSets.size() + 1){
+                batch.push_back(std::move(sigSet.Get(sigPos)));
+                ++sigPos;
+
+                for(std::size_t set = 0; set < bkgSets.size(); ++set){
+                    batch.push_back(std::move(bkgSets[set].Get(bkgPos[set])));
+                    ++bkgPos[set];
+                }
+            }
+
+            trainBatches.push_back(std::move(DNNDataSet::Merge(batch)));
+
+            std::unique_lock<std::mutex> lock(mutex);
+            if(trainBatches.size() >= 20 and i != nBatchesTrain - 1) condition.wait(lock, [&](){return trainBatches.size() < 20;});
+            lock.unlock();
+            condition.notify_all();
+        }
+    }
+
+    //Catch exception and wait until main threads terminates
+    catch(...){
         std::unique_lock<std::mutex> lock(mutex);
-        int idx = readOrder.at(nProcessed);
-        ++nProcessed;
-        lock.unlock();
+        exception = std::current_exception();
+    }
+}
 
-        //Read data via ntuplereader used in dataset class (thread safe)
-        std::vector<DNNTensor> batch;
-        std::vector<int> batchChargedMass, batchNeutralMass;
+void DataLoader::ValidationBatcher(DNNDataSet sigSet, std::vector<DNNDataSet> bkgSets){
+    try{
+        InitSets(sigSet, bkgSets);
 
-        for(int k = 0; k < sigSets.size(); ++k){
-            std::vector<DNNTensor> sigBatch = sigSets.at(k).GetBatch(sigBatches.at(k).at(idx).first, sigBatches.at(k).at(idx).second);
+        std::size_t sigPos = sigSetMaxEventTrain + 1;
+        std::vector<std::size_t> bkgPos(bkgSets.size(), 0);
+        for(std::size_t set = 0; set < bkgSets.size(); ++set) bkgPos[set] = bkgSetMaxEventTrain[set] + 1;
 
-            for(int l = 0; l < sigBatch.size(); ++l){
-                batchChargedMass.push_back(sigSets.at(k).chargedMass);
-                batchNeutralMass.push_back(sigSets.at(k).neutralMass);
+        for(std::size_t i = 0; i < nBatchesVali; ++i){
+            std::vector<DNNTensor> batch;
+
+            for(std::size_t j = 0; j < batchSize; j += bkgSets.size() + 1){
+                if(sigPos < sigSet.Size()){
+                    batch.push_back(std::move(sigSet.Get(sigPos)));
+                    ++sigPos;
+                }
+
+                for(std::size_t set = 0; set < bkgSets.size(); ++set){
+                    if(bkgPos[set] >= bkgSets[set].Size()) continue;
+
+                    batch.push_back(std::move(bkgSets[set].Get(bkgPos[set])));
+                    ++bkgPos[set];
+                }
             }
 
-            batch.insert(batch.end(), std::make_move_iterator(sigBatch.begin()), std::make_move_iterator(sigBatch.end()));
+            valiBatches.push_back(std::move(DNNDataSet::Merge(batch)));
+
+            std::unique_lock<std::mutex> lock(mutex);
+            if(valiBatches.size() >= 20 and i != nBatchesVali - 1) condition.wait(lock, [&](){return valiBatches.size() < 20;});
+            lock.unlock();
+            condition.notify_all();
         }
+    }
 
-        for(int k = 0; k < bkgSets.size(); ++k){
-            std::vector<DNNTensor> bkgBatch = bkgSets.at(k).GetBatch(bkgBatches.at(k).at(idx).first, bkgBatches.at(k).at(idx).second);
-
-            for(int l = 0; l < bkgBatch.size(); ++l){
-                int chargedIndex = std::experimental::randint(0, (int)sigSets.size() -1);
-                int neutralIndex = std::experimental::randint(0, (int)sigSets.size() -1);
-
-                batchChargedMass.push_back(sigSets.at(chargedIndex).chargedMass);
-                batchNeutralMass.push_back(sigSets.at(neutralIndex).neutralMass);
-            }
-
-            batch.insert(batch.end(), std::make_move_iterator(bkgBatch.begin()), std::make_move_iterator(bkgBatch.end()));
-        }
-
-        lock.lock();
-
-        //Put batch in queue (thread unsafe, therefore lock)
-        batchQueue.push_back(std::make_tuple(std::move(batch), std::move(batchChargedMass), std::move(batchNeutralMass)));
-
-        while(batchQueue.size() >= 10*threads.size() or nProcessed == nBatches){ //Sleep while queue is full or epoch is done
-            condition.wait(lock);
-        }
-
-        //Unlock and notify Batch returner function
-        lock.unlock();
+    //Catch exception and wait until main threads terminates
+    catch(...){
+        std::unique_lock<std::mutex> lock(mutex);
+        exception = std::current_exception();
         condition.notify_all();
     }
 }
 
-void DataLoader::InitEpoch(const float& val){
-    //Reset batch counter
+void DataLoader::InitEpoch(){
     std::unique_lock<std::mutex> lock(mutex);
-    nProcessed = 0;
 
-    nBatchesTrain = int(nBatches*(1-val));
+    //Check for exception in reading threads
+    if(exception) std::rethrow_exception(exception);
 
-    //Shuffle order of drawn batch
-    readOrder = VUtil::Range(0, int(nBatchesTrain - 1), int(nBatchesTrain));
-    std::random_shuffle(readOrder.begin(), readOrder.end());
+    if(trainThread.joinable()) trainThread.join();
+    trainThread = std::thread(&DataLoader::TrainBatcher, this, sigSet, bkgSets);
 
-    //Normal read order for validation
-    for(std::size_t batch = nBatchesTrain; batch < nBatches; ++batch) readOrder.push_back(batch);
-
-    //Unlock and notify Batch returner function
-    lock.unlock();
-    condition.notify_all();
+    if(valiThread.joinable()) valiThread.join();
+    valiThread = std::thread(&DataLoader::ValidationBatcher, this, sigSet, bkgSets);
 }
 
-std::tuple<std::vector<DNNTensor>, std::vector<int>, std::vector<int>> DataLoader::GetBatch(){
+DNNTensor DataLoader::GetBatch(const bool& isVali){
     //Everything thread unsafe, so lock
     std::unique_lock<std::mutex> lock(mutex);
 
-    //While queue is empty, wait for reader threads
-    while(batchQueue.size() == 0){
-        condition.wait(lock);
-    }
-    
+    //Check for exception in reading threads
+    if(exception) std::rethrow_exception(exception);
+
     //Pop front of queue
-    std::tuple<std::vector<DNNTensor>, std::vector<int>, std::vector<int>> b = batchQueue.front();
-    batchQueue.pop_front();
+    DNNTensor b;
+
+    if(isVali){
+        if(valiBatches.size() == 0) condition.wait(lock, [&](){return valiBatches.size() != 0 or exception;});
+        if(exception) std::rethrow_exception(exception);
+
+        b = std::move(valiBatches.front());
+        valiBatches.pop_front();
+    }
+
+    else{
+        if(trainBatches.size() == 0) condition.wait(lock, [&](){return trainBatches.size() != 0 or exception;});
+        if(exception) std::rethrow_exception(exception);
+
+        b = std::move(trainBatches.front());
+        trainBatches.pop_front();
+    }
 
     //Unlock and notify reader threads
     lock.unlock();
