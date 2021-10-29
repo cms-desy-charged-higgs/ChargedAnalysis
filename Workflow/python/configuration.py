@@ -14,19 +14,23 @@ import ROOT
 
 from collections import defaultdict as dd
 
-def sendToDCache(inFile, relativPath):
+def sendToDCache(inFile, relativPath, timeOut = 1800):
     dCachePath = "/pnfs/desy.de/cms/tier2/store/user/dbrunner/"
 
-    command = "sendToDCache \\\n{}--input-file \\\n{}{} \\\n{}--dcache-path \\\n{}{} \\\n{}--relative-path \\\n{}{}\n".format(2*" ", 6*" ", inFile, 2*" ", 6*" ", dCachePath, 2*" ", 6*" ", relativPath)
+    command = "sendToDCache \\\n{}--input-file \\\n{}{} \\\n{}--dcache-path \\\n{}{} \\\n{}--relative-path \\\n{}{} \\\n{}--time-out \\\n{}{}\n".format(2*" ", 6*" ", inFile, 2*" ", 6*" ", dCachePath, 2*" ", 6*" ", relativPath, 2*" ", 6*" ", timeOut)
 
     return command
 
 def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", postFix = ""):
+    ##Mis.id. jets are configured together with data process, so skip here
+    if process == "MisIDJ":
+        return
+
     ##Dic with process:filenames 
     processes = yaml.safe_load(open("{}/ChargedAnalysis/Analysis/data/process.yaml".format(os.environ["CHDIR"]), "r"))
 
     ##Skip Down for nominal case or and skip data if systematic
-    if (syst == "Nominal" and shift == "Down") or (process in ["SingleE", "SingleMu"] and syst != "Nominal") or (process == "QCD" and config.get("qcd-estimate", False) and syst != "Nominal"): 
+    if (syst == "Nominal" and shift == "Down") or (process in ["SingleE", "SingleMu"] and syst != "Nominal"): 
         return
 
     systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
@@ -37,7 +41,7 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
     ## Scale systematics
     scaleSysts = []
 
-    if syst == "Nominal" and (process not in ["SingleE", "SingleMu"] or (process != "QCD" and config.get("qcd-estimate", False))):
+    if syst == "Nominal" and process not in ["SingleE", "SingleMu", "MisIDJ"]:
         scaleSysts = config["scale-systs"].get("all", []) + config["scale-systs"].get(channel, [])
 
     fileNames = []
@@ -45,43 +49,43 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
     ##Data driven scale factors           
     bkgYldFactor, bkgYldFactorSyst, bkgType = "", [], "Misc"
 
-    if process != "QCD":
-        if "bkg-yield-factor" in config:
-            if "Single" not in process and "HPlus" not in process:
-                bkgYldFactor = "{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "S": systName})))
+    if "bkg-yield-factor" in config:
+        if process not in ["SingleE", "SingleMu"] and "HPlus" not in process:
+            bkgYldFactor = "{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "S": systName})))
 
-                with open(bkgYldFactor) as f:
-                    reader = csv.reader(f, delimiter='\t')
+            with open(bkgYldFactor) as f:
+                reader = csv.reader(f, delimiter='\t')
 
-                    for row in reader:
-                        if process in row:
-                            bkgType = process
-                            break
+                for row in reader:
+                    if process in row:
+                        bkgType = process
+                        break
 
-                for scaleSyst in scaleSysts:
-                    for scaleShift in ["Up", "Down"]:
-                        bkgYldFactorSyst.append("{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "S": systName}))))
+            for scaleSyst in scaleSysts:
+                for scaleShift in ["Up", "Down"]:
+                    bkgYldFactorSyst.append("{}/{}".format(os.environ["CHDIR"], config["bkg-yield-factor"].format_map(dd(str, {"C": channel, "E": era, "MHC": mHPlus, "S": systName}))))
 
-    procName = config["data"][channel][0] if (config.get("qcd-estimate", False) and process == "QCD") else process
+    #List of parameters
+    parameters = config["parameters"].get("all", []) + config["parameters"].get(channel, [])
 
     ##List of filenames for each process
     for proc in os.listdir(skimBaseDir):
-        for processName in processes[procName]:
+        for processName in processes[process]:
             if proc.startswith(processName) and not "_ext" in proc:
                 fileNames.append("{}/merged/{}.root".format(skimDir.format_map(dd(str, {"C": channel, "E": era, "P": proc, "S": systName})), proc))
-
-    ##List of parameters
-    parameters = config["parameters"].get("all", []) + config["parameters"].get(channel, [])
-    if config.get("estimate-QCD", False):
-        parameters = parameters +  [p + "/" +  config.get("estimate-QCD", "") for p in parameters]
 
     nJobs = 0
 
     for fileName in fileNames:
-        f = ROOT.TFile.Open(fileName)
-        t = f.Get(channel)   
-        nEvents = t.GetEntries()
-        f.Close()
+        try:
+            f = ROOT.TFile.Open(fileName)
+            t = f.Get(channel)   
+            nEvents = t.GetEntries()
+            f.Close()
+
+        except:
+            print("Could not read file, which is skipped: {}".format(fileName))
+            continue
 
         eventRanges = [[i if i == 0 else i+1, i+config["n-events"] if i+config["n-events"] <= nEvents else nEvents] for i in range(0, nEvents, config["n-events"])]
 
@@ -100,7 +104,7 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                     "parameters": parameters,
                     "out-file": "{}.root".format(process),
                     "channel": channel,
-                    "regions": config.get("regions", ["Default"]),
+                    "regions": [],
                     "scale-systs": scaleSysts,
                     "bkg-yield-factor": bkgYldFactor,
                     "bkg-yield-factor-syst": bkgYldFactorSyst,
@@ -111,9 +115,9 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                 }
             }
 
-            if config.get("qcd-estimate", False) and process == "QCD":
-                task["arguments"]["fake-rate"] = os.environ["CHDIR"] + "/" + config["qcd-estimate"]["rates"].format_map(dd(str, {"C": channel, "E": era, "R": "fake", "S": systName}))
-                task["arguments"]["prompt-rate"] = os.environ["CHDIR"] + "/" + config["qcd-estimate"]["rates"].format_map(dd(str, {"C": channel, "E": era, "R": "prompt", "S": systName}))
+            if process in ["SingleE", "SingleMu"] and "MisIDJ" in config["processes"]:
+                task["arguments"]["fake-rate"] = os.environ["CHDIR"] + "/" + config["fake-estimate"]["rates"].format_map(dd(str, {"C": "EleIncl" if "Ele" in channel else "MuonIncl", "E": era, "R": "fake", "S": systName}))
+                task["arguments"]["prompt-rate"] = os.environ["CHDIR"] + "/" + config["fake-estimate"]["rates"].format_map(dd(str, {"C": "EleIncl" if "Ele" in channel else "MuonIncl", "E": era, "R": "prompt", "S": systName}))
 
             for region in config.get("regions", ["Default"]):
                 task["arguments"]["{}-out-dir".format(region)] = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": region, "P": process, "S": systName})) + "/unmerged/{}".format(nJobs)
@@ -131,13 +135,13 @@ def treeread(tasks, config, channel, era, process, syst, shift, mHPlus = "200", 
                     if not region in config["cuts"][channel] and not "all" in config["cuts"][channel]:
                         task["arguments"]["{}-cuts".format(region)].extend(config["cuts"][channel])
 
-                if config.get("qcd-estimate", False) and process == "QCD":
+                if process in ["SingleE", "SingleMu"] and "MisIDJ" in config["processes"]:
                     lRegion = "Loose-{}".format(region)
 
                     task["arguments"]["{}-out-dir".format(lRegion)] = config["dir"].format_map(dd(str, {"D": "Histograms", "C": channel, "E": era, "R": lRegion, "P": process, "S": systName})) + "/unmerged/{}".format(nJobs)
                     task["arguments"]["{}-syst-dirs".format(lRegion)] = []
                     task["arguments"]["{}-cuts".format(lRegion)] = [c for c in task["arguments"]["{}-cuts".format(region)] if not "replaceForFR" in c]
-                    task["arguments"]["{}-cuts".format(lRegion)].extend(config["qcd-estimate"]["cuts"][channel])
+                    task["arguments"]["{}-cuts".format(lRegion)].extend(config["fake-estimate"]["cuts"][channel])
                     task["arguments"]["regions"].append(lRegion)
 
             tasks.append(Task(task, "--"))
@@ -148,19 +152,24 @@ def mergeHists(tasks, config, channel, era, process, syst, shift, postFix = ""):
     inputFiles, dependencies = {}, []
 
     ##Skip Down for nominal case or and skip data if systematic
-    if (syst == "Nominal" and shift == "Down") or (process in ["SingleE", "SingleMu"] and syst != "Nominal") or (process == "QCD" and config.get("qcd-estimate", False) and syst != "Nominal"): 
+    if (syst == "Nominal" and shift == "Down") or (process in ["SingleE", "SingleMu", "MisIDJ"] and syst != "Nominal"): 
         return
 
     systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
+    pName = process if process != "MisIDJ" else "Single"
 
     for t in tasks:
-        if "TreeRead_{}_{}_{}".format(channel, era, process) in t["name"] and postFix in t["name"]:
+        if "TreeRead_{}_{}_{}".format(channel, era, pName) in t["name"] and postFix in t["name"]:
             if systName in t["name"]:
                 dependencies.append(t["name"])
 
                 for region in config.get("regions", ["Default"]):
-                    inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)], t["arguments"]["out-file"]))
-                
+                    if process != "MisIDJ":
+                        inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)], t["arguments"]["out-file"]))
+
+                    else:
+                        inputFiles.setdefault(region, []).append("{}/{}".format(t["arguments"]["{}-out-dir".format(region)], t["arguments"]["out-file"]).replace("SingleMu", "MisIDJ").replace("SingleE", "MisIDJ"))
+                                 
             elif syst in t["arguments"]["scale-systs"]:
                 dependencies.append(t["name"])
 
@@ -349,7 +358,7 @@ def plotting(tasks, config, channel, era, processes, postFix = ""):
                                 sigProcesses.setdefault(region, []).append(process)
                             sigFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
 
-                        elif "QCD" in process and config.get("qcd-estimate", False):
+                        elif process == "MisIDJ":
                             if syst == "Nominal":
                                 bkgProcesses.setdefault(region, []).append(process)
                             bkgFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
@@ -358,7 +367,7 @@ def plotting(tasks, config, channel, era, processes, postFix = ""):
                             if syst == "Nominal":
                                 bkgProcesses.setdefault(region, []).append(process)
                             bkgFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
-                            
+                         
 
     for region in config.get("regions", ["Default"]):
         outDir = config["dir"].format_map(dd(str, {"D": "PDF", "C": channel, "E": era, "R": region}))
@@ -422,10 +431,14 @@ def treeappend(tasks, config, channel, era, syst, shift, postFix = ""):
 
         skimDir = "{}/{}".format(os.environ["CHDIR"], config["skim-dir"].format_map(dd(str, {"C": channel, "E": era, "P": fileName, "S": systName})))
 
-        f = ROOT.TFile.Open("{}/merged/{}.root".format(skimDir, fileName))
-        t = f.Get(channel)   
-        nEvents = t.GetEntries()
-        f.Close()
+        try:
+            f = ROOT.TFile.Open("{}/merged/{}.root".format(skimDir, fileName))
+            t = f.Get(channel)   
+            nEvents = t.GetEntries()
+            f.Close()
+
+        except:
+            raise RuntimeError("Problem with file: {}/{}".format(skimDir, fileName))
 
         eventRanges = [[i if i == 0 else i+1, i+config["n-events"] if i+config["n-events"] <= nEvents else nEvents] for i in range(0, nEvents, config["n-events"])]
 
@@ -593,20 +606,22 @@ def stitching(tasks, config, channel, era, syst, shift, postFix = ""):
 
         tasks.append(Task(task, "--", beforeExe = beforeExe, afterExe = afterExe))
 
-def fakerate(tasks, config, channel, era, mode, syst, shift, postFix = ""):
+
+def promptrate(tasks, config, channel, era, syst, shift, postFix = ""):
     ##Skip Down for nominal case
     if syst == "Nominal" and shift == "Down":
         return
 
     systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
-    outDir = config["dir"].format_map(dd(str, {"D": "Rates", "C": channel, "E": era})) + "/" + mode + "/" + systName
+    outDir = config["dir"].format_map(dd(str, {"D": "Rates", "C": channel, "E": era, "R": "prompt", "S": systName}))
     data = config["data"].get(channel, ["data"])[0]
+    process = config["proc-usage"]["use"]["prompt"]
 
     depFiles, depTasks = {}, []
 
     for t in tasks:
-        if "MergeHists_{}_{}_".format(channel, era) in t["name"] and ("{}-loose".format(mode) in t["name"] or "{}-tight".format(mode) in t["name"]):
-            region = "{}-loose".format(mode) if "{}-loose".format(mode) in t["name"] else "{}-tight".format(mode)
+        if "MergeHists_{}_{}_".format(channel, era) in t["name"] and ("prompt-loose" in t["name"] or "prompt-tight" in t["name"]):
+            region = "prompt-loose" if "prompt-loose" in t["name"] else "prompt-tight"
 
             if systName in t["name"] and systName != "Nominal":
                 depTasks.append(t)
@@ -620,108 +635,134 @@ def fakerate(tasks, config, channel, era, mode, syst, shift, postFix = ""):
                 depTasks.append(t)
                 depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
 
+ 
     task = {
-        "name": "Fakerate_{}_{}_{}_{}_{}".format(channel, era, mode, systName, postFix),
+        "name": "Promptrate_{}_{}_{}_{}".format(channel, era, systName, postFix),
         "dir": outDir,
-        "executable": "estimateFR",
+        "executable": "estimatePR",
         "dependencies": [t["name"] for t in depTasks],
         "arguments": {
-            "mode": mode,
             "out-dir": outDir,
-            "process":  config["proc-usage"]["use"][mode],
-            "processes-to-remove":  config["proc-usage"]["remove"][mode],
+            "hist-name": config["hist-name"]["prompt"][channel],
+            "process":  config["proc-usage"]["use"]["prompt"],
         }
     }
 
+    task["arguments"]["{}-{}-file".format("prompt-loose", process)] = depFiles["prompt-loose"][process]
+    task["arguments"]["{}-{}-file".format("prompt-tight", process)] = depFiles["prompt-tight"][process]
+
     plotTask = {
-        "name": "PlotFakerate_{}_{}_{}_{}_{}".format(channel, era, mode, systName, postFix),
+        "name": "PlotPromptrate_{}_{}_{}_{}".format(channel, era, systName, postFix),
         "dir": outDir.replace("Rates", "ResultPDF"),
         "executable": "plotFR",
         "dependencies": [task["name"]],
         "arguments": {
-            "mode": mode,
+            "mode": "prompt",
             "out-dir": [outDir.replace("Rates", "ResultPDF"), outDir.replace("Results", "WebPlotting/Plots").replace("Rates", "")],
             "era": era,
             "channel": channel,
-            "input-file": "{}/{}rate.root".format(outDir, mode)
+            "input-file": "{}/promptrate.root".format(outDir)
         }
     }
-          
-    for process in [task["arguments"]["process"]] + task["arguments"]["processes-to-remove"]:
-        task["arguments"]["{}-{}-file".format("{}-loose".format(mode), process)] = depFiles["{}-loose".format(mode)][process]
-        task["arguments"]["{}-{}-file".format("{}-tight".format(mode), process)] = depFiles["{}-tight".format(mode)][process]
+            
+    tasks.append(Task(task, "--"))
+    tasks.append(Task(plotTask, "--"))
+
+def fakerate(tasks, config, channel, era, syst, shift, postFix = ""):
+    ##Skip Down for nominal case
+    if syst == "Nominal" and shift == "Down":
+        return
+
+    systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
+    outDir = config["dir"].format_map(dd(str, {"D": "Rates", "C": channel, "E": era, "R": "fake", "S": systName}))
+    data = config["data"].get(channel, ["data"])[0]
+
+    bins = []
+
+    for ptLow, ptHigh in config["fake-bins"]["pt"]["bins"]:
+        for etaLow, etaHigh in config["fake-bins"]["eta"]["bins"]:
+            bins.append("{}_{}_{}_{}".format(ptLow, ptHigh, etaLow, etaHigh))
+
+    depFiles, depTasks = {}, []
+
+    for t in tasks:
+        if "MergeHists_{}_{}_".format(channel, era) in t["name"] and "fake" in t["name"]:
+            region = "fake-loose" if "fake-loose" in t["name"] else "fake-tight" if not "fake-no-lep" in t["name"] else "fake-no-lep"
+            
+            for b in bins:
+                if b in t["name"]:
+                    region += "_" + b
+                    break
+
+            if systName in t["name"] and systName != "Nominal":
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+            elif data in t["name"]:
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault("data", t["arguments"]["out-file"])
+
+            elif syst == "Nominal" and not "Up" in t["name"] and not "Down" in t["name"]:
+                depTasks.append(t)
+                depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
+
+
+    task = {
+        "name": "Fakerate_{}_{}_{}_{}".format(channel, era, systName, postFix),
+        "dir": outDir,
+        "executable": "estimateFR",
+        "dependencies": [t["name"] for t in depTasks],
+        "arguments": {
+            "out-dir": outDir,
+            "web-dir": outDir.replace("Results", "WebPlotting/Plots").replace("Rates", "").replace("fake", "PostFit"),
+            "bins": bins,
+            "bkg-processes": config["processes"],
+            "hist-name": config["hist-name"]["fake"][channel],
+            "process":  config["proc-usage"]["use"]["fake"],
+            "channel": channel,
+            "era": era
+        }
+    }
+
+    plotTask = {
+        "name": "PlotFakerate_{}_{}_{}_{}".format(channel, era, systName, postFix),
+        "dir": outDir.replace("Rates", "ResultPDF"),
+        "executable": "plotFR",
+        "dependencies": [task["name"]],
+        "arguments": {
+            "mode": "fake",
+            "out-dir": [outDir.replace("Rates", "ResultPDF"), outDir.replace("Results", "WebPlotting/Plots").replace("Rates", "")],
+            "era": era,
+            "channel": channel,
+            "input-file": "{}/fakerate.root".format(outDir)
+        }
+    }
+         
+    for b in bins:
+        for process in [task["arguments"]["process"]] + task["arguments"]["bkg-processes"]:
+            task["arguments"]["fake-loose-{}_{}-file".format(process, b)] = depFiles["fake-loose_{}".format(b)][process]
+            task["arguments"]["fake-tight-{}_{}-file".format(process, b)] = depFiles["fake-tight_{}".format(b)][process]
+            task["arguments"]["fake-no-lep-{}_{}-file".format(process, b)] = depFiles["fake-no-lep_{}".format(b)][process]
     
     tasks.append(Task(task, "--"))
     tasks.append(Task(plotTask, "--"))
 
-def QCDEstimation(tasks, config, channel, era, syst, shift, postFix = ""):
+def bkgEstimation(tasks, config, channel, era, syst, shift, mHPlus, mH, postFix = ""):
     ##Skip Down for nominal case
     if syst == "Nominal" and shift == "Down":
         return
 
     systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
-    outDir = config["dir"].format_map(dd(str, {"D": "QCDEstimation", "C": channel, "E": era})) + "/" + systName
+    outDir = config["dir"].format_map(dd(str, {"D": "ScaleFactor", "C": channel, "E": era, "S": systName, "R": "{}-{}".format(mHPlus, mH)}))
     data = config["data"][channel][0]
 
     depTasks = []
-    depFiles = {}
-
-    regions = [r.split("-")[-1] for r in config["regions"] if "QCD" in r]
-
-    for t in tasks:
-        for region in regions:
-            if "MergeHists_{}_{}_".format(channel, era) in t["name"] and "QCD-{}".format(region) in t["name"]:
-                if systName in t["name"] and systName != "Nominal":
-                    depTasks.append(t)
-                    depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
-
-                elif data in t["name"]:
-                    depTasks.append(t)
-                    depFiles.setdefault(region, {}).setdefault("data", t["arguments"]["out-file"])
-
-                elif syst == "Nominal" and not "Up" in t["name"] and not "Down" in t["name"]:
-                    depTasks.append(t)
-                    depFiles.setdefault(region, {}).setdefault(t["process"], t["arguments"]["out-file"])
-
-                break
-
-    task = {
-        "name": "QCDEstimate_{}_{}_{}_{}".format(channel, era, systName, postFix),
-        "dir": outDir,
-        "executable": "estimateQCD",
-        "dependencies": [t["name"] for t in depTasks],
-        "arguments": {
-            "out-file": "{}/{}.root".format(outDir, "tf" if config.get("only-tf", False) else "QCD"),
-            "processes": [proc for proc in config["processes"] if proc != "QCD"] + ["data"],
-            "regions": regions,
-            "bins": config.get("bins", []),
-        }
-    }
-
-    if config.get("only-tf", False):
-        task["arguments"]["only-tf"] = ""
-          
-    for process in task["arguments"]["processes"]:
-        for region in regions:
-            task["arguments"]["{}-{}-file".format(region, process)] = depFiles[region][process]
-    
-    tasks.append(Task(task, "--"))
-
-def bkgEstimation(tasks, config, channel, era, mass, syst, shift, postFix = ""):
-    ##Skip Down for nominal case
-    if syst == "Nominal" and shift == "Down":
-        return
-
-    systName = "{}{}".format(syst, shift) if syst != "Nominal" else "Nominal"
-    outDir = config["dir"].format_map(dd(str, {"D": "ScaleFactor", "C": channel, "E": era, "S": systName, "MHC": mass}))
-    data = config["data"][channel][0]
-
-    depTasks = []
+    regions = []
     bkgFiles, dataFile = {}, {}
 
     for t in tasks:
         for region in config["regions"]:
-            if "MergeHists_{}_{}_{}".format(channel, era, region) in t["name"] and mass in t["name"]:
+            if "MergeHists_{}_{}_{}-{}-{}".format(channel, era, region, mHPlus, mH) in t["name"]:
                 if systName in t["name"] and systName != "Nominal":
                     depTasks.append(t)
                     bkgFiles.setdefault(region, []).append(t["arguments"]["out-file"])
@@ -735,7 +776,7 @@ def bkgEstimation(tasks, config, channel, era, mass, syst, shift, postFix = ""):
                     bkgFiles.setdefault(region, []).append(t["arguments"]["out-file"])
 
     task = {
-        "name": "Estimate_{}_{}_{}_{}_{}".format(channel, era, mass, systName, postFix),
+        "name": "Estimate_{}_{}_{}_{}_{}_{}".format(channel, era, systName, mHPlus, mH, postFix),
         "dir": outDir,
         "executable": "estimate",
         "dependencies": [t["name"] for t in depTasks],
@@ -1015,7 +1056,7 @@ def mergeDNNOpt(tasks, config, channel, era, postFix = ""):
     for t in tasks:
         if "DNN_{}_{}".format(channel, era) in t["name"]:
             dependencies.append(t["name"])
-            inputFiles.append("{}/hyperparam.csv".format(t["arguments"]["out-path"]))
+            inputFiles.append("{}/hyperparam.csv".format(t["arguments"]["out-path"][0]))
 
     outDir = config["dir"].format_map(dd(str, {"D": "Network", "C": channel, "E": era, "R": "Even"}))
 
@@ -1054,7 +1095,7 @@ def eventCount(tasks, config, channel, era, processes, syst, shift, postFix = ""
                         dependencies.setdefault(region, []).append(t["name"])
                         files.setdefault(region, []).append(t["arguments"]["out-file"])
 
-                    elif "Single" in t["name"] or ("QCD" in t["name"] and config.get("qcd-estimate", False)):
+                    elif "Single" in t["name"] or "MisIDJ" in t["name"]:
                         dependencies.setdefault(region, []).append(t["name"])
                         files.setdefault(region, []).append(t["arguments"]["out-file"])
           
@@ -1103,7 +1144,7 @@ def datacard(tasks, config, channel, era, processes, mHPlus, mH, postFix = ""):
                     systCheck = systName in t["name"] if syst != "" else not "Up" in t["name"] and not "Down" in t["name"]
 
                     for proc in config["backgrounds"]:
-                        if proc == "QCD" and "_QCD_" in t["name"] and config.get("qcd-estimate", False):
+                        if proc == "MisIDJ" and "_MisIDJ_" in t["name"]:
                             bkgFiles.setdefault(region, {}).setdefault(systName, []).append(t["arguments"]["out-file"])
 
                         elif "_{}_".format(proc) in t["name"] and systCheck:
@@ -1341,7 +1382,7 @@ def nanoSkim(tasks, config, era):
                 xSec = 1.
 
                 for key in xSecFile.keys():
-                    if key in name:
+                    if name.startswith(key):
                         xSec = xSecFile[key]["xSec"]
 
                 run = name[name.find("Run") + 7] if "Run" in name else "MC"
@@ -1372,6 +1413,6 @@ def nanoSkim(tasks, config, era):
                         }
                     }
 
-                    afterExe = ["source $CHDIR/ChargedAnalysis/setenv.sh Analysis", "for D in $(echo {}); do gfal-mkdir -p $SRM_DESY/dbrunner/$D; gfal-copy -f $D/{}.root $SRM_DESY/dbrunner/$D/{}.root; done".format(task["arguments"]["out-dir"].replace("[C]", "*").replace("[SYS]", "*"), name, name)]
+                    afterExe = ["source $CHDIR/ChargedAnalysis/setenv.sh Analysis", "for D in $(echo {}); do gfal-mkdir -p $SRM_DESY/dbrunner/$D; while true; do gfal-copy -f -t 120 $D/{}.root $SRM_DESY/dbrunner/$D/{}.root; if [ $? -eq 0 ]; then break; fi; done; done".format(task["arguments"]["out-dir"].replace("[C]", "*").replace("[SYS]", "*"), name, name)]
 
                     tasks.append(Task(task, "--", beforeExe = beforeExe, afterExe = afterExe))
