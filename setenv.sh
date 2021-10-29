@@ -40,7 +40,7 @@ case $1 in
         export PYTHONPATH=$CHDIR/Anaconda3/lib/python3.8/site-packages/:$CHDIR/ChargedAnalysis/Analysis/python:$CHDIR/ChargedAnalysis/Workflow/python:$CHDIR/ChargedAnalysis/Utility/python:$CHDIR/ChargedAnalysis/Network/python:$PYTHONPATH
         export PATH=$CHDIR/Anaconda3/bin:$CHDIR/ChargedAnalysis/bin:$PATH
 
-        source /cvmfs/sft.cern.ch/lcg/contrib/gcc/9binutils/x86_64-centos7/setup.sh
+        source /cvmfs/sft.cern.ch/lcg/contrib/gcc/10binutils/x86_64-centos7/setup.sh
 
         alias make="make -j 20"
 
