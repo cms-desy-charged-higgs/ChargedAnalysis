@@ -30,19 +30,19 @@ void Datacard::GetHists(const std::string& discriminant, const bool& blind){
         for(const std::string& syst : systematics){
             for(const std::string shift : {"Up", "Down"}){
                 //Skip Down loop for nominal case
-                if(syst == "" and shift == "Down") continue;
+                if(syst == "Nominal" and shift == "Down") continue;
 
-                std::string systName = syst == "" ? "" : StrUtil::Merge(syst, shift);
+                std::string systName = syst == "Nominal" ? "Nominal" : StrUtil::Merge(syst, shift);
 
                 for(std::size_t i = 0; i < bkgProcesses.size(); ++i){
                     std::shared_ptr<TFile> file = RUtil::Open(bkgFiles[region][systName].at(i));
                     std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
 
-                    hist->SetName(syst == "" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
-                    hist->SetTitle(syst == "" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
+                    hist->SetName(syst == "Nominal" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
+                    hist->SetTitle(syst == "Nominal" ? bkgProcesses.at(i).c_str() : StrUtil::Join("_", bkgProcesses.at(i), systName).c_str());
 
                     //Save yield of histogram
-                    if(syst == ""){
+                    if(syst == "Nominal"){
                         rates[{region, bkgProcesses.at(i)}] = hist->Integral();
                         if(bkgSum == nullptr) bkgSum = RUtil::CloneSmart<TH1F>(hist.get());
                         else bkgSum->Add(hist.get());
@@ -63,11 +63,11 @@ void Datacard::GetHists(const std::string& discriminant, const bool& blind){
                 std::shared_ptr<TFile> file = RUtil::Open(sigFiles[region][systName]);
                 std::shared_ptr<TH1F> hist = RUtil::GetSmart<TH1F>(file.get(), discriminant);
 
-                hist->SetName(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
-                hist->SetTitle(syst == "" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+                hist->SetName(syst == "Nominal" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
+                hist->SetTitle(syst == "Nominal" ? sigProcess.c_str() : StrUtil::Join("_", sigProcess, systName).c_str());
 
                 //Save yield of histogram
-                if(syst == "") rates[{region, sigProcess}] = hist->Integral();
+                if(syst == "Nominal") rates[{region, sigProcess}] = hist->Integral();
 
                 else{
                     float value = 1. + (hist->Integral() - rates[{region, sigProcess}])/rates[{region, sigProcess}];
@@ -169,7 +169,7 @@ void Datacard::Write(){
     datacard << border << std::endl;
 
     for(const std::string syst : systematics){
-        if(syst == "") continue;
+        if(syst == "Nominal") continue;
 
         std::stringstream systLine;
         systLine << std::left << std::setw(20) << syst << std::setw(10) << "lnN";
@@ -187,6 +187,8 @@ void Datacard::Write(){
     }
 
     datacard << border << std::endl;
+
+    std::sort(regions.begin(), regions.end(), [&](std::string& r1, std::string& r2){return (r1 == "SR" or r1 == "VR") > (r2 == "SR" or r2 == "VR");});
 
     for(int i = 2; i < regions.size(); ++i){
         if(regions[i] == "Misc"){

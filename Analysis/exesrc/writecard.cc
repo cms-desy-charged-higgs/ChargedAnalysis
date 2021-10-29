@@ -20,7 +20,7 @@ int main(int argc, char* argv[]){
     std::string era = parser.GetValue("era");
 
     std::vector<std::string> regions = parser.GetVector("region-names", {"SR"});
-    std::vector<std::string> systematics = parser.GetVector("systematics", {""});
+    std::vector<std::string> systematics = parser.GetVector("systematics", {"Nominal"});
 
     std::map<std::string, std::map<std::string, std::vector<std::string>>> bkgFiles;
     std::map<std::string, std::map<std::string, std::string>> sigFiles;
@@ -29,14 +29,14 @@ int main(int argc, char* argv[]){
     for(const std::string& syst : systematics){
         for(const std::string& shift : {"Up", "Down"}){
             for(const std::string& region : regions){
-                if(syst == "" and shift == "Down") continue;
+                if(syst == "Nominal" and shift == "Down") continue;
 
-                std::string systName = syst != "" ? StrUtil::Merge(syst, shift) : "";
+                std::string systName = syst != "Nominal" ? StrUtil::Merge(syst, shift) : "Nominal";
 
-                if(syst == "") dataFiles[region] = parser.GetValue("data-file-" + region);
+                if(syst == "Nominal") dataFiles[region] = parser.GetValue("data-file-" + region);
 
-                bkgFiles[region][systName] = parser.GetVector(syst != "" ? StrUtil::Join("-", "bkg-files", region, systName) : "bkg-files-" + region);
-                sigFiles[region][systName] = parser.GetValue(syst != "" ? StrUtil::Join("-", "sig-files", region, systName) : "sig-files-" + region);
+                bkgFiles[region][systName] = parser.GetVector(syst != "Nominal" ? StrUtil::Join("-", "bkg-files", region, systName) : "bkg-files-" + region);
+                sigFiles[region][systName] = parser.GetValue(syst != "Nominal" ? StrUtil::Join("-", "sig-files", region, systName) : "sig-files-" + region);
             }
         }
     }
