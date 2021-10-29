@@ -34,7 +34,6 @@ int main(int argc, char *argv[]){
     PUtil::SetStyle();
     PUtil::SetPad(c.get());
     PUtil::SetHist(c.get(), rate.get());
-    c->SetLogx(true);
     c->SetRightMargin(0.15);
 
     gStyle->SetPaintTextFormat(".2f");
