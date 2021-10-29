@@ -1,0 +1,27 @@
+channels:
+    - Ele4J
+    - Muon4J
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Ele2FJ
+    - Muon2FJ
+
+dir: Main/{C}/{E}/{P}/{S}
+
+n-events: 400000
+
+functions:
+    DNN:
+        base-dir: /nfs/dust/cms/user/davebrun/ChargedHiggs/Results/DNN/Main/Network/{C}/{E}/{R}/
+
+    HReco: []
+
+run-mode: Condor
+
+systematics:
+    - Nominal
+    - JECTotal
+    - JER
+    - eleEnergyScale
+    - eleEnergySigmals
+

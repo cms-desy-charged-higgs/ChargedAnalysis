@@ -1,0 +1,33 @@
+dir: Skim/10_10_2021/{C}/{E}
+
+skim-dir: Skim/10_10_2021/{C}/{E}
+
+is-nano: true
+
+channels:
+    - EleIncl
+    - Ele4J
+    - Ele2J1FJ
+    - Ele2FJ
+    - MuonIncl
+    - Muon4J
+    - Muon2J1FJ
+    - Muon2FJ
+
+systematics:
+    - Nominal
+    - JECTotal
+    - JER
+    - eleEnergyScale
+    - eleEnergySigma
+
+run-mode: Condor
+
+exclude:
+    - Lumi
+    - LumiDown  
+    - LumiUp
+    - pileUp
+    - pileUpUp
+    - pileUpDown
+    - xSec

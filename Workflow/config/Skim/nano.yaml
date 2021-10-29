@@ -1,0 +1,22 @@
+dir: UL/{E}/
+
+channels:
+    - MuonIncl
+    - EleIncl
+    - Muon4J
+    - Ele4J
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Muon2FJ
+    - Ele2FJ
+
+systematics:
+    - Nominal
+    - JECTotal
+    - JER
+    - eleEnergyScale
+    - eleEnergySigma
+
+CMSSW: CMSSW_10_6_20
+
+run-mode: Condor

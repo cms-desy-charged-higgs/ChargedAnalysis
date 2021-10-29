@@ -1,8 +1,8 @@
 run-mode: Local
 
-skim-base-dir: Skim/26_8_2021/{C}/{E}
+skim-base-dir: Skim/10_10_2021/{C}/{E}
 
-skim-dir: Skim/26_8_2021/{C}/{E}/{P}/{S}
+skim-dir: Skim/10_10_2021/{C}/{E}/{P}/{S}
 
 n-events: 100000
 
@@ -20,6 +20,42 @@ cuts:
 
 y-parameters:
     all: []
+
+fake-estimate:
+    rates: Results/Fakerate/WithOneLepton/Rates/{C}/2018/{R}/{R}rate.root
+
+    cuts:
+        Ele2FJ:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=0
+
+        Ele2J1FJ:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=0
+
+        Ele4J:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=0
+
+        EleIncl:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=e,wp=tight/c:n=equal,v=0
+
+        Muon2FJ:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=tight/c:n=equal,v=0
+
+        Muon2J1FJ:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=tight/c:n=equal,v=0
+
+        Muon4J:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=tight/c:n=equal,v=0
+
+        MuonIncl:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+            - f:n=N/p:n=mu,wp=tight/c:n=equal,v=0
 
 data:
     EleIncl: 

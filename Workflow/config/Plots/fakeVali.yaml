@@ -1,0 +1,58 @@
+dir: FakeVali/{D}/{C}/{E}/{R}/{P}/{S}
+
+run-mode: Condor
+
+channels:
+    - EleIncl
+    - MuonIncl
+
+n-events: 600000
+
+processes:
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
+    - MisIDJ
+
+cuts:
+    all:
+        - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
+
+    EleIncl:
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=e,wp=loose/replaceForFR/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=tight/replaceForFR/c:n=equal,v=1/getSF
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=equal,v=2
+        - f:n=N/p:n=fj/c:n=equal,v=0
+        - f:n=dR/p:n=e,i=1,wp=loose/p:n=j,i=1/c:n=bigger,v=0.7
+
+    MuonIncl:
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=mu,wp=loose/replaceForFR/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=tight/replaceForFR/c:n=equal,v=1/getSF
+        - f:n=gID/p:n=mu,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=equal,v=2
+        - f:n=N/p:n=fj/c:n=equal,v=0
+        - f:n=dR/p:n=mu,i=1,wp=loose/p:n=j,i=1/c:n=bigger,v=0.7
+
+parameters:
+    EleIncl:
+        - f:n=pt/p:n=e,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=e,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+
+    MuonIncl:
+        - f:n=pt/p:n=mu,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=mu,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+
+    all:
+        - f:n=pt/p:n=met/h:nxb=20,xl=0,xh=150
+        - f:n=pt/p:n=j,i=1/h:nxb=20,xl=30,xh=300
+        - f:n=eta/p:n=j,i=1/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=j,i=2/h:nxb=20,xl=30,xh=300
+        - f:n=eta/p:n=j,i=2/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=HT/p:n=j/h:nxb=20,xl=0,xh=700

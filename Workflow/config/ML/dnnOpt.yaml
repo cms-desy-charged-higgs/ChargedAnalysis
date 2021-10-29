@@ -8,13 +8,16 @@ channels:
 
 run-mode: Condor
 
-hyper-opt: Results/DNN/HyperOpt/Network/{C}/{E}/Even/merged/hyperparam.csv
+optimize: true
+
+n-tries: 200
 
 index-path: Results/Index/DNNSelection/{C}/{E}/{R}/{P}/{S}
 
 classes:
-    - 1Lep
-    - 2Lep
+    - TT1L
+    - TT2L
+    - ST
 
 signal: 
     - HPlus200_h70_4B
@@ -34,7 +37,7 @@ signal:
     - HPlus600_h80_4B
     - HPlus600_h90_4B
 
-dir: Main/{D}/{C}/{E}/{R}
+dir: HyperOpt/{D}/{C}/{E}/{R}
 
 parameters:
     all:

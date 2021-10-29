@@ -1,0 +1,170 @@
+dir: GenID/{D}/{C}/{E}/{R}/{P}
+
+run-mode: Local
+
+channels:
+   # - MuonIncl
+   # - EleIncl
+    - Ele2FJ
+   # - Muon2FJ
+
+n-events: 400000
+
+modes:
+    - prompt
+    - fake
+
+processes:
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
+
+regions: 
+    - prompt-tight
+    - prompt-loose
+    - fake-tight
+    - fake-loose
+
+data: {}
+
+cuts:
+    Ele2FJ:
+        prompt-loose:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=equal,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        prompt-tight:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=equal,v=3
+            - f:n=mID/p:n=e,wp=loose,i=2/c:n=equal,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-loose:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=equal,v=3
+            - f:n=dicharge/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=equal,v=1
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=smallerOrbigger,v=60,v=120
+
+        fake-tight:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=equal,v=3
+            - f:n=mID/p:n=e,wp=loose,i=2/c:n=equal,v=3
+            - f:n=dicharge/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=equal,v=1
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=smallerOrbigger,v=60,v=120
+
+    Muon2FJ:
+        prompt-loose:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=2/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        prompt-tight:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=2/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-loose:
+            - f:n=N/p:n=mu,wp=loose/c:n=bigger,v=3/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-tight:
+            - f:n=N/p:n=mu,wp=loose/c:n=bigger,v=3/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=3/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=3/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+    EleIncl:
+        prompt-loose:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        prompt-tight:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=2/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=mID/p:n=e,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-loose:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=3/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=mID/p:n=e,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-tight:
+            - f:n=N/p:n=e,wp=loose/c:n=equal,v=3/getSF
+            - f:n=mID/p:n=e,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=mID/p:n=e,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=mID/p:n=e,wp=loose,i=3/c:n=bigger,v=3
+            - f:n=diM/p:n=e,wp=loose,i=1/p:n=e,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+    MuonIncl:
+        prompt-loose:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=2/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        prompt-tight:
+            - f:n=N/p:n=mu,wp=loose/c:n=equal,v=2/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-loose:
+            - f:n=N/p:n=mu,wp=loose/c:n=bigger,v=3/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+        fake-tight:
+            - f:n=N/p:n=mu,wp=loose/c:n=bigger,v=3/getSF
+            - f:n=ID/p:n=mu,wp=loose,i=1/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=1/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=2/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=2/c:n=smaller,v=0.15
+            - f:n=ID/p:n=mu,wp=loose,i=3/c:n=bigger,v=3
+            - f:n=iso/p:n=mu,wp=loose,i=3/c:n=smaller,v=0.15
+            - f:n=diM/p:n=mu,wp=loose,i=1/p:n=mu,wp=loose,i=2/c:n=biggerAndsmaller,v=80,v=100
+
+parameters:
+    MuonIncl:
+        - f:n=gM/p:n=mu,wp=loose,i=1/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=mu,wp=loose,i=2/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=mu,wp=loose,i=3/h:nxb=2,xl=0,xh=2
+
+    Muon2FJ:
+        - f:n=gM/p:n=mu,wp=loose,i=1/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=mu,wp=loose,i=2/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=mu,wp=loose,i=3/h:nxb=2,xl=0,xh=2
+
+    Ele2FJ:
+        - f:n=gM/p:n=e,wp=loose,i=1/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=e,wp=loose,i=2/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=e,wp=loose,i=3/h:nxb=2,xl=0,xh=2
+
+    EleIncl:
+        - f:n=gM/p:n=e,wp=loose,i=1/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=e,wp=loose,i=2/h:nxb=2,xl=0,xh=2
+        - f:n=gM/p:n=e,wp=loose,i=3/h:nxb=2,xl=0,xh=2

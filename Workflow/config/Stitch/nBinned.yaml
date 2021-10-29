@@ -1,0 +1,35 @@
+dir: General/{C}/{E}
+
+run-mode: Condor
+
+shape-systs:
+    all:
+        - Nominal
+        - JECTotal
+        - JER
+        - eleEnergyCorr
+
+channels:
+    - EleIncl
+    - Ele4J
+    - Ele2J1FJ
+    - Ele2FJ
+    - MuonIncl
+    - Muon4J
+    - Muon2J1FJ
+    - Muon2FJ
+
+files:
+    WJet:
+        - WJetsToLNu
+        - W1JetsToLNu
+        - W2JetsToLNu
+        - W3JetsToLNu
+        - W4JetsToLNu
+
+    DYJet:
+        - DYJetsToLL_M-50
+        - DY1JetsToLL
+        - DY2JetsToLL
+        - DY3JetsToLL
+        - DY4JetsToLL

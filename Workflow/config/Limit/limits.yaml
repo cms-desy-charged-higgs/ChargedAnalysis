@@ -1,0 +1,132 @@
+dir: Main/{D}/{C}/{E}/{R}/{P}/{S}
+
+run-mode: Condor
+
+parameters: 
+    all : []
+
+n-events: 600000
+
+#bkg-yield-factor: Results/Estimate/Final/ScaleFactor/{C}/{E}/{MHC}/{SYS}{SHIFT}/scaleFactor.csv
+
+backgrounds:
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
+    - QCD
+
+channels:
+    - Muon2FJ
+    - Muon2J1FJ
+    - Muon4J
+    - Ele2FJ
+    - Ele2J1FJ
+    - Ele4J
+
+masses:
+    - [200, 70]
+    - [200, 80]
+    - [200, 90]
+    - [300, 100]
+    - [400, 70]
+    - [400, 80]
+    - [500, 80]
+    - [600, 80]
+    - [600, 90]
+
+regions:
+    - SR
+    - VR
+    - TT1L
+    - TT2L
+    - Misc
+
+cuts:
+    all:
+        - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
+
+    allRegions:
+        SR:
+            - f:n=dnnc,v={MHC},v={MH}/c:n=equal,v=3
+            - f:n=dnn,v=HPlus,v={MHC},v={MH}/c:n=bigger,v=0.8
+
+        VR:
+            - f:n=dnnc,v={MHC},v={MH}/c:n=equal,v=3
+            - f:n=dnn,v=HPlus,v={MHC},v={MH}/c:n=smaller,v=0.8
+
+        TT1L:
+            - f:n=dnnc,v={MHC},v={MH}/c:n=equal,v=2
+
+        TT2L:
+            - f:n=dnnc,v={MHC},v={MH}/c:n=equal,v=1
+
+        Misc:
+            - f:n=dnnc,v={MHC},v={MH}/c:n=equal,v=0
+
+    Ele2FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/getSF/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=2/c:n=bigger,v=3
+    Ele2J1FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/getSF/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2/getSF
+        - f:n=dAK8C,v=QCD,v=W,v=Top,v=DY,v=Higgs/p:n=fj,i=1/c:n=bigger,v=3
+    Ele4J:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/getSF/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=4
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4/getSF
+
+discriminant: EventCount
+
+scale-systs:
+    Muon2FJ:
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Muon2J1FJ:
+        - BTag
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Muon4J:
+        - BTag
+        - MuonTrigger
+        - MuonIso
+        - MuonID
+    Ele2FJ:
+        - ElectronID
+        - EleReco
+    Ele2J1FJ:
+        - BTag
+        - ElectronID
+        - EleReco
+    Ele4J:
+        - BTag
+        - ElectronID
+        - EleReco
+
+    all:
+        - PileUp
+
+shape-systs:
+    all:
+        - Nominal
+        - JECTotal
+        - JER
+        - eleEnergyCorr
+
+signal: HPlus{MHC}_h{MH}_4B

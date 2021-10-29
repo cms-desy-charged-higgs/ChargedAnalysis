@@ -1,0 +1,126 @@
+dir: MainSelection/{D}/{C}/{E}/{R}/{P}/{S}
+
+n-events: 400000
+
+run-mode: Condor
+
+channels:
+    - Muon2FJ
+    - Muon2J1FJ
+    - Muon4J
+    - Ele2FJ
+    - Ele2J1FJ
+    - Ele4J
+
+processes:
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
+    - MisIDJ
+    - HPlus200_h90_4B
+  #  - HPlus600_h90_4B
+
+cuts:
+    all:
+        - f:n=N/p:n=trk,wp=lep/c:n=equal,v=0
+
+    Ele2FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=dAK8C/p:n=fj,i=2/c:n=bigger,v=3
+
+    Ele2J1FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2/getSF
+
+    Ele4J:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=4
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=3/getSF
+
+    Muon2FJ:
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=mu,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=dAK8C/p:n=fj,i=2/c:n=bigger,v=3
+
+    Muon2J1FJ:
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2/getSF
+
+    Muon4J:
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=mu,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=4
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=3/getSF
+
+parameters:
+    Ele2FJ:
+        - f:n=pt/p:n=e,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=e,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=1/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=1/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=2/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=2/h:nxb=20,xl=-2.4,xh=2.4
+
+    Ele2J1FJ:
+        - f:n=pt/p:n=e,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=e,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=1/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=1/h:nxb=20,xl=-2.4,xh=2.4
+
+    Ele4J:
+        - f:n=pt/p:n=e,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=e,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+
+    Muon2FJ:
+        - f:n=pt/p:n=mu,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=mu,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=1/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=1/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=2/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=2/h:nxb=20,xl=-2.4,xh=2.4
+
+    Muon2J1FJ:
+        - f:n=pt/p:n=mu,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=mu,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=fj,i=1/h:nxb=20,xl=180,xh=400
+        - f:n=eta/p:n=fj,i=1/h:nxb=20,xl=-2.4,xh=2.4
+
+    Muon4J:
+        - f:n=pt/p:n=mu,i=1,wp=loose/h:nxb=20,xl=30,xh=200
+        - f:n=eta/p:n=mu,i=1,wp=loose/h:nxb=20,xl=-2.4,xh=2.4
+
+
+    all:
+        - f:n=pt/p:n=j,i=1/h:nxb=20,xl=30,xh=300
+        - f:n=eta/p:n=j,i=1/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=j,i=2/h:nxb=20,xl=30,xh=300
+        - f:n=eta/p:n=j,i=2/h:nxb=20,xl=-2.4,xh=2.4
+        - f:n=pt/p:n=met/h:nxb=20,xl=0,xh=200
+        - f:n=HT/p:n=j/h:nxb=20,xl=0,xh=700
+        - f:n=phi/p:n=met/h:nxb=20,xl=-3.14,xh=3.14

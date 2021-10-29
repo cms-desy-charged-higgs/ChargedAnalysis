@@ -1,0 +1,93 @@
+channels:
+    - Muon2FJ
+    - Ele2FJ
+    - Muon2J1FJ
+    - Ele2J1FJ
+    - Muon4J
+    - Ele4J
+
+run-mode: Condor
+
+processes:
+    - TT1L
+    - TT2L
+    - DYJ
+    - WJ
+    - VV
+    - ST
+    - HPlus200_h70_4B
+    - HPlus200_h80_4B
+    - HPlus200_h90_4B
+    - HPlus300_h100_4B
+    - HPlus300_h110_4B
+    - HPlus400_h100_4B
+    - HPlus400_h70_4B
+    - HPlus400_h80_4B
+    - HPlus400_h90_4B
+    - HPlus500_h100_4B
+    - HPlus500_h110_4B
+    - HPlus500_h70_4B
+    - HPlus500_h80_4B
+    - HPlus600_h100_4B
+    - HPlus600_h80_4B
+    - HPlus600_h90_4B
+
+data: {}
+
+regions:
+    - Even
+    - Odd
+
+dir: DNNSelection/{C}/{E}/{R}/{P}/{S}
+
+cuts:
+    allRegions:
+        Even:
+            - f:n=mEvNr/c:n=modulo2,v=0
+
+        Odd:
+            - f:n=mEvNr/c:n=modulo2,v=1
+
+    Ele2FJ:
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=dAK8C/p:n=fj,i=2/c:n=bigger,v=3
+
+    Ele4J:
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=4
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
+
+    Ele2J1FJ:
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+
+    Muon2FJ:
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3
+        - f:n=dAK8C/p:n=fj,i=2/c:n=bigger,v=3
+
+    Muon4J:
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=4
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=4
+
+    Muon2J1FJ:
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=1
+        - f:n=N/p:n=mu,wp=tight/c:n=equal,v=1
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=0
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=bj,wp=loose/c:n=bigger,v=2
+        - f:n=dAK8C/p:n=fj,i=1/c:n=bigger,v=3

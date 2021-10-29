@@ -1,0 +1,50 @@
+dir: IsoTrack/{D}/{C}/{E}/{R}/{P}/{S}
+
+n-events: 400000
+
+run-mode: Condor
+
+channels:
+  #  - Muon2FJ
+   # - Muon2J1FJ
+    - Ele2FJ
+    - Ele2J1FJ
+    - Ele4J
+
+processes:
+    - WJ
+    - DYJ
+    - TT1L
+    - TT2L
+    - TTV
+    - VV
+    - ST
+    - MisIDJ
+    - HPlus200_h90_4B
+  #  - HPlus600_h90_4B
+
+#bkg-yield-factor: Results/Estimate/NewTest/ScaleFactor/{C}/{E}/{S}/{MHC}/scaleFactor.csv
+
+cuts:
+    Ele2FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+
+    Ele2J1FJ:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=bigger,v=2
+        - f:n=N/p:n=mu,wp=loose/c:n=equal,v=0
+
+    Ele4J:
+        - f:n=N/p:n=e,wp=tight/c:n=equal,v=1/replaceForFR/getSF
+        - f:n=N/p:n=e,wp=loose/c:n=equal,v=1/replaceForFR
+        - f:n=gID/p:n=e,wp=loose,i=1/c:n=bigger,v=-20
+        - f:n=N/p:n=j/c:n=bigger,v=4
+
+parameters:
+    all:
+        - f:n=N/p:n=trk,wp=lep/h:nxb=4,xl=0,xh=4
