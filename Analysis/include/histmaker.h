@@ -29,23 +29,24 @@ class HistMaker {
         std::string outFile, channel, fakeRateFile, promptRateFile;
         std::map<std::string, std::vector<std::string>> cutStrings, systDirs;
         int era;
+        bool isMisIDJ;
 
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
 
-        std::vector<std::shared_ptr<TFile>> outFiles;
-        std::vector<std::shared_ptr<TH1F>> hists1D, hists1DSystUp, hists1DSystDown;
-        std::vector<std::shared_ptr<TH2F>> hists2D, hists2DSystUp, hists2DSystDown;
-        std::vector<std::shared_ptr<TH1F>> eventCount, eventCountSystUp, eventCountSystDown;
+        std::vector<std::shared_ptr<TFile>> outFiles, outFilesForMisIDJ;
+        std::vector<std::shared_ptr<TH1F>> hists1D, hists1DMisIDJ, hists1DSystUp, hists1DSystDown;
+        std::vector<std::shared_ptr<TH2F>> hists2D, hists2DMisIDJ, hists2DSystUp, hists2DSystDown;
+        std::vector<std::shared_ptr<TH1F>> eventCount, eventCountMisIDJ, eventCountSystUp, eventCountSystDown;
 
         std::vector<int> cutIdxRange;
-        std::vector<NTupleReader> hist1DFunctions, cutFunctions;
-        std::vector<std::pair<NTupleReader, NTupleReader>> hist2DFunctions;
+        std::vector<NTupleFunction> hist1DFunctions, cutFunctions;
+        std::vector<std::pair<NTupleFunction, NTupleFunction>> hist2DFunctions;
 
         Weighter baseWeight;
         std::unordered_map<int, Weighter> cutPartWeight, histPartWeight;
 
-        void PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, std::shared_ptr<NCache> cache, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void PrepareHists(const std::shared_ptr<TFile>& inFile, const std::shared_ptr<TTree> inTree, NTupleReader& reader, const std::experimental::source_location& location = std::experimental::source_location::current());
 
     public:
         HistMaker();
