@@ -46,7 +46,11 @@ makedir:
 
 $(BINDIR)/%: $(CHDIR)/ChargedAnalysis/obj/%.o
     echo "Creating executable $@"
-    $(CC) $^ -o $@ $(LIBS) $(LIBS) $(DEPS) -lChargedAnalysis 
+    $(CC) $^ -o $@ $(LIBS) $(LIBS) $(DEPS) -lChargedAnalysis
+
+$(BINDIR)/estimate%: $(CHDIR)/ChargedAnalysis/obj/estimate%.o
+    echo "Creating executable $@"
+    $(CC) $^ -o $@ $(LIBS) $(LIBS) $(DEPS) -lRooFit -lRooFitCore -lChargedAnalysis
 
 $(OBJDIR)/%.o: $(CHDIR)/ChargedAnalysis/*/exesrc/%.cc
     echo "Compiling $<"
