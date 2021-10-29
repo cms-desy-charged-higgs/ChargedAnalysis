@@ -15,8 +15,8 @@ void Loop(const std::string& fileName, const std::string& channel, const int& er
     std::shared_ptr<TFile> inFile = RUtil::Open(fileName);
     std::shared_ptr<TTree> inTree = RUtil::GetSmart<TTree>(inFile.get(), channel);
 
-    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
-    std::vector<NTupleReader> cuts;
+    NTupleReader reader(inTree, era);
+    std::vector<NTupleFunction> cuts;
     int nCuts = 0; std::vector<int> cutIdxRange;
 
     std::vector<std::unique_ptr<CSV>> outFiles;
@@ -29,7 +29,7 @@ void Loop(const std::string& fileName, const std::string& channel, const int& er
 
         for(const std::string& cutString: cutStrings.at(region)){
             //Functor structure and arguments
-            NTupleReader cut(inTree, era, cache);
+            NTupleFunction cut = reader.BuildFunc();
                 
             parser.GetParticle(cutString, cut);
             parser.GetFunction(cutString, cut);
@@ -48,11 +48,13 @@ void Loop(const std::string& fileName, const std::string& channel, const int& er
     bool passed = true;
 
     for(int entry = entryStart; entry < entryEnd; ++entry){
+        reader.SetEntry(entry);
+
         for(int region = 0; region < regions.size(); ++region){
             passed = true;
 
             for(unsigned int j = region == 0 ? 0 : cutIdxRange[region-1]; j < cutIdxRange[region]; ++j){
-                passed = passed and cuts[j].GetPassed(entry);
+                passed = passed and cuts[j].GetPassed();
                 if(!passed) break;
             }
 

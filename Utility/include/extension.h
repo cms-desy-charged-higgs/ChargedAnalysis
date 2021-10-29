@@ -34,8 +34,8 @@
 
 namespace Extension {
     std::map<std::string, std::vector<float>> HScore(std::shared_ptr<TFile>& file, const std::string& channel, const int& era);
-    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TTree>& tree, const std::string& dnnDir, const std::string& hyperParamFile, const int& era);
-    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TTree>& tree, const int& era);
+    std::map<std::string, std::vector<float>> DNNScore(std::shared_ptr<TTree>& tree, const int& entryStart, const int& entryEnd, const std::string& dnnDir, const int& era);
+    std::map<std::string, std::vector<float>> HReconstruction(std::shared_ptr<TTree>& tree, const int& entryStart, const int& entryEnd, const int& era);
 }
 
 #endif

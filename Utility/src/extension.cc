@@ -115,31 +115,38 @@ std::map<std::string, std::vector<float>> Extension::HScore(std::shared_ptr<TFil
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TTree>& tree, const std::string& dnnDir, const std::string& hyperParamFile, const int& era){
+std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TTree>& tree, const int& entryStart, const int& entryEnd, const std::string& dnnDir, const int& era){
+    //Restrict number of threads to one
+    at::set_num_interop_threads(1);
+    at::set_num_threads(1);
+
+
     //Set values with default values
     std::map<std::string, std::vector<float>> values;
 
-    //Take time
-    int nEntries = tree->GetEntries();
-
     //Set tree parser and tree functions
     Decoder parser;
-    std::vector<NTupleReader> functions;
-    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
-    TLeaf* evNr = RUtil::Get<TLeaf>(tree.get(), "Misc_eventNumber");
+    NTupleReader reader(tree, era);
+    std::vector<NTupleFunction> functions;
+
+    NTupleFunction isEven = reader.BuildFunc();
+    isEven.AddFunction("mEvNr");
+    isEven.AddCut(0, "%2");
+    isEven.Compile();
 
     //Read txt with parameter used in the trainind and set tree function
     std::string paramFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/parameter.csv"); 
     std::string clsFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/classes.csv"); 
-    std::string massFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/masses.csv"); 
+    std::string massFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/masses.csv");
+    std::string modelFile = StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.csv");
         
     CSV paramCSV(paramFile, "r", "\t");
     CSV clsCSV(clsFile, "r", "\t");
     CSV massCSV(massFile, "r", "\t");
-    CSV hyperCSV(hyperParamFile, "r", "\t");
+    CSV modelCSV(modelFile, "r", "\t");
 
     for(const std::string parameter : paramCSV.GetColumn("Parameter")){
-        NTupleReader func(tree, era, cache);
+        NTupleFunction func = reader.BuildFunc();
 
         parser.GetParticle(parameter, func);
         parser.GetFunction(parameter, func);
@@ -166,31 +173,31 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TT
     for(std::pair<int, int>& m : masses){
         for(std::string& cls : classes){
             branchNames.push_back(StrUtil::Join("_", "DNN", cls, m.first, m.second));
-            branchValues.push_back(std::vector<float>(nEntries, -999.));                
+            branchValues.push_back(std::vector<float>(entryEnd - entryStart, -999.));                
         }
 
         branchNames.push_back(StrUtil::Join("_", "DNN_Class", m.first, m.second));
-        branchValues.push_back(std::vector<float>(nEntries, -999.));
+        branchValues.push_back(std::vector<float>(entryEnd - entryStart, -999.));
     }
 
     //Get/load model and set to evaluation mode
     torch::Device device(torch::kCPU);
-    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), hyperCSV.Get<int>(0, "n-nodes"), hyperCSV.Get<int>(0, "n-layers"), hyperCSV.Get<float>(0, "drop-out"), true, classes.size(), device));
+    std::vector<std::shared_ptr<DNNModel>> model(2, std::make_shared<DNNModel>(functions.size(), modelCSV.Get<int>(0, "n-nodes"), modelCSV.Get<int>(0, "n-layers"), modelCSV.Get<float>(0, "drop-out"), true, classes.size(), device));
+
+    torch::load(model[0], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
+    torch::load(model[1], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
 
     model[0]->eval();
     model[1]->eval();
     
     model[0]->Print();
 
-    torch::load(model[0], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
-    torch::load(model[1], StrUtil::Merge(StrUtil::Replace(dnnDir, "{R}", "Even"), "/model.pt"));
-
     torch::NoGradGuard no_grad;
 
     std::vector<int> entries;
-    for(int i = 0; i < nEntries; i++){entries.push_back(i);}
+    for(int i = entryStart; i < entryEnd; i++){entries.push_back(i);}
     std::vector<int>::iterator entry = entries.begin();
-    int batchSize = nEntries > 2500 ? 2500 : nEntries;
+    int batchSize = entryEnd - entryStart > 2500 ? 2500 : entryEnd - entryStart;
     int counter = 0;
 
     while(entry != entries.end()){
@@ -201,20 +208,16 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TT
         std::vector<torch::Tensor> evenTensors;
         std::vector<torch::Tensor> oddTensors;
 
-        for(int bRow = 0; bRow < batchSize; bRow++){
-            if(*entry % 1000 == 0 and *entry != 0){
-                //std::cout << "Processed events: " << *entry << " (" << *entry/timer.Time() << " eve/s)" << std::endl;
-            }
-
+        for(int bRow = 0; bRow < batchSize; ++bRow){
             //Fill event class with particle content
-            cache->clear();
+            reader.SetEntry(*entry);
             std::vector<float> paramValues;
 
             for(int i=0; i < functions.size(); ++i){
-                paramValues.push_back(functions[i].Get(*entry));
+                paramValues.push_back(functions[i].Get());
             }
-
-            if(RUtil::GetEntry<int>(evNr, *entry) % 2 == 0){
+            
+            if(isEven.GetPassed(*entry)){
                 evenTensors.push_back(torch::from_blob(paramValues.data(), {1, paramValues.size()}).clone().to(device));
                 evenIndex.push_back(counter);
             }
@@ -268,7 +271,7 @@ std::map<std::string, std::vector<float>> Extension::DNNScore(std::shared_ptr<TT
     return values;
 }
 
-std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TTree>& tree, const int& era){
+std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared_ptr<TTree>& tree, const int& entryStart, const int& entryEnd, const int& era){
     typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<double>> PolarLV;
     typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double>> CartLV;
     typedef std::vector<std::pair<PolarLV, PolarLV>> hCandVec;
@@ -278,74 +281,61 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
     std::vector<std::string> branchNames = {"W_Mass", "W_Mt", "W_Pt", "W_Phi", "H1_Pt", "H1_Eta", "H1_Phi", "H1_Mass", "H2_Pt", "H2_Eta", "H2_Phi", "H2_Mass", "HPlus_Pt", "HPlus_Mt", "HPlus_Mass", "HPlus_Phi"};
 
     for(const std::string& branchName: branchNames){
-        values[branchName] = std::vector<float>(tree->GetEntries(), -999.);
+        values[branchName] = std::vector<float>(entryEnd - entryStart, -999.);
     }
     
     std::string lepName = !StrUtil::Find(tree->GetName(), "Muon").empty() ? "mu" : "e";
     float lepMass = !StrUtil::Find(tree->GetName(), "Muon").empty() ? 0.10565: 0.000510;
 
-    std::shared_ptr<NCache> cache = std::make_shared<NCache>();
+    NTupleReader reader(tree, era);
 
-    NTupleReader LepPt(tree, era, cache), LepEta(tree, era, cache), LepPhi(tree, era, cache);
-    LepPt.AddParticle(lepName, 1, "loose"); LepEta.AddParticle(lepName, 1, "loose"); LepPhi.AddParticle(lepName, 1, "loose");
+    NTupleFunction LepPt = reader.BuildFunc(), LepEta = reader.BuildFunc(), LepPhi = reader.BuildFunc();
+    LepPt.AddParticle(lepName, 1, ""); LepEta.AddParticle(lepName, 1, ""); LepPhi.AddParticle(lepName, 1, "");
     LepPt.AddFunction("pt"); LepEta.AddFunction("eta"); LepPhi.AddFunction("phi");
     LepPt.Compile(); LepEta.Compile(); LepPhi.Compile();
 
-    NTupleReader METPt(tree, era, cache), METPhi(tree, era, cache);
+    NTupleFunction METPt = reader.BuildFunc(), METPhi = reader.BuildFunc();
     METPt.AddParticle("met", 0, ""); METPhi.AddParticle("met", 0, "");
     METPt.AddFunction("pt"); METPhi.AddFunction("phi");
     METPt.Compile(); METPhi.Compile();
 
-    NTupleReader JetPt(tree, era, cache), JetEta(tree, era, cache), JetPhi(tree, era, cache), JetMass(tree, era, cache);
+    NTupleFunction JetPt = reader.BuildFunc(), JetEta = reader.BuildFunc(), JetPhi = reader.BuildFunc(), JetMass = reader.BuildFunc();
     JetPt.AddParticle("j", 0, ""); JetEta.AddParticle("j", 0, ""); JetPhi.AddParticle("j", 0, ""); JetMass.AddParticle("j", 0, "");
     JetPt.AddFunction("pt"); JetEta.AddFunction("eta"); JetPhi.AddFunction("phi"); JetMass.AddFunction("m");
     JetPt.Compile(); JetEta.Compile(); JetPhi.Compile(); JetMass.Compile();
 
-    NTupleReader FatJetPt(tree, era, cache), FatJetEta(tree, era, cache), FatJetPhi(tree, era, cache), FatJetMass(tree, era, cache);
+    NTupleFunction FatJetPt = reader.BuildFunc(), FatJetEta = reader.BuildFunc(), FatJetPhi = reader.BuildFunc(), FatJetMass = reader.BuildFunc();
     FatJetPt.AddParticle("fj", 0, ""); FatJetEta.AddParticle("fj", 0, ""); FatJetPhi.AddParticle("fj", 0, ""); FatJetMass.AddParticle("fj", 0, "");
     FatJetPt.AddFunction("pt"); FatJetEta.AddFunction("eta"); FatJetPhi.AddFunction("phi"); FatJetMass.AddFunction("m");
     FatJetPt.Compile(); FatJetEta.Compile(); FatJetPhi.Compile(); FatJetMass.Compile();
 
     float pXNu, pYNu, pXLep, pYLep, pZLep, mW;
 
-    for(int i = 0; i < tree->GetEntries(); ++i){
-        cache->clear();
+    for(int i = entryStart, idx = 0; i < entryEnd; ++i, ++idx){
+        reader.SetEntry(i);
 
-        PolarLV LepLV(LepPt.Get(i), LepEta.Get(i), LepPhi.Get(i), lepMass);
-        PolarLV W = LepLV + PolarLV(METPt.Get(i), 0, METPhi.Get(i), 0);
+        PolarLV LepLV(LepPt.Get(), LepEta.Get(), LepPhi.Get(), lepMass);
+        PolarLV W = LepLV + PolarLV(METPt.Get(), 0, METPhi.Get(), 0);
 
-        if(LepLV.Pt() == -999.) continue;
-
-        values["W_Mass"][i] = W.M();
-        values["W_Pt"][i] = W.Pt();
-        values["W_Mt"][i] = W.Mt();
-        values["W_Phi"][i] = W.Phi();
+        values["W_Mass"][idx] = W.M();
+        values["W_Pt"][idx] = W.Pt();
+        values["W_Mt"][idx] = W.Mt();
+        values["W_Phi"][idx] = W.Phi();
 
         std::vector<PolarLV> jets;
         std::vector<PolarLV> fatJets;
 
-        JetPt.Reset(); JetEta.Reset(); JetPhi.Reset(); JetMass.Reset();
-        FatJetPt.Reset(); FatJetEta.Reset(); FatJetPhi.Reset(); FatJetMass.Reset();
+        for(int k = 0;; ++k){
+            PolarLV jet = PolarLV(JetPt.Get(k), JetEta.Get(k), JetPhi.Get(k), JetMass.Get(k));
 
-        while(true){
-            PolarLV jet = PolarLV(JetPt.Get(i), JetEta.Get(i), JetPhi.Get(i), JetMass.Get(i));
-
-            if(jet.Pt() != -999.){
-                jets.push_back(jet);
-                JetPt.Next(); JetEta.Next(); JetPhi.Next(); JetMass.Next();
-            }
-
+            if(jet.Pt() != -999.) jets.push_back(jet);
             else break;
         }
 
-        while(true){
-            PolarLV fatJet = PolarLV(FatJetPt.Get(i), FatJetEta.Get(i), FatJetPhi.Get(i), FatJetMass.Get(i));
+        for(int k = 0;; ++k){
+            PolarLV fatJet = PolarLV(FatJetPt.Get(k), FatJetEta.Get(k), FatJetPhi.Get(k), FatJetMass.Get(k));
 
-            if(fatJet.Pt() != -999.){
-                fatJets.push_back(fatJet);
-                FatJetPt.Next(); FatJetEta.Next(); FatJetPhi.Next(); FatJetMass.Next();
-            }
-
+            if(fatJet.Pt() != -999.) fatJets.push_back(fatJet);
             else break;
         }
 
@@ -402,33 +392,33 @@ std::map<std::string, std::vector<float>> Extension::HReconstruction(std::shared
         PolarLV Hc2 = hCands[0].second + W;
 
         if(ROOT::Math::VectorUtil::DeltaPhi(hCands[0].first, W) < ROOT::Math::VectorUtil::DeltaPhi(hCands[0].second, W)){
-            values["H1_Pt"][i] = hCands[0].first.Pt();
-            values["H1_Eta"][i] = hCands[0].first.Eta();
-            values["H1_Phi"][i] = hCands[0].first.Phi();
-            values["H1_Mass"][i] = hCands[0].first.M();
-            values["H2_Pt"][i] = hCands[0].second.Pt();
-            values["H2_Eta"][i] = hCands[0].second.Eta();
-            values["H2_Phi"][i] = hCands[0].second.Phi();
-            values["H2_Mass"][i] = hCands[0].second.M();
-            values["HPlus_Mass"][i] = Hc1.M();
-            values["HPlus_Pt"][i] = Hc1.Pt();
-            values["HPlus_Phi"][i] = Hc1.Phi();
-            values["HPlus_Mt"][i] = Hc1.Mt();
+            values["H1_Pt"][idx] = hCands[0].first.Pt();
+            values["H1_Eta"][idx] = hCands[0].first.Eta();
+            values["H1_Phi"][idx] = hCands[0].first.Phi();
+            values["H1_Mass"][idx] = hCands[0].first.M();
+            values["H2_Pt"][idx] = hCands[0].second.Pt();
+            values["H2_Eta"][idx] = hCands[0].second.Eta();
+            values["H2_Phi"][idx] = hCands[0].second.Phi();
+            values["H2_Mass"][idx] = hCands[0].second.M();
+            values["HPlus_Mass"][idx] = Hc1.M();
+            values["HPlus_Pt"][idx] = Hc1.Pt();
+            values["HPlus_Phi"][idx] = Hc1.Phi();
+            values["HPlus_Mt"][idx] = Hc1.Mt();
         }
 
         else{
-            values["H1_Pt"][i] = hCands[0].second.Pt();
-            values["H1_Eta"][i] = hCands[0].second.Eta();
-            values["H1_Phi"][i] = hCands[0].second.Phi();
-            values["H1_Mass"][i] = hCands[0].second.M();
-            values["H2_Pt"][i] = hCands[0].first.Pt();
-            values["H2_Eta"][i] = hCands[0].first.Eta();
-            values["H2_Phi"][i] = hCands[0].first.Phi();
-            values["H2_Mass"][i] = hCands[0].first.M();
-            values["HPlus_Mass"][i] = Hc2.M();
-            values["HPlus_Phi"][i] = Hc2.Phi();
-            values["HPlus_Pt"][i] = Hc2.Pt();
-            values["HPlus_Mt"][i] = Hc2.Mt();
+            values["H1_Pt"][idx] = hCands[0].second.Pt();
+            values["H1_Eta"][idx] = hCands[0].second.Eta();
+            values["H1_Phi"][idx] = hCands[0].second.Phi();
+            values["H1_Mass"][idx] = hCands[0].second.M();
+            values["H2_Pt"][idx] = hCands[0].first.Pt();
+            values["H2_Eta"][idx] = hCands[0].first.Eta();
+            values["H2_Phi"][idx] = hCands[0].first.Phi();
+            values["H2_Mass"][idx] = hCands[0].first.M();
+            values["HPlus_Mass"][idx] = Hc2.M();
+            values["HPlus_Phi"][idx] = Hc2.Phi();
+            values["HPlus_Pt"][idx] = Hc2.Pt();
+            values["HPlus_Mt"][idx] = Hc2.Mt();
         }
     }
 

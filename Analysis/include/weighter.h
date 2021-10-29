@@ -25,7 +25,7 @@ class Weighter{
     private:
         std::shared_ptr<TFile> inputFile;
         std::shared_ptr<TTree> inputTree;
-        std::shared_ptr<NCache> cache;
+
         int era;
         bool isData;
         double xSec = 1., lumi = 1.;
@@ -34,17 +34,17 @@ class Weighter{
 
         double nGen = 1., baseWeight = 1., partWeight = 1.;
         std::shared_ptr<TH1F> pileUpWeight, pileUpWeightUp, pileUpWeightDown;
-        std::vector<NTupleReader> sf, sfUp, sfDown;
+        std::vector<NTupleFunction> sf, sfUp, sfDown;
         std::function<float(const int&)> bWeight, bWeightUp, bWeightDown; 
         std::vector<std::string> systematics;
 
-        static double GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour);
+        static double GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleFunction& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour);
 
     public:
         Weighter();
-        Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const std::shared_ptr<NCache>& cache = nullptr, const int& era = 2017);
+        Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const int& era = 2017);
 
-        void AddParticle(const std::string& partName, const std::string& wp, const std::experimental::source_location& location = std::experimental::source_location::current());
+        void AddParticle(const std::string& partName, const std::string& wp, NTupleReader& reader, const std::experimental::source_location& location = std::experimental::source_location::current());
 
         int GetNWeights();
 

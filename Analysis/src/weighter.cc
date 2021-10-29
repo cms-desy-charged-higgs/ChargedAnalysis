@@ -2,10 +2,9 @@
 
 Weighter::Weighter(){}
 
-Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const std::shared_ptr<NCache>& cache, const int& era) : 
+Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_ptr<TTree>& inputTree, const int& era) : 
     inputFile(inputFile),
     inputTree(inputTree),
-    cache(cache),
     era(era){
 
     isData = true;
@@ -56,11 +55,14 @@ Weighter::Weighter(const std::shared_ptr<TFile>& inputFile, const std::shared_pt
     }
 }
 
-double Weighter::GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleReader& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour){
+double Weighter::GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* effLight, NTupleFunction& bPt, TLeaf* pt, TLeaf* eta, TLeaf* sf, TLeaf* flavour){
     double wData = 1., wMC = 1.;
     float jetPt, jetEta, trueFlav, scaleFactor, eff;
 
     int size = RUtil::GetLen(pt, entry);
+    int bIdx = 0;
+
+    std::cout << "Event start" << std::endl;
 
     for(std::size_t i = 0; i < size; ++i){
         eff = 1.;
@@ -76,22 +78,24 @@ double Weighter::GetBJetWeight(const int& entry, TH2F* effB, TH2F* effC, TH2F* e
 
         if(eff == 0 or eff == 1) continue;
 
-        if(bPt.Get(entry) == jetPt){
+        if(bPt.Get(bIdx) == jetPt){
             wData *= scaleFactor * eff;
             wMC *= eff;
-            bPt.Next();
+            ++bIdx;
         }
     
         else{
-            wData *= 1 - scaleFactor*eff;
+            wData *= (1 - scaleFactor*eff);
             wMC *= (1 - eff);
         }
     }
 
+    std::cout << "Event end" << std::endl;
+
     return wData/wMC;
 }
 
-void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, const std::experimental::source_location& location){
+void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, NTupleReader& reader, const std::experimental::source_location& location){
     if(isData) return;
 
     //Read out information of SF branches for wished particle
@@ -105,8 +109,8 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
 
     if(!partInfo.get_child_optional(pName + ".scale-factors")) return;
 
-    std::vector<std::string> systematics = NTupleReader::GetInfo(partInfo.get_child(pName + ".scale-factors"), true);
-    std::vector<std::string> sfNames = NTupleReader::GetInfo(partInfo.get_child(pName + ".scale-factors"), false);
+    std::vector<std::string> systematics = NTupleReader::GetKeys(partInfo.get_child(pName + ".scale-factors"));
+    std::vector<std::string> sfNames = NTupleReader::GetVector(partInfo.get_child(pName + ".scale-factors"));
 
     for(int i = 0; i < sfNames.size(); ++i){
         for(const std::string shift : {"", "Up", "Down"}){
@@ -120,12 +124,15 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
             if(partInfo.get<std::string>(pName + ".alias") != "bj"){
                 if(shift == "") this->systematics.push_back(systematics.at(i));
 
-                std::vector<NTupleReader>& scaleFactor = shift == "" ? sf : shift == "Up" ? sfUp : sfDown;
+                NTupleFunction scaleFactor = reader.BuildFunc();
+                
+                scaleFactor.AddParticle(pAlias, 0, wp);
+                scaleFactor.AddFunctionByBranchName(branchName);
+                scaleFactor.Compile();
 
-                scaleFactor.push_back(std::move(NTupleReader(inputTree, era, cache)));
-                scaleFactor.back().AddParticle(pAlias, 0, wp);
-                scaleFactor.back().AddFunctionByBranchName(branchName);
-                scaleFactor.back().Compile();
+                if(shift == "") sf.push_back(std::move(scaleFactor));
+                else if(shift == "Up") sfUp.push_back(std::move(scaleFactor));
+                else if(shift == "Down") sfDown.push_back(std::move(scaleFactor));
             }
 
             else{
@@ -138,7 +145,7 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
                 TH2F* effLight = RUtil::Clone<TH2F>(RUtil::Get<TH2F>(inputFile.get(), StrUtil::Replace("n@LightbTagDeepCSV", "@", wpName)));
                 effLight->Divide(RUtil::Get<TH2F>(inputFile.get(), "nTrueLight"));
 
-                NTupleReader bPt = NTupleReader(inputTree, era, cache);
+                NTupleFunction bPt = reader.BuildFunc();
                 bPt.AddParticle("bj", 0, wp);
                 bPt.AddFunction("pt");
                 bPt.Compile();
@@ -152,10 +159,8 @@ void Weighter::AddParticle(const std::string& pAlias, const std::string& wp, con
                 return Weighter::GetBJetWeight(entry, effB, effC, effLight, bPt, jetPt, jetEta, sf, partonFlav);};
             
                 if(shift == "") bWeight = bW;
-                else{
-                    if(shift == "Up") bWeightUp = bW;
-                    else bWeightDown = bW;
-                }
+                else if(shift == "Up") bWeightUp = bW;
+                else if(shift == "Down") bWeightDown = bW;
             }
         }
     }
@@ -203,15 +208,19 @@ double Weighter::GetPartWeight(const std::size_t& entry, const std::string& syst
     }
 
     for(int idx = 0; idx < sf.size(); ++idx){
-        NTupleReader& scale = systIdx != idx ? sf[idx] : sysShift == "Up" ? sfUp[idx] : sfDown[idx];
-        scale.Reset();
+        std::vector<NTupleFunction>* scale;
 
-        while(true){
-            float weight = scale.Get(entry);
-            scale.Next();
+        if(systIdx != idx) scale = &sf;
+        else{
+            if(sysShift == "Up") scale = &sfUp;
+            else scale = &sfDown;
+        }
+
+        for(int k = 0;; ++k){
+            float weight = scale->at(idx).Get(k);
 
             if(weight != -999.) partWeight *= weight != 0 ? weight : 1.;
-            break;
+            else break;
         }   
     }
 
