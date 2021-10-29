@@ -1,3 +1,21 @@
+1Lep:
+    - TTToSemiLeptonic
+    - WJetsToLNu
+    - ST_s-channel_4f_leptonDecays
+    - ST_t-channel_eleDecays
+    - ST_t-channel_muDecays
+    - ST_t-channel_tauDecays
+    - ST_tW_antitop_5f_NoFullyHadronicDecays
+    - ST_tW_top_5f_NoFullyHadronicDecays
+
+2Lep:
+    - TTTo2L2Nu
+    - DYJetsToLL_M-10to50
+    - DYJetsToLL_M-50
+    - ZZ
+    - WZ
+    - WW
+
 QCD:
     - QCD_HT100to200
     - QCD_HT200to300
@@ -24,39 +42,32 @@ TTV:
     - TTWJetsToLNu
 
 VV:
-    - ZZTo4L
-    - ZZTo2L2Q
-    - WWToLNuQQ
-    - VVTo2L2Nu
-    - WZTo3LNu
-    - WZTo2L2Q
-    - WZTo1L3Nu
-    - WZTo1L1Nu2Q
+    - ZZ
+    - WZ
+    - WW
 
 WJ:
     - WJetsToLNu
+  #  - W1JetsToLNu
+  #  - W2JetsToLNu
+  #  - W3JetsToLNu
+  #  - W4JetsToLNu
    
 DYJ:
+    - DYJetsToLL_M-10to50
     - DYJetsToLL_M-50
-
-DYqq:
-    - DYJetsToQQ 
+  #  - DY1JetsToLL_M-50
+  #  - DY2JetsToLL_M-50
+  #  - DY3JetsToLL_M-50
+  #  - DY4JetsToLL_M-50
 
 ST:
     - ST_s-channel_4f_leptonDecays
-    - ST_tW_top_5f_inclusiveDecays
-    - ST_tW_antitop_5f_inclusiveDecays
-    - ST_t-channel_antitop_4f_inclusiveDecays
-    - ST_t-channel_top_4f_inclusiveDecays
-
-Hbb:
-    - ggZH_HToBB_ZToLL_M125_13TeV_powheg_pythia
-    - WplusH_HToBB_WToLNu_M125_13TeV_powheg_pythia8
-    - WminusH_HToBB_WToLNu_M125_13TeV_powheg_pythia8
-    - ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8
-
-JetHT:
-    - JetHT
+    - ST_t-channel_eleDecays
+    - ST_t-channel_muDecays
+    - ST_t-channel_tauDecays
+    - ST_tW_antitop_5f_NoFullyHadronicDecays
+    - ST_tW_top_5f_NoFullyHadronicDecays
 
 SingleE:
     - SingleElectron
@@ -65,29 +76,77 @@ SingleE:
 SingleMu:
     - SingleMuon
 
+HPlus200_h70_4B:
+    - HPlusAndH_ToWHH_ToL4B_200_70
+
+HPlus200_h80_4B:
+    - HPlusAndH_ToWHH_ToL4B_200_80
+
+HPlus200_h90_4B:
+    - HPlusAndH_ToWHH_ToL4B_200_90
+
 HPlus200_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_200_100
 
-HPlus250_h100_4B:
-    - HPlusAndH_ToWHH_ToL4B_250_100
+HPlus200_h110_4B:
+    - HPlusAndH_ToWHH_ToL4B_200_110
+
+HPlus300_h70_4B:
+    - HPlusAndH_ToWHH_ToL4B_300_70
+
+HPlus300_h80_4B:
+    - HPlusAndH_ToWHH_ToL4B_300_80
+
+HPlus300_h90_4B:
+    - HPlusAndH_ToWHH_ToL4B_300_90
 
 HPlus300_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_300_100
 
-HPlus350_h100_4B:
-    - HPlusAndH_ToWHH_ToL4B_350_100
+HPlus300_h110_4B:
+    - HPlusAndH_ToWHH_ToL4B_300_110
+
+HPlus400_h70_4B:
+    - HPlusAndH_ToWHH_ToL4B_400_70
+
+HPlus400_h80_4B:
+    - HPlusAndH_ToWHH_ToL4B_400_80
+
+HPlus400_h90_4B:
+    - HPlusAndH_ToWHH_ToL4B_400_90
 
 HPlus400_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_400_100
 
-HPlus450_h100_4B:
-    - HPlusAndH_ToWHH_ToL4B_450_100
+HPlus400_h110_4B:
+    - HPlusAndH_ToWHH_ToL4B_400_110
+
+HPlus500_h70_4B:
+    - HPlusAndH_ToWHH_ToL4B_500_70
+
+HPlus500_h80_4B:
+    - HPlusAndH_ToWHH_ToL4B_500_80
+
+HPlus500_h90_4B:
+    - HPlusAndH_ToWHH_ToL4B_500_90
 
 HPlus500_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_500_100
 
-HPlus550_h100_4B:
-    - HPlusAndH_ToWHH_ToL4B_550_100
+HPlus500_h110_4B:
+    - HPlusAndH_ToWHH_ToL4B_500_110
+
+HPlus600_h70_4B:
+    - HPlusAndH_ToWHH_ToL4B_600_70
+
+HPlus600_h80_4B:
+    - HPlusAndH_ToWHH_ToL4B_600_80
+
+HPlus600_h90_4B:
+    - HPlusAndH_ToWHH_ToL4B_600_90
 
 HPlus600_h100_4B:
     - HPlusAndH_ToWHH_ToL4B_600_100
+
+HPlus600_h110_4B:
+    - HPlusAndH_ToWHH_ToL4B_600_110
