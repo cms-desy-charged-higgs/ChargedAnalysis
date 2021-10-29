@@ -34,19 +34,19 @@
 
         "branch": "[P]_Eta",
 
-        "axis-name": "#eta([P]) [rad]",
+        "axis-name": "#eta([P])",
 
         "hist-name": "Eta_[P]"
     },
 
-    "Eta": {
-        "alias": "eta",
+    "Size": {
+        "alias": "size",
 
-        "branch": "[P]_Eta",
+        "branch": "[P]_Size",
 
-        "axis-name": "#eta([P]) [rad]",
+        "axis-name": "N([P])",
 
-        "hist-name": "Eta_[P]"
+        "hist-name": "Size_[P]"
     },
 
 
@@ -60,25 +60,50 @@
         "hist-name": "Charge_[P]"
     },
 
+    "Dxy": {
+        "alias": "dxy",
+
+        "branch": "[P]_Dxy",
+
+        "axis-name": "d_{xy}([P]) [cm]",
+
+        "hist-name": "Dxy_[P]"
+    },
+
+    "Dz": {
+        "alias": "dz",
+
+        "branch": "[P]_Dz",
+
+        "axis-name": "d_{z}([P]) [cm]",
+
+        "hist-name": "Dz_[P]"
+    },
+
     "Isolation": {
         "alias": "iso",
 
         "branch": "[P]_Isolation",
 
-        "axis-name": "iso.",
+        "axis-name": "iso.([P])",
 
         "hist-name": "Isolation_[P]"
+    },
+
+    "JetIso": {
+        "alias": "jetiso",
+
+        "branch": "[P]_JetRelIsolation",
+
+        "axis-name": "rel. jet iso.",
+
+        "hist-name": "JetIso_[P]"
     },
 
     "DiCharge": {
         "alias": "dicharge",
 
-        "need": {
-            "charge": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "need": ["charge"],
 
         "axis-name": "Charge([P]) * Charge([P])",
 
@@ -88,46 +113,21 @@
     "DiMass": {
         "alias": "diM",
 
-        "need": {
-            "pt": [
-                {"P1": 1},
-                {"P2": 2}
-            ],
-
-            "phi": [
-                {"P1": 1},
-                {"P2": 2}
-            ],
-
-            "eta": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "need": ["pt", "phi", "eta"],
 
         "axis-name": "m([P], [P]) [GeV]",
 
         "hist-name": "DiMass_[P]_[P]"
     },
 
-    "DiMT": {
+    "DiMassTransverse": {
         "alias": "diMT",
 
-        "need": {
-            "pt": [
-                {"P1": 1},
-                {"P2": 2}
-            ],
-
-            "phi": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "need": ["pt", "phi"],
 
         "axis-name": "m_{T}([P], [P]) [GeV]",
 
-        "hist-name": "DiMT_[P]_[P]"
+        "hist-name": "DiMassTransverse_[P]_[P]"
     },
 
     "HT": {
@@ -135,12 +135,7 @@
 
         "axis-name": "H_{T} [GeV]",
 
-        "need": {
-            "pt": [
-                {"P1": ""}
-            ]
-
-        },
+        "need": ["pt"],
 
         "hist-name": "HT"
     },
@@ -148,14 +143,9 @@
     "NParticle": {
         "alias": "N",
 
-        "axis-name": "Number of [P]",
+        "axis-name": "N([P])",
 
-        "need": {
-            "pt": [
-                {"P": ""}
-            ]
-
-        },
+        "need": ["size"],
 
         "hist-name": "N_[P]"
     },
@@ -163,21 +153,21 @@
     "dR": {
         "alias": "dR",
 
-        "axis-name": "#Delta R([P], [P]) [rad]",
+        "axis-name": "#Delta R([P], [P])",
 
-        "need": {
-            "phi": [
-                {"P1": 1},
-                {"P2": 2}
-            ],
-
-            "eta": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "need": ["phi", "eta"],
 
         "hist-name": "dR_[P]_[P]"
+    },
+
+    "dR3": {
+        "alias": "dR3",
+
+        "axis-name": "#Delta R([P], {[P], [P]})",
+
+        "need": ["phi", "eta", "pt"],
+
+        "hist-name": "dR_[P]_[P]_[P]"
     },
 
     "dPhi": {
@@ -185,40 +175,45 @@
 
         "axis-name": "#Delta #phi([P], [P]) [rad]",
 
-        "need": {
-            "phi": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "need": ["phi"],
 
         "hist-name": "dPhi_[P]_[P]"
     },
 
     "LP": {
-        "alias": "lp",
+        "alias": "LP",
 
-        "axis-name": "L_{P}",
+        "axis-name": "L_{P}([P], [P])",
 
-        "need": {
-            "pt": [
-                {"P1": 1},
-                {"P2": 2}
-            ],
+        "need": ["pt", "phi"],
 
-            "phi": [
-                {"P1": 1},
-                {"P2": 2}
-            ]
-        },
+        "hist-name": "LP_[P]_[P]"
+    },
 
-        "hist-name": "LP"
+    "dPhi3": {
+        "alias": "dphi3",
+
+        "axis-name": "#Delta #phi([P], {[P], [P]}) [rad]",
+
+        "need": ["phi", "eta", "pt"],
+
+        "hist-name": "dPhi_[P]_[P]_[P]"
+    },
+
+    "isGenMatched": {
+        "alias": "gM",
+
+        "axis-name": "isGenMatched([P])",
+
+        "need": ["gID"],
+
+        "hist-name": "isGenMached_[P]"
     },
 
     "Njettiness" : {
         "alias": "tau",
 
-        "branch": "[P]_Njettiness[V]",
+        "branch": "[P]_Tau[V]",
 
         "hist-name": "Njettiness[V]_[P]",
 
@@ -238,48 +233,100 @@
     "DAK8C" : {
         "alias": "dAK8C",
 
-        "need": {
-            "dAK8": [
-                {"P1": 1, "V1": 1},
-                {"P1": 1, "V2": 2},
-                {"P1": 1, "V3": 3},
-                {"P1": 1, "V4": 4},
-                {"P1": 1, "V5": 5}
-            ]
-        },
+        "branch": "[P]_DeepAK8ID",
 
         "hist-name": "[P]_DeepAK8C",
 
-        "axis-name": "DeepAK8 class"
+        "axis-name": "DeepAK8 class of [P]"
     },
 
     "DNN" : {
         "alias": "dnn",
 
-        "branch": "DNN_[V][V]",
-        "hist-name": "DNN_[V][V]",
+        "branch": "DNN_[V]_[V]_[V]",
+        "hist-name": "DNN_[V]_[V]",
 
-        "axis-name": "DNN score [V] (m(H^{#pm}) = [V] GeV)"
+        "axis-name": "DNN score [V] (m(H^{#pm}) = [V] GeV, m(h) = [V] GeV)"
     },
 
     "DNNC" : {
         "alias": "dnnc",
 
-        "branch": "DNN_Class[V]",
+        "branch": "DNN_Class_[V]_[V]",
 
-        "hist-name": "DNNC_[V]",
+        "hist-name": "DNNC_[V]_[V]",
 
-        "axis-name": "DNN class (m(H^{#pm}) = [V] GeV)"
+        "axis-name": "DNN class (m(H^{#pm}) = [V] GeV, m(h) = [V] GeV)"
     },
 
-    "ParticleID" : {
-        "alias": "pID",
+    "GenID" : {
+        "alias": "gID",
 
-        "branch": "[P]_ParticleID",
+        "branch": "[P]_GenID",
 
-        "axis-name": "ParticleID",
+        "axis-name": "|PDG ID([P])|",
 
-        "hist-name": "ParticleID"
+        "hist-name": "GenID"
+    },
+
+    "CutID" : {
+        "alias": "ID",
+
+        "branch": "[P]_CutID",
+
+        "axis-name": "CutID([P]]",
+
+        "hist-name": "CutID"
+    },
+
+    "MVAID" : {
+        "alias": "mID",
+
+        "branch": "[P]_MVAID",
+
+        "axis-name": "MVAID",
+
+        "hist-name": "MVAID"
+    },
+
+    "BTagID" : {
+        "alias": "bjID",
+
+        "branch": "[P]_DeepJetID",
+
+        "axis-name": "BTagID",
+
+        "hist-name": "BTagID"
+    },
+
+    "DeepAKID" : {
+        "alias": "fjID",
+
+        "branch": "[P]_DeepAK8ID",
+
+        "axis-name": "BTagID",
+
+        "hist-name": "BTagID"
+    },
+
+    "eventNumber" : {
+        "alias": "evNr",
+
+        "branch": "Misc_eventNumber",
+
+        "axis-name": "event number",
+
+        "hist-name": "eventNumber"
+    },
+
+    "modEventNumber" : {
+        "alias": "mEvNr",
+
+        "need": ["evNr"],
+
+        "axis-name": "event number",
+
+        "hist-name": "eventNumber"
     }
 }
     
