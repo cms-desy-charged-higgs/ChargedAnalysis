@@ -13,6 +13,7 @@ int main(int argc, char *argv[]){
     std::string inputFile = parser.GetValue<std::string>("input-file");
     std::string dCachePath = parser.GetValue<std::string>("dcache-path");
     std::string relativePath = parser.GetValue<std::string>("relative-path");
+    int timeOut = parser.GetValue<int>("time-out", 1800);
 
     //Check if file is valid
     RUtil::Open(inputFile).reset();
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]){
 
     while(true){
         std::system(("gfal-mkdir -p " + totalPath).c_str());
-        std::system(StrUtil::Merge("gfal-copy -f -t 1800 ", inputFile, " ", totalPath, fileName).c_str());
+        std::system(StrUtil::Merge("gfal-copy -f -t ", timeOut, " ", inputFile, " ", totalPath, fileName).c_str());
 
         try{
             RUtil::Open(outFile);
