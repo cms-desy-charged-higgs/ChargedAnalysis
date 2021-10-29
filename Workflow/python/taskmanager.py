@@ -139,7 +139,7 @@ class TaskManager(object):
         
         ##Break if job failed
         if status == "Failed":
-            if task.retries >= 3:
+            if task.retries >= 2:
                 self.monitor.updateMonitor(time.time() - self.time, self.status)
                 raise RuntimeError("Task '{}' failed! See error message: {}/err.txt".format(task["name"], task["dir"]))
 
