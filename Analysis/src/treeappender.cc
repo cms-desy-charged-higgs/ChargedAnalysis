@@ -4,6 +4,7 @@
 */
 
 #include <ChargedAnalysis/Analysis/include/treeappender.h>
+#include <ChargedAnalysis/Utility/include/vectorutil.h>
 
 TreeAppender::TreeAppender() {}
 
@@ -13,7 +14,7 @@ TreeAppender::TreeAppender(const std::string& fileName, const std::string& treeN
         era(era),
         appendFunctions(appendFunctions){}
 
-void TreeAppender::Append(const std::string& outName, Parser& parser){
+void TreeAppender::Append(const std::string& outName, const int& entryStart, const int& entryEnd, Parser& parser){
     //Get old Tree
     std::shared_ptr<TFile> oldF = RUtil::Open(fileName);
     std::shared_ptr<TTree> oldT = RUtil::GetSmart<TTree>(oldF.get(), treeName);
@@ -35,15 +36,11 @@ void TreeAppender::Append(const std::string& outName, Parser& parser){
             dnnDir = StrUtil::Replace(dnnDir, "{C}", treeName);
             dnnDir = StrUtil::Replace(dnnDir, "{E}", era);
 
-            std::string hyperParam = parser.GetValue("DNN-hyper-param-file");
-            hyperParam = StrUtil::Replace(hyperParam, "{C}", treeName);
-            hyperParam = StrUtil::Replace(hyperParam, "{E}", era);
-
-            funcValues = Extension::DNNScore(oldT, dnnDir, hyperParam, era);
+            funcValues = Extension::DNNScore(oldT, entryStart, entryEnd, dnnDir, era);
         }
 
         else if(function == "HReco"){
-            funcValues = Extension::HReconstruction(oldT, era);
+            funcValues = Extension::HReconstruction(oldT, entryStart, entryEnd, era);
         }
 
         for(const std::pair<std::string, std::vector<float>>& f : funcValues){
@@ -56,7 +53,7 @@ void TreeAppender::Append(const std::string& outName, Parser& parser){
 
     //Clone Tree
     std::shared_ptr<TFile> newF(TFile::Open(outName.c_str(), "RECREATE"));
-    std::shared_ptr<TTree> newT(oldT->CloneTree(-1, "fast"));
+    std::shared_ptr<TTree> newT(oldT->CloneTree(0));
 
     for(const std::string& name : branchNames){
         branchValues[name] = -999.;
@@ -64,11 +61,14 @@ void TreeAppender::Append(const std::string& outName, Parser& parser){
     }
 
     //Fill branches
-    for(int i=0; i < oldT->GetEntries(); i++){
+    for(int i=entryStart, j = 0; i < entryEnd; ++i, ++j){
+        oldT->GetEntry(i);
+    
         for(std::string& branchName: branchNames){
-            branchValues[branchName] = values[branchName][i];       
-            branches[branchName]->Fill();
+            branchValues[branchName] = values[branchName].at(j);       
         }
+
+        newT->Fill();
     }
 
     newF->cd();

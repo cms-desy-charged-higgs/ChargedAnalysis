@@ -47,7 +47,7 @@ class TreeAppender{
         * @brief Function which will execute the appending
         * @param outName Name of ROOT file which contains appended TTree
         */
-        void Append(const std::string& outName, Parser& parser);
+        void Append(const std::string& outName, const int& entryStart, const int& entryEnd, Parser& parser);
 };
 
 #endif

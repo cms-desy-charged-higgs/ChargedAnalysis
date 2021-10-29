@@ -7,17 +7,20 @@ int main(int argc, char* argv[]){
     //Parser arguments
     Parser parser(argc, argv);
 
-    std::string fileName = parser.GetValue<std::string>("out-file");
+    std::string inFile = parser.GetValue<std::string>("in-file");
+    std::string outFile = parser.GetValue<std::string>("out-file");
     std::string treeName = parser.GetValue<std::string>("tree-name");
     int era = parser.GetValue<int>("era");
+    int eventStart = parser.GetValue<int>("event-start");
+    int eventEnd = parser.GetValue<int>("event-end");
     std::vector<std::string> functions = parser.GetVector<std::string>("functions");
 
-    std::string dir = fileName.substr(0, StrUtil::Find(fileName, "/").back());
-    std::string tmpFile = "tmp.root"; //dir + "/tmp.root";
+    std::string dir = outFile.substr(0, StrUtil::Find(outFile, "/").back());
+    std::string tmpFile = dir + "/tmp.root";
 
-    TreeAppender appender(fileName, treeName, era, functions);
-    appender.Append(tmpFile, parser);
+    TreeAppender appender(inFile, treeName, era, functions);
+    appender.Append(tmpFile, eventStart, eventEnd, parser);
 
-   // if(RUtil::Open(tmpFile)) std::system(("mv -vf " + tmpFile + " " + fileName).c_str());
+    if(RUtil::Open(tmpFile)) std::system(("mv -vf " + tmpFile + " " + outFile).c_str());
 }
 
