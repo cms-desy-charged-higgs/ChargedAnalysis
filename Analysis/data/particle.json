@@ -2,8 +2,10 @@
     "Electron": {
         "alias": "e",
 
+        "size": "Electron_Size",
+
         "identification": {
-            "Electron_CutID": {
+            "Electron_MVAID": {
                 "WP": {
                     "loose": {
                         "value": 1,
@@ -20,49 +22,30 @@
                         "compare": ">="
                     }
                 }
-            },
-
-            "Electron_Isolation": {
-                "WP": {
-                    "loose": {
-                        "value": 0.15,
-                        "compare": "<="
-                    },
-
-                    "medium": {
-                        "value": 0.1,
-                        "compare": "<="
-                    },
-
-                    "tight": {
-                        "value": 0.05,
-                        "compare": "<="
-                    }
-                }
-            },
-
-            "Electron_ParticleID": {
-                "WP": {
-                    "gen": {
-                        "value": 0,
-                        "compare": ">="
-                    }
-                }
             }
-        },    
-
-        "scale-factors": {
-            "EleReco": "Electron_recoSF[SHIFT]",
-            "EleID": "Electron_[WP]SF[SHIFT]"
         },
 
-        "axis-name": "e_{[I]}",
+       "requirements": {
+            "pt": {
+                "value": 30,
+                "compare": ">="
+            }
+        },
+
+        "scale-factors": {
+            "EleReco": "Electron_RecoSF[SHIFT]",
+            "EleID": "Electron_[WP]MVASF[SHIFT]"
+        },
+
+        "axis-name": "e_{[I]}^{[WP]}",
 
         "hist-name": "Electron_[I]_[WP]"
     },
 
     "Muon": {
         "alias": "mu",
+
+        "size": "Muon_Size",
 
         "identification": {
             "Muon_CutID": {
@@ -87,17 +70,17 @@
             "Muon_Isolation": {
                 "WP": {
                     "loose": {
-                        "value": 0.15,
+                        "value": 10,
                         "compare": "<="
                     },
 
                     "medium": {
-                        "value": 0.1,
+                        "value": 0.2,
                         "compare": "<="
                     },
 
                     "tight": {
-                        "value": 0.05,
+                        "value": 0.15,
                         "compare": "<="
                     }
                 }
@@ -106,61 +89,44 @@
 
        "requirements": {
             "pt": {
-                "compare": ">=",
-                "cut": 30, 
-                "particles": {
-                    "THIS": ""
-                }
+                "value": 30,
+                "compare": ">="
             }
         },
 
         "scale-factors": {
             "MuonID": "Muon_[WP]SF[SHIFT]",
-            "MuonTrigger": "Muon_triggerSF[SHIFT]",
-            "MuonIso": "Muon_tightIso[WP]SF[SHIFT]"
+            "MuonTrigger": "Muon_TriggerSF[SHIFT]",
+            "MuonIso": "Muon_[WP]IsoSF[SHIFT]"
         },
 
-        "axis-name": "#mu_{[I]}",
+        "axis-name": "#mu_{[I]}^{[WP]}",
 
         "hist-name": "Muon_[I]_[WP]"
-    },
-
-    "LepJet": {
-        "branch-prefix": "Jet",
-
-        "alias": "lj",
-
-        "requirements": {
-            "dR": {
-                "compare": "<=",
-                "cut": 0.01, 
-                "particles": {
-                    "THIS": "",
-                    "P2": {
-                        "Muon": ["mu", 1, "loose"],
-                        "Ele": ["e", 1, "loose"]
-                    }
-                }
-            }
-        },
-
-        "axis-name": "lep. j_{[I]}",
-
-        "hist-name": "LepJet_[I]"
     },
 
     "Jet": {
         "alias": "j",
 
-       "requirements": {
+        "size": "Jet_Size",
+
+        "requirements": {
             "dR": {
                 "compare": ">=",
-                "cut": 0.4, 
+                "value": 0.4, 
                 "particles": {
-                    "THIS": "",
                     "P2": {
-                        "Muon": ["mu", 1, "medium"],
-                        "Ele": ["e", 1, "medium"]
+                        "Muon": {
+                            "partName": "mu",
+                            "idx": "1", 
+                            "wp": "loose"
+                        },
+
+                        "Ele": {
+                            "partName": "e",
+                            "idx": "1", 
+                            "wp": "loose"
+                        }
                     }
                 }
             }
@@ -174,10 +140,12 @@
     "BJet": {
         "alias": "bj",
 
+        "size": "Jet_Size",
+
         "branch-prefix": "Jet",
 
         "identification": {
-            "Jet_DeepCSVID": {
+            "Jet_DeepJetID": {
                 "WP": {
                     "loose": {
                         "value": 1,
@@ -197,22 +165,30 @@
             }
         },
 
-       "requirements": {
+        "requirements": {
             "dR": {
                 "compare": ">=",
-                "cut": 0.4, 
+                "value": 0.4, 
                 "particles": {
-                    "THIS": "",
                     "P2": {
-                        "Muon": ["mu", 1, "medium"],
-                        "Ele": ["e", 1, "medium"]
+                        "Muon": {
+                            "partName": "mu",
+                            "idx": "1", 
+                            "wp": "loose"
+                        },
+
+                        "Ele": {
+                            "partName": "e",
+                            "idx": "1", 
+                            "wp": "loose"
+                        }
                     }
                 }
             }
         },
 
         "scale-factors": {
-            "BTag": "Jet_[WP]CSVbTagSF[SHIFT]"
+            "BTag": "Jet_[WP]DeepJetSF[SHIFT]"
         },
 
         "axis-name": "bj_{[I]}",
@@ -223,6 +199,8 @@
     "FatJet": {
         "alias": "fj",
 
+        "size": "FatJet_Size",
+
         "axis-name": "fj_{[I]}",
 
         "hist-name": "FatJet_[I]"
@@ -230,6 +208,8 @@
 
     "SubJet": {
         "alias": "sj",
+
+        "size": "SubJet_Size",
 
         "axis-name": "sj_{[I]}",
 
@@ -241,13 +221,13 @@
 
         "axis-name": "#vec{p}_{T}^{miss}",
 
-        "non-vector": true,
-
         "hist-name": "MET"
     },
 
     "IsoTrack": {
         "alias": "trk",
+
+        "size": "IsoTrack_Size",
 
         "axis-name": "Iso. track [I]",
 
@@ -255,16 +235,10 @@
 
         "identification": {
             "IsoTrack_PDG": {
-                "absolute-values": true,
                 "WP": {
                     "lep": {
-                        "value": 13,
-                        "compare": ">="
-                    },
-
-                    "QCD": {
-                        "value": 1e8,
-                        "compare": "<="
+                        "value": 11,
+                        "compare": "|>=|"
                     }
                 }
             },
@@ -272,13 +246,8 @@
             "IsoTrack_Isolation": {
                 "WP": {
                     "lep": {
-                        "value": 0.2,
+                        "value": 0.25,
                         "compare": "<="
-                    },
-
-                    "QCD": {
-                        "value": 2,
-                        "compare": ">="
                     }
                 }
             }
@@ -287,24 +256,40 @@
         "requirements": {
             "dR": {
                 "compare": ">=",
-                "cut": 0.2,
+                "value": 0.4, 
                 "particles": {
-                    "THIS": "",
                     "P2": {
-                        "Muon": ["mu", 1, "medium"],
-                        "Ele": ["e", 1, "medium"]
+                        "Muon": {
+                            "partName": "mu",
+                            "idx": "1", 
+                            "wp": "loose"
+                        },
+
+                        "Ele": {
+                            "partName": "e",
+                            "idx": "1", 
+                            "wp": "loose"
+                        }
                     }
                 }
             },
 
             "dicharge": {
                 "compare": "==",
-                "cut": -1, 
+                "value": -1, 
                 "particles": {
-                    "THIS": "",
                     "P2": {
-                        "Muon": ["mu", 1, "medium"],
-                        "Ele": ["e", 1, "medium"]
+                        "Muon": {
+                            "partName": "mu",
+                            "idx": "1", 
+                            "wp": "loose"
+                        },
+
+                        "Ele": {
+                            "partName": "e",
+                            "idx": "1", 
+                            "wp": "loose"
+                        }
                     }
                 }
             }
@@ -316,9 +301,7 @@
 
         "axis-name": "H^{#pm}",
 
-        "hist-name": "HPlus",
-
-        "non-vector": true
+        "hist-name": "HPlus"
     },
 
     "W": {
@@ -326,9 +309,7 @@
 
         "axis-name": "W^{#pm}",
 
-        "hist-name": "W",
-
-        "non-vector": true
+        "hist-name": "W"
     },
 
     "H1": {
@@ -336,9 +317,7 @@
 
         "axis-name": "h_{1}",
 
-        "hist-name": "H1",
-
-        "non-vector": true
+        "hist-name": "H1"
     },
 
     "H2": {
@@ -346,8 +325,6 @@
 
         "axis-name": "h_{2}",
 
-        "hist-name": "H2",
-
-        "non-vector": true
+        "hist-name": "H2"
     }
 }
