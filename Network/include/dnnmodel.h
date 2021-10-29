@@ -8,12 +8,12 @@ struct DNNModel : torch::nn::Module{
         //Input layer
         torch::nn::BatchNorm1d inNormLayer{nullptr};
         torch::nn::Linear inputLayer{nullptr};
-        torch::nn::ReLU reluInLayer{nullptr};
+        torch::nn::Tanh reluInLayer{nullptr};
 
         //Hidden layer
         std::vector<torch::nn::BatchNorm1d> normLayers;
         std::vector<torch::nn::Linear> hiddenLayers;
-        std::vector<torch::nn::ReLU> activationLayers;
+        std::vector<torch::nn::Tanh> activationLayers;
         std::vector<torch::nn::Dropout> dropLayers;
 
         //Output layer
