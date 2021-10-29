@@ -3,9 +3,10 @@
 
 #include <fstream>
 #include <vector>
-#include <string>
+#include <string_view>
 #include <map>
 #include <filesystem>
+#include <numeric>
 #include <experimental/source_location>
 
 #include <ChargedAnalysis/Utility/include/stringutil.h>
@@ -18,69 +19,67 @@ class CSV{
         std::fstream file;
         
         std::vector<std::size_t> linePos;
+        std::vector<std::size_t> lineSize;
         std::vector<std::string> colNames; 
         
-        std::size_t rowIdx = std::numeric_limits<std::size_t>::max();
-        std::string currentRow;
+        std::size_t lineMinBuff = 0, lineMaxBuff = 0;
+        std::vector<char> buffer;
 
         std::filebuf* GetBuffer();
         void WriteBuffer(std::filebuf* buffer);
         
     public:
-        CSV(const std::string& fileName, const std::string& fileMode, const std::string& delim = ",", const bool& binaryMode = false, const std::experimental::source_location& location = std::experimental::source_location::current());
-        CSV(const std::string& fileName, const std::string& fileMode, const std::vector<std::string>& colNames, const std::string& delim = ",",  const bool& binaryMode = false, const std::experimental::source_location& location = std::experimental::source_location::current());
-        ~CSV(){file.close();}
+        CSV(const std::string& fileName, const std::string& fileMode, const std::string& delim = ",", const std::experimental::source_location& location = std::experimental::source_location::current());
+        CSV(const std::string& fileName, const std::string& fileMode, const std::vector<std::string>& colNames, const std::string& delim = ",", const std::experimental::source_location& location = std::experimental::source_location::current());
+        ~CSV(){Close();}
 
         std::size_t GetNColumns(){return colNames.size();}
         std::size_t GetNRows(){return linePos.size();}
+
+        bool Close(){
+            if(file.is_open()){
+                file.close();
+                return true;
+            }
+
+            return false;
+        }
 
         static void Merge(const std::string& outFile, const std::vector<std::string>& fileNames, const std::string& delim = ",", const std::experimental::source_location& location = std::experimental::source_location::current());
 
         template<typename T = std::string>
         std::vector<T> GetRow(const std::size_t& row, const std::experimental::source_location& location = std::experimental::source_location::current()){
-            if(StrUtil::Find(mode, "r").empty()){
+            if(mode != "r" and mode != "rw"){
                 throw std::runtime_error(StrUtil::PrettyError(location, "Can not read in '", mode, "' filemode!"));
             }
 
             if(row >= linePos.size()){
                 throw std::runtime_error(StrUtil::PrettyError(location, "Line number '", row, " too large with '", linePos.size() ,"'number of lines in file!"));
+            } 
+
+            if(row < lineMinBuff or lineMaxBuff < row or row == 0){
+                lineMinBuff = row;
+                lineMaxBuff = lineMinBuff + 1000;
+
+                buffer.resize(std::accumulate(lineSize.begin() + lineMinBuff, lineMaxBuff < lineSize.size() ? lineSize.begin() + lineMaxBuff : lineSize.end(),  0));
+
+                file.clear();
+                file.seekg(linePos.at(row));
+                file.read(buffer.data(), buffer.size());
             }
 
-            //Check if current row is read out
-            if(rowIdx == row){
-                if(colNames.size() > 1){
-                    return StrUtil::Split<T>(currentRow, delim);
-                }
-
-                //If only one column, no need for splitting
-                else{
-                    T out;
-                    std::stringstream rowStream(currentRow);
-                    rowStream >> out;
-
-                    return {out};
-                }
-            }
-
-            //Seek file position and read out line
-            file.clear();
-            file.seekg(linePos.at(row));
-            std::string line;
-            std::getline(file, line);
-
-            //Get vector with splitted row and return column idx of vector
-            rowIdx = row;
-            currentRow = line;
+            std::string_view line(buffer.data() + std::accumulate(lineSize.begin() + lineMinBuff, lineSize.begin() + row, 0), lineSize.at(row) - 1);
 
             //If more than one column, split by delimeter and return
             if(colNames.size() > 1){
-                return StrUtil::Split<T>(line, delim);
+                return StrUtil::Split<T>(std::string(line.data()), delim);
             }
 
             //If only one column, no need for splitting
             else{
                 T out;
-                std::stringstream rowStream(currentRow);
+                std::stringstream rowStream;
+                rowStream << line;
                 rowStream >> out;
 
                 return {out};

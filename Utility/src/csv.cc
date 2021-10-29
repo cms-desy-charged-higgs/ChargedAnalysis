@@ -1,19 +1,19 @@
 #include <ChargedAnalysis/Utility/include/csv.h>
 
-CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::string& delim, const bool& binaryMode, const std::experimental::source_location& location) : 
-    CSV(fileName, fileMode, {}, delim, binaryMode, location)
+CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::string& delim, const std::experimental::source_location& location) : 
+    CSV(fileName, fileMode, {}, delim, location)
     {}
 
-CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::vector<std::string>& colNames, const std::string& delim, const bool& binaryMode, const std::experimental::source_location& location):
+CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::vector<std::string>& colNames, const std::string& delim, const std::experimental::source_location& location):
     mode(fileMode),
     delim(delim),
     colNames(colNames){
     //Translate given file mode into std::fstream file modes
     std::map<std::string, std::ios_base::openmode> modes = {
-                {"r", std::ios_base::in},
-                {"w", std::ios_base::out},
+                {"r", std::ios_base::in | std::ios_base::binary},
+                {"w", std::ios_base::out | std::ios_base::binary},
                 {"rw", std::ios_base::in | std::ios_base::out},
-                {"w+", std::ios_base::out | std::ios_base::trunc}
+                {"w+", std::ios_base::out | std::ios_base::trunc | std::ios_base::binary}
     };
 
     if(!modes.count(fileMode)){
@@ -32,14 +32,14 @@ CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::ve
     }
 
     //Open file
-    file.open(fileName, binaryMode ? modes[fileMode] | std::ios_base::binary : modes[fileMode]);
+    file.open(fileName, modes[fileMode]);
     
     if(!file.is_open()){
         throw std::runtime_error(StrUtil::PrettyError(location, "Could not open file: '", fileName, "'!"));
     }
     
     //Save in read mode for each line length of line for later read out
-    if(!StrUtil::Find(fileMode, "r").empty()){
+    if(fileMode == "r" or fileMode == "rw"){
         std::string line;
         
         //Read out header (which is assumed to exist)
@@ -54,11 +54,12 @@ CSV::CSV(const std::string& fileName, const std::string& fileMode, const std::ve
         //Read line lenghts for data in file
         while (std::getline(file, line)){
             linePos.push_back(line.size() + linePos.back() + 1);
+            lineSize.push_back(line.size() + 1);
         }
         
         linePos.pop_back();
     }
-    
+
     //Write header in write mode
     if(fileMode == "w" or fileMode == "w+"){
         file.clear();
@@ -122,12 +123,12 @@ void CSV::Merge(const std::string& outFile, const std::vector<std::string>& inpu
     if(inputFiles.size() == 1) return;
 
     //Open output file and merge
-    CSV out(outFile, "rw", delim, true);
+    CSV out(outFile, "rw", delim);
 
     for(std::size_t idx = 1; idx < inputFiles.size(); ++idx){
         std::cout << inputFiles.at(idx) << std::endl;
 
-        CSV toMerge(inputFiles.at(idx), "r", delim, true);
+        CSV toMerge(inputFiles.at(idx), "r", delim);
         out.WriteBuffer(toMerge.GetBuffer());
     }
 
