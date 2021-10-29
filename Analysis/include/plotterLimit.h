@@ -23,9 +23,8 @@
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/mathutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
-#include <ChargedAnalysis/Analysis/include/plotter.h>
 
-class PlotterLimit : public Plotter{
+class PlotterLimit{
     private:
         std::vector<std::string> limitFiles;
         std::vector<int> chargedMasses, neutralMasses;

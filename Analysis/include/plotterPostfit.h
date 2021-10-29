@@ -15,7 +15,6 @@
 #include <TLegend.h>
 #include <TGraphAsymmErrors.h>
 
-#include <ChargedAnalysis/Analysis/include/plotter.h>
 #include <ChargedAnalysis/Utility/include/stringutil.h>
 #include <ChargedAnalysis/Utility/include/plotutil.h>
 #include <ChargedAnalysis/Utility/include/rootutil.h>
